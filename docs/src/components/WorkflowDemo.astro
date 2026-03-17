@@ -151,7 +151,8 @@
 
 <script>
   async function initDemo() {
-    const BASE = import.meta.env.BASE_URL || '/workflow-graph/';
+    const rawBase = import.meta.env.BASE_URL || '/workflow-graph/';
+    const BASE = rawBase.endsWith('/') ? rawBase : rawBase + '/';
     const wasmUrl = `${BASE}wasm/workflow_graph_web.js`;
 
     const wasmBinaryUrl = `${BASE}wasm/github_graph_web_bg.wasm`;
