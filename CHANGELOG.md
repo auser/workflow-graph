@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2026-03-17
+
+### Bug Fixes
+
+- Bump actions to v5 and fix TS compilation for WASM import([eb38c83](https://github.com/auser/workflow-graph/commit/eb38c838d259de29aebb2381b97b631fbdc329c5))
+- Sync workspace dependency versions to 0.2.2([be4d63f](https://github.com/auser/workflow-graph/commit/be4d63f7d8ab2a11e12f03dbf915d4cd6fde7917))
+
+### Miscellaneous
+
+- Bump workspace version to 0.2.3([b8a26bf](https://github.com/auser/workflow-graph/commit/b8a26bf78ccc078e0147c11d74fd62e053a98e7d))
+- Remove Dependabot — managing dependencies manually([7ce3280](https://github.com/auser/workflow-graph/commit/7ce3280b975718ed4e3fa16d7bc5ecbef7cb0234))
 ## [0.2.2] - 2026-03-17
 
 ### Bug Fixes
@@ -10,6 +21,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog for v0.2.2([a0476bc](https://github.com/auser/workflow-graph/commit/a0476bc4946a159b024c9d75a76f61f4a3577dd5))
 - Bump workspace version to 0.2.2([86d725a](https://github.com/auser/workflow-graph/commit/86d725a9d1425a8d933216489142a91df0c41979))
 ## [0.2.1] - 2026-03-17
 
