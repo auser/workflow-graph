@@ -476,11 +476,13 @@ pub fn update_workflow_data(canvas_id: &str, workflow_json: &str) -> Result<(), 
                 }
             }
             s.announce_status_changes(&old_statuses);
-            if s.dragging.is_none() {
-                s.redraw();
-            }
             let has_running = s.has_running_jobs();
             let already_animating = s.animating;
+            // If the animation loop is running, it handles redraws via requestAnimationFrame.
+            // Only do a static redraw when not animating.
+            if s.dragging.is_none() && !(has_running && already_animating) {
+                s.redraw();
+            }
             drop(s);
             if has_running && !already_animating {
                 maybe_start_animation(canvas_id, state);
