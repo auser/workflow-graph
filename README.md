@@ -52,13 +52,23 @@ Render interactive workflow graphs in the browser with pixel-perfect GitHub Octi
                       └─────────┘
 ```
 
-## Guides
+## Documentation
+
+Full documentation is available at **[auser.github.io/workflow-graph](https://auser.github.io/workflow-graph/)**.
 
 | Guide | Description |
 |-------|-------------|
-| [Writing Workers](docs/guide-workers.md) | Standalone binary, embedded SDK, custom executors, HTTP protocol reference |
-| [Postgres Backend](docs/guide-postgres.md) | Full trait implementations using sqlx with pg-boss-style atomic claiming |
-| [Redis Backend](docs/guide-redis.md) | Full trait implementations with Lua scripts and Pub/Sub |
+| [Getting Started](https://auser.github.io/workflow-graph/getting-started/installation/) | Installation, prerequisites, quick start |
+| [Creating Workers](https://auser.github.io/workflow-graph/guides/creating-workers/) | Build workers in Rust, Python, TypeScript, or Go |
+| [Worker SDK](https://auser.github.io/workflow-graph/workers/sdk/) | Embed the Rust worker SDK in your own binary |
+| [Worker Protocol](https://auser.github.io/workflow-graph/workers/custom-workers/) | HTTP protocol reference for any-language workers |
+| [Postgres Backend](https://auser.github.io/workflow-graph/guides/postgres-backend/) | pg-boss-style atomic claiming with sqlx |
+| [Redis Backend](https://auser.github.io/workflow-graph/guides/redis-backend/) | Lua-scripted atomic claiming and Pub/Sub events |
+| [Custom Queue Backend](https://auser.github.io/workflow-graph/guides/custom-queue/) | Implement the four queue traits for your own storage |
+| [Embedding](https://auser.github.io/workflow-graph/guides/embedding/) | Use `create_router()` in your own Axum server |
+| [Deployment Modes](https://auser.github.io/workflow-graph/architecture/deployment-modes/) | All-in-one vs split (edge/serverless) |
+| [REST API](https://auser.github.io/workflow-graph/api/rest-api/) | Full HTTP API reference |
+| [WASM API](https://auser.github.io/workflow-graph/api/wasm-api/) | JavaScript API for the canvas renderer |
 
 ## Crate Structure
 
