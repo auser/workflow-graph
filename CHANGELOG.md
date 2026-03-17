@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-03-17
+
+### Miscellaneous
+
+- Bump workspace version to 0.4.1([16b2329](https://github.com/auser/workflow-graph/commit/16b2329bc28b813fb6c3b2e8029927516437da56))
 ## [0.4.0] - 2026-03-17
 
 ### Features
