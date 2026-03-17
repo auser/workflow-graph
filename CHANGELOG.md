@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4] - 2026-03-17
+
+### Bug Fixes
+
+- Install React types and sibling dep before building in CI([aaf0655](https://github.com/auser/workflow-graph/commit/aaf0655c560b0f1c533599bd1faf1c8ffa52672c))
+
+### Miscellaneous
+
+- Bump workspace version to 0.2.4([2b3c8a0](https://github.com/auser/workflow-graph/commit/2b3c8a04af643e2c243a62d02df922b276ec0a61))
 ## [0.2.3] - 2026-03-17
 
 ### Bug Fixes
@@ -11,6 +20,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog for v0.2.3([89bf201](https://github.com/auser/workflow-graph/commit/89bf2019879b27954e737bdca72221bcc6eedaa4))
 - Bump workspace version to 0.2.3([b8a26bf](https://github.com/auser/workflow-graph/commit/b8a26bf78ccc078e0147c11d74fd62e053a98e7d))
 - Remove Dependabot — managing dependencies manually([7ce3280](https://github.com/auser/workflow-graph/commit/7ce3280b975718ed4e3fa16d7bc5ecbef7cb0234))
 ## [0.2.2] - 2026-03-17
