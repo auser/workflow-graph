@@ -1,9 +1,13 @@
-# Sprint: Queue/Worker System
+# Sprint: Queue/Worker System + Web Component Library
 
 ## Prerequisite
 - [x] Add node click events to WASM frontend (JS callback API)
 
+---
+
 ## Phase 1: Queue Crate — Traits + In-Memory
+> `crates/queue/` — pure library, no HTTP dependency
+
 - [ ] Create `crates/queue/` crate with Cargo.toml
 - [ ] Define `JobQueue` trait (enqueue, claim, renew, complete, fail, cancel, reap, subscribe)
 - [ ] Define `ArtifactStore` trait (put_outputs, get_outputs, get_upstream_outputs)
@@ -19,7 +23,25 @@
 - [ ] Unit tests for artifact store
 - [ ] Unit tests for log sink subscribe/append
 
+> **pg-boss mapping:** Our `JobQueue` trait maps 1:1 to pg-boss operations.
+> pg-boss handles atomic claiming via `SELECT ... FOR UPDATE SKIP LOCKED` —
+> no two workers can claim the same job. Expired leases are reaped by pg-boss's
+> internal `maintain()` loop. Retry policy is configured per-job at enqueue time.
+>
+> | Our trait method     | pg-boss equivalent                        |
+> |----------------------|-------------------------------------------|
+> | `enqueue()`          | `boss.send(queue, data, options)`         |
+> | `claim()`            | `boss.fetch(queue)` (atomic FOR UPDATE)   |
+> | `renew_lease()`      | extend `expireInSeconds` on active job    |
+> | `complete()`         | `boss.complete(jobId, data)`              |
+> | `fail()`             | `boss.fail(jobId, data)`                  |
+> | `cancel()`           | `boss.cancel(jobId)`                      |
+> | `reap_expired()`     | pg-boss `maintain()` (automatic)          |
+> | `subscribe()`        | pg-boss `work()` / LISTEN/NOTIFY          |
+
 ## Phase 2: DagScheduler
+> Event-driven DAG cascade — replaces the inline orchestrator
+
 - [ ] Implement `DagScheduler` struct with event-driven loop
 - [ ] On workflow start: enqueue root jobs (no deps)
 - [ ] On Completed: find ready downstream → enqueue with upstream outputs
@@ -29,6 +51,8 @@
 - [ ] Unit tests for scheduler with mock queue
 
 ## Phase 3: Server Integration
+> Wire queue into server, expose worker protocol via HTTP
+
 - [ ] Add `crates/queue` dependency to server
 - [ ] Modify `main.rs`: create in-memory instances, spawn scheduler + lease reaper
 - [ ] Expose `create_router()` for library consumers
@@ -42,12 +66,14 @@
 - [ ] Verify existing frontend still works unchanged
 
 ## Phase 4: Worker SDK
+> `crates/worker-sdk/` — standalone worker binary + embeddable library
+
 - [ ] Create `crates/worker-sdk/` crate
 - [ ] Move executor logic from server, enhance with incremental output
 - [ ] Implement `Worker` struct with config
-- [ ] Implement poll/claim loop
-- [ ] Implement heartbeat sender (concurrent task)
-- [ ] Implement log streaming (batched push)
+- [ ] Implement poll/claim loop (HTTP polling)
+- [ ] Implement heartbeat sender (concurrent task, every TTL/3)
+- [ ] Implement log streaming (batched push, every 500ms or 50 lines)
 - [ ] Implement cancellation checking + graceful child kill
 - [ ] Add `main.rs` standalone worker binary
 - [ ] Integration test: server + worker end-to-end
@@ -58,6 +84,13 @@
 - [ ] Propagate through `into_workflow()` to shared types
 - [ ] Add `required_labels`, `retry_policy`, `attempt` to `Job` struct
 - [ ] Update sample `workflows/ci.yml` with examples
+
+## Phase 6: Log Collection API
+- [ ] `GET /api/workflows/{wf_id}/jobs/{job_id}/logs` — historical JSON
+- [ ] `GET /api/workflows/{wf_id}/jobs/{job_id}/logs/stream` — SSE live stream
+- [ ] Wire node click → log fetch in demo frontend
+
+---
 
 ## Web Component Library (Plan 002)
 
@@ -104,8 +137,3 @@
 - [ ] Hidden DOM overlay with focusable node elements
 - [ ] Tab/arrow key navigation
 - [ ] Enter/Space to select
-
-## Phase 6: Log Collection API
-- [ ] `GET /api/workflows/{wf_id}/jobs/{job_id}/logs` — historical JSON
-- [ ] `GET /api/workflows/{wf_id}/jobs/{job_id}/logs/stream` — SSE live stream
-- [ ] Wire node click → log fetch in demo frontend
