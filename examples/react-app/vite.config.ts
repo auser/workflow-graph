@@ -4,8 +4,12 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    exclude: ['@auser/workflow-graph-web'],
+  resolve: {
+    alias: {
+      // Point directly at source so Vite compiles it — no pre-build needed
+      '@auser/workflow-graph-react': path.resolve(__dirname, '../../packages/react/src/index.tsx'),
+      '@auser/workflow-graph-web': path.resolve(__dirname, '../../packages/web/src/index.ts'),
+    },
   },
   server: {
     fs: {
