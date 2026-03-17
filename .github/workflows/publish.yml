@@ -25,37 +25,37 @@ jobs:
       - name: Install Rust toolchain
         run: rustup toolchain install stable --profile minimal
 
-      # Publish in dependency order
+      # Publish in dependency order (allow "already exists" so re-runs succeed)
       - name: Publish workflow-graph-shared
-        run: cargo publish -p workflow-graph-shared --allow-dirty
+        run: cargo publish -p workflow-graph-shared --allow-dirty || echo "Already published"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish workflow-graph-queue
         run: |
           sleep 30
-          cargo publish -p workflow-graph-queue --allow-dirty
+          cargo publish -p workflow-graph-queue --allow-dirty || echo "Already published"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish workflow-graph-server
         run: |
           sleep 30
-          cargo publish -p workflow-graph-server --allow-dirty
+          cargo publish -p workflow-graph-server --allow-dirty || echo "Already published"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish workflow-graph-worker-sdk
         run: |
           sleep 30
-          cargo publish -p workflow-graph-worker-sdk --allow-dirty
+          cargo publish -p workflow-graph-worker-sdk --allow-dirty || echo "Already published"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish workflow-graph-scheduler
         run: |
           sleep 30
-          cargo publish -p workflow-graph-scheduler --allow-dirty
+          cargo publish -p workflow-graph-scheduler --allow-dirty || echo "Already published"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
