@@ -156,10 +156,11 @@ impl Worker {
                 tokio::time::sleep(hb_interval).await;
                 let res = hb_client.post(&hb_url).send().await;
                 if let Ok(resp) = res
-                    && resp.status() == reqwest::StatusCode::CONFLICT {
-                        eprintln!("Lease expired, aborting heartbeat");
-                        break;
-                    }
+                    && resp.status() == reqwest::StatusCode::CONFLICT
+                {
+                    eprintln!("Lease expired, aborting heartbeat");
+                    break;
+                }
             }
         });
 
@@ -177,10 +178,11 @@ impl Worker {
                 tokio::time::sleep(cancel_interval).await;
                 if let Ok(resp) = cancel_client.get(&cancel_url).send().await
                     && let Ok(cancelled) = resp.json::<bool>().await
-                        && cancelled {
-                            cancel_token_clone.cancel();
-                            break;
-                        }
+                    && cancelled
+                {
+                    cancel_token_clone.cancel();
+                    break;
+                }
             }
         });
 

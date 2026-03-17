@@ -180,10 +180,11 @@ impl<Q: JobQueue, A: ArtifactStore> DagScheduler<Q, A> {
     async fn on_job_started(&self, workflow_id: &str, job_id: &str) {
         let mut state = self.state.write().await;
         if let Some(wf) = state.workflows.get_mut(workflow_id)
-            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
-                job.status = JobStatus::Running;
-                job.started_at = Some(now_ms() as f64);
-            }
+            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id)
+        {
+            job.status = JobStatus::Running;
+            job.started_at = Some(now_ms() as f64);
+        }
     }
 
     async fn on_job_completed(
@@ -295,21 +296,23 @@ impl<Q: JobQueue, A: ArtifactStore> DagScheduler<Q, A> {
         // We just need to update the state if the job was permanently failed.
         let mut state = self.state.write().await;
         if let Some(wf) = state.workflows.get_mut(workflow_id)
-            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
-                // If the queue re-enqueued it, mark as queued; otherwise mark as failure
-                // We can't easily know here, so mark as Queued — the next Started event
-                // will update it correctly.
-                job.status = JobStatus::Queued;
-                job.started_at = None;
-            }
+            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id)
+        {
+            // If the queue re-enqueued it, mark as queued; otherwise mark as failure
+            // We can't easily know here, so mark as Queued — the next Started event
+            // will update it correctly.
+            job.status = JobStatus::Queued;
+            job.started_at = None;
+        }
     }
 
     async fn on_job_cancelled(&self, workflow_id: &str, job_id: &str) {
         let mut state = self.state.write().await;
         if let Some(wf) = state.workflows.get_mut(workflow_id)
-            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
-                job.status = JobStatus::Cancelled;
-            }
+            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id)
+        {
+            job.status = JobStatus::Cancelled;
+        }
     }
 }
 

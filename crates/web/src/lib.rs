@@ -449,11 +449,12 @@ fn maybe_start_animation(canvas_id: &str, state: &SharedState) {
 
         if should_continue {
             if let Some(window) = web_sys::window()
-                && let Some(cb) = callback_clone.borrow().as_ref() {
-                    window
-                        .request_animation_frame(cb.as_ref().unchecked_ref())
-                        .ok();
-                }
+                && let Some(cb) = callback_clone.borrow().as_ref()
+            {
+                window
+                    .request_animation_frame(cb.as_ref().unchecked_ref())
+                    .ok();
+            }
         } else {
             state.borrow_mut().animating = false;
             *callback_clone.borrow_mut() = None;
@@ -461,11 +462,12 @@ fn maybe_start_animation(canvas_id: &str, state: &SharedState) {
     }));
 
     if let Some(window) = web_sys::window()
-        && let Some(cb) = callback.borrow().as_ref() {
-            window
-                .request_animation_frame(cb.as_ref().unchecked_ref())
-                .ok();
-        }
+        && let Some(cb) = callback.borrow().as_ref()
+    {
+        window
+            .request_animation_frame(cb.as_ref().unchecked_ref())
+            .ok();
+    }
 }
 
 fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Result<(), JsValue> {
@@ -604,15 +606,16 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
             // Fire drag end callback
             if let Some(idx) = s.dragging
                 && !is_click
-                    && let Some(ref cb) = s.on_node_drag_end {
-                        let node = &s.layout.nodes[idx];
-                        let _ = cb.call3(
-                            &JsValue::NULL,
-                            &JsValue::from_str(&node.job_id),
-                            &JsValue::from_f64(node.x),
-                            &JsValue::from_f64(node.y),
-                        );
-                    }
+                && let Some(ref cb) = s.on_node_drag_end
+            {
+                let node = &s.layout.nodes[idx];
+                let _ = cb.call3(
+                    &JsValue::NULL,
+                    &JsValue::from_str(&node.job_id),
+                    &JsValue::from_f64(node.x),
+                    &JsValue::from_f64(node.y),
+                );
+            }
 
             s.mouse_down_pos = None;
             s.dragging = None;
