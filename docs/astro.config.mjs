@@ -58,6 +58,8 @@ export default defineConfig({
             },
             { label: 'Embedding', slug: 'guides/embedding' },
             { label: 'Custom Queue Backend', slug: 'guides/custom-queue' },
+            { label: 'Postgres / pg-boss', slug: 'guides/postgres-backend' },
+            { label: 'Redis Backend', slug: 'guides/redis-backend' },
           ],
         },
       ],
