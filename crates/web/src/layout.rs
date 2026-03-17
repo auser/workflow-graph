@@ -1,5 +1,5 @@
-use workflow_graph_shared::Workflow;
 use std::collections::HashMap;
+use workflow_graph_shared::Workflow;
 
 use crate::theme;
 
@@ -25,7 +25,6 @@ pub struct GraphLayout {
     pub total_width: f64,
     pub total_height: f64,
 }
-
 
 pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
     let jobs = &workflow.jobs;
@@ -92,9 +91,9 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
         positions[idx] = (rank, rank as f64);
     }
 
-    for layer in 1..=max_layer {
+    for group in layer_groups.iter_mut().skip(1) {
         // Compute barycenter for each job in this layer
-        let mut barycenters: Vec<(usize, f64)> = layer_groups[layer]
+        let mut barycenters: Vec<(usize, f64)> = group
             .iter()
             .map(|&idx| {
                 let deps: Vec<f64> = jobs[idx]
@@ -115,8 +114,8 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
         barycenters.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
         // Re-order the layer group
-        layer_groups[layer] = barycenters.iter().map(|&(idx, _)| idx).collect();
-        for (rank, &idx) in layer_groups[layer].iter().enumerate() {
+        *group = barycenters.iter().map(|&(idx, _)| idx).collect();
+        for (rank, &idx) in group.iter().enumerate() {
             positions[idx] = (rank, rank as f64);
         }
     }
@@ -129,7 +128,9 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
     for (layer, group) in layer_groups.iter().enumerate() {
         for (rank, &idx) in group.iter().enumerate() {
             let x = theme::PADDING + layer as f64 * (theme::NODE_WIDTH + theme::H_GAP);
-            let y = theme::PADDING + theme::HEADER_HEIGHT + rank as f64 * (theme::NODE_HEIGHT + theme::V_GAP);
+            let y = theme::PADDING
+                + theme::HEADER_HEIGHT
+                + rank as f64 * (theme::NODE_HEIGHT + theme::V_GAP);
             nodes.push(NodeLayout {
                 job_id: jobs[idx].id.clone(),
                 x,
@@ -143,7 +144,8 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
     }
 
     // Sort nodes by job_id to match the original order for lookup
-    let node_map: HashMap<&str, &NodeLayout> = nodes.iter().map(|n| (n.job_id.as_str(), n)).collect();
+    let node_map: HashMap<&str, &NodeLayout> =
+        nodes.iter().map(|n| (n.job_id.as_str(), n)).collect();
 
     // Build edges
     let mut edges = Vec::new();

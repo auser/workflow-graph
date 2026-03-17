@@ -6,12 +6,14 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, KeyboardEvent, MouseEvent, WheelEvent};
+use wasm_bindgen::prelude::*;
+use web_sys::{
+    CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, KeyboardEvent, MouseEvent, WheelEvent,
+};
 
-use workflow_graph_shared::{JobStatus, Workflow};
 use layout::GraphLayout;
+use workflow_graph_shared::{JobStatus, Workflow};
 
 const CLICK_THRESHOLD: f64 = 5.0;
 const MIN_ZOOM: f64 = 0.25;
@@ -65,14 +67,31 @@ impl GraphState {
         self.canvas.set_width((tw * self.dpr) as u32);
         self.canvas.set_height((th * self.dpr) as u32);
         let html_el: &HtmlElement = self.canvas.unchecked_ref();
-        html_el.style().set_property("width", &format!("{tw}px")).ok();
-        html_el.style().set_property("height", &format!("{th}px")).ok();
+        html_el
+            .style()
+            .set_property("width", &format!("{tw}px"))
+            .ok();
+        html_el
+            .style()
+            .set_property("height", &format!("{th}px"))
+            .ok();
 
         render::render(
-            &self.ctx, &self.workflow, &self.layout, self.dpr,
-            &self.highlighted_edges, tw, th, animation_time, now_ms,
-            self.zoom, self.pan_x, self.pan_y, &self.selected,
-        ).ok();
+            &self.ctx,
+            &self.workflow,
+            &self.layout,
+            self.dpr,
+            &self.highlighted_edges,
+            tw,
+            th,
+            animation_time,
+            now_ms,
+            self.zoom,
+            self.pan_x,
+            self.pan_y,
+            &self.selected,
+        )
+        .ok();
     }
 
     fn redraw(&self) {
@@ -81,7 +100,10 @@ impl GraphState {
     }
 
     fn has_running_jobs(&self) -> bool {
-        self.workflow.jobs.iter().any(|j| j.status == JobStatus::Running)
+        self.workflow
+            .jobs
+            .iter()
+            .any(|j| j.status == JobStatus::Running)
     }
 
     fn hit_test(&self, x: f64, y: f64) -> Option<usize> {
@@ -89,8 +111,10 @@ impl GraphState {
         let gx = (x - self.pan_x) / self.zoom;
         let gy = (y - self.pan_y) / self.zoom;
         for (i, node) in self.layout.nodes.iter().enumerate() {
-            if gx >= node.x && gx <= node.x + node.width
-                && gy >= node.y && gy <= node.y + node.height
+            if gx >= node.x
+                && gx <= node.x + node.width
+                && gy >= node.y
+                && gy <= node.y + node.height
             {
                 return Some(i);
             }
@@ -132,13 +156,14 @@ impl GraphState {
             }
         }
 
-        let all_ids: Vec<&str> = ancestor_ids.iter().chain(descendant_ids.iter())
-            .map(|s| s.as_str()).collect();
+        let all_ids: Vec<&str> = ancestor_ids
+            .iter()
+            .chain(descendant_ids.iter())
+            .map(|s| s.as_str())
+            .collect();
 
         for (i, edge) in self.layout.edges.iter().enumerate() {
-            if all_ids.contains(&edge.from_id.as_str())
-                && all_ids.contains(&edge.to_id.as_str())
-            {
+            if all_ids.contains(&edge.from_id.as_str()) && all_ids.contains(&edge.to_id.as_str()) {
                 self.highlighted_edges.push(i);
             }
         }
@@ -192,7 +217,9 @@ pub fn render_workflow(
     let graph_layout = layout::compute_layout(&workflow);
 
     let window = web_sys::window().ok_or_else(|| JsValue::from_str("no window"))?;
-    let document = window.document().ok_or_else(|| JsValue::from_str("no document"))?;
+    let document = window
+        .document()
+        .ok_or_else(|| JsValue::from_str("no document"))?;
     let canvas = document
         .get_element_by_id(canvas_id)
         .ok_or_else(|| JsValue::from_str(&format!("no canvas element '{canvas_id}'")))?
@@ -336,7 +363,10 @@ pub fn get_node_positions(canvas_id: &str) -> JsValue {
         let graphs = g.borrow();
         if let Some(state) = graphs.get(canvas_id) {
             let s = state.borrow();
-            let positions: HashMap<&str, (f64, f64)> = s.layout.nodes.iter()
+            let positions: HashMap<&str, (f64, f64)> = s
+                .layout
+                .nodes
+                .iter()
                 .map(|n| (n.job_id.as_str(), (n.x, n.y)))
                 .collect();
             serde_wasm_bindgen::to_value(&positions).unwrap_or(JsValue::NULL)
@@ -399,7 +429,8 @@ fn maybe_start_animation(canvas_id: &str, state: &SharedState) {
     let state = state.clone();
     let _canvas_id = canvas_id.to_string();
 
-    let callback: Rc<RefCell<Option<Closure<dyn FnMut(f64)>>>> = Rc::new(RefCell::new(None));
+    type AnimCallback = Rc<RefCell<Option<Closure<dyn FnMut(f64)>>>>;
+    let callback: AnimCallback = Rc::new(RefCell::new(None));
     let callback_clone = callback.clone();
 
     *callback.borrow_mut() = Some(Closure::new(move |_timestamp: f64| {
@@ -417,22 +448,24 @@ fn maybe_start_animation(canvas_id: &str, state: &SharedState) {
         };
 
         if should_continue {
-            if let Some(window) = web_sys::window() {
-                if let Some(cb) = callback_clone.borrow().as_ref() {
-                    window.request_animation_frame(cb.as_ref().unchecked_ref()).ok();
+            if let Some(window) = web_sys::window()
+                && let Some(cb) = callback_clone.borrow().as_ref() {
+                    window
+                        .request_animation_frame(cb.as_ref().unchecked_ref())
+                        .ok();
                 }
-            }
         } else {
             state.borrow_mut().animating = false;
             *callback_clone.borrow_mut() = None;
         }
     }));
 
-    if let Some(window) = web_sys::window() {
-        if let Some(cb) = callback.borrow().as_ref() {
-            window.request_animation_frame(cb.as_ref().unchecked_ref()).ok();
+    if let Some(window) = web_sys::window()
+        && let Some(cb) = callback.borrow().as_ref() {
+            window
+                .request_animation_frame(cb.as_ref().unchecked_ref())
+                .ok();
         }
-    }
 }
 
 fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Result<(), JsValue> {
@@ -507,7 +540,11 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
                     }
                 }
 
-                let cursor = if new_hover.is_some() { "grab" } else { "default" };
+                let cursor = if new_hover.is_some() {
+                    "grab"
+                } else {
+                    "default"
+                };
                 let html: &HtmlElement = s.canvas.unchecked_ref();
                 html.style().set_property("cursor", cursor).ok();
             }
@@ -523,7 +560,8 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
             let (mx, my) = mouse_pos(&event, &state);
             let mut s = state.borrow_mut();
 
-            let is_click = s.mouse_down_pos
+            let is_click = s
+                .mouse_down_pos
                 .map(|(dx, dy)| ((mx - dx).powi(2) + (my - dy).powi(2)).sqrt() < CLICK_THRESHOLD)
                 .unwrap_or(false);
 
@@ -564,9 +602,9 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
             }
 
             // Fire drag end callback
-            if let Some(idx) = s.dragging {
-                if !is_click {
-                    if let Some(ref cb) = s.on_node_drag_end {
+            if let Some(idx) = s.dragging
+                && !is_click
+                    && let Some(ref cb) = s.on_node_drag_end {
                         let node = &s.layout.nodes[idx];
                         let _ = cb.call3(
                             &JsValue::NULL,
@@ -575,8 +613,6 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
                             &JsValue::from_f64(node.y),
                         );
                     }
-                }
-            }
 
             s.mouse_down_pos = None;
             s.dragging = None;
@@ -621,7 +657,10 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
 
             let (mx, my) = {
                 let rect = s.canvas.get_bounding_client_rect();
-                (event.client_x() as f64 - rect.left(), event.client_y() as f64 - rect.top())
+                (
+                    event.client_x() as f64 - rect.left(),
+                    event.client_y() as f64 - rect.top(),
+                )
             };
 
             let old_zoom = s.zoom;
@@ -711,5 +750,8 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
 fn mouse_pos(event: &MouseEvent, state: &SharedState) -> (f64, f64) {
     let s = state.borrow();
     let rect = s.canvas.get_bounding_client_rect();
-    (event.client_x() as f64 - rect.left(), event.client_y() as f64 - rect.top())
+    (
+        event.client_x() as f64 - rect.left(),
+        event.client_y() as f64 - rect.top(),
+    )
 }
