@@ -70,6 +70,61 @@ status port="3000":
 list port="3000":
     curl -s http://localhost:{{port}}/api/workflows | python3 -m json.tool
 
+# Generate changelog for a version (e.g., just changelog v0.2.0)
+changelog version="":
+    #!/usr/bin/env bash
+    if [ -z "{{version}}" ]; then
+        git cliff --unreleased
+    else
+        git cliff --tag "{{version}}"
+    fi
+
+# Automated release: bump version, generate changelog, tag, and push
+release-auto version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    VERSION="{{version}}"
+    # Strip leading 'v' for semver if present
+    SEMVER="${VERSION#v}"
+    TAG="v${SEMVER}"
+
+    # Validate semver format
+    if ! echo "$SEMVER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+        echo "Error: version must be semver (e.g., 0.2.0 or v0.2.0)"
+        exit 1
+    fi
+
+    # Ensure working tree is clean
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "Error: working tree is not clean. Commit or stash changes first."
+        exit 1
+    fi
+
+    # Ensure we're on main
+    BRANCH=$(git branch --show-current)
+    if [ "$BRANCH" != "main" ]; then
+        echo "Error: must be on main branch (currently on $BRANCH)"
+        exit 1
+    fi
+
+    echo "Releasing $TAG..."
+
+    # Update versions in all workspace Cargo.toml files
+    for toml in shared/Cargo.toml crates/*/Cargo.toml; do
+        sed -i '' "s/^version = \".*\"/version = \"${SEMVER}\"/" "$toml"
+    done
+
+    # Generate changelog
+    git cliff --tag "$TAG" --output CHANGELOG.md
+
+    # Commit, tag, push
+    git add -A
+    git commit -m "chore: release ${TAG}"
+    git tag -a "$TAG" -m "Release ${TAG}"
+    git push origin main "$TAG"
+
+    echo "Released $TAG"
+
 # Start docs dev server
 docs-dev:
     cd docs && npm run dev
