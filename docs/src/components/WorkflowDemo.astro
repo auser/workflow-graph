@@ -16,10 +16,6 @@
     <span class="demo-title">ci.yml — workflow run</span>
     <div class="demo-controls">
       <span class="demo-status" id="demo-run-status"></span>
-      <div class="demo-tabs">
-        <button class="tab-btn active" id="tab-graph" aria-label="Graph view">Graph</button>
-        <button class="tab-btn" id="tab-yaml" aria-label="YAML view">YAML</button>
-      </div>
       <button class="demo-btn" id="demo-run" aria-label="Run workflow">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
           <path d="M4 2l10 6-10 6z"/>
@@ -40,55 +36,6 @@
   <!-- Graph view (real WASM canvas) -->
   <div class="demo-view" id="view-graph">
     <canvas id="workflow-canvas" tabindex="0"></canvas>
-  </div>
-
-  <!-- YAML view -->
-  <div class="demo-view hidden" id="view-yaml">
-    <pre class="yaml-source"><code>name: CI
-on: push
-
-jobs:
-  unit-tests:
-    name: Unit Tests
-    run: echo 'Running unit tests' && sleep 2
-    retries: 1
-
-  lint:
-    name: Lint
-    run: echo 'Running linter' && sleep 1
-
-  typecheck:
-    name: Typecheck
-    run: echo 'Running typecheck' && sleep 2
-
-  build:
-    name: Build
-    needs: [unit-tests, lint, typecheck]
-    run: echo 'Building project' && sleep 3
-    labels: [linux]
-
-  deploy-db:
-    name: Deploy DB Migrations
-    needs: [build]
-    run: echo 'Deploying DB migrations' && sleep 1
-    labels: [linux, aws]
-
-  e2e-tests:
-    name: E2E Tests
-    needs: [build]
-    run: echo 'Running E2E tests' && sleep 5
-    retries: 2
-
-  deploy-preview:
-    name: Deploy Preview
-    needs: [build]
-    run: echo 'Deploying preview' && sleep 1
-
-  deploy-web:
-    name: Deploy Web
-    needs: [deploy-db]
-    run: echo 'Deploying to production' && sleep 3
-    labels: [linux, aws]</code></pre>
   </div>
 
   <!-- Log panel -->
@@ -143,32 +90,6 @@ jobs:
     transition: color 0.3s;
   }
 
-  /* Tabs */
-  .demo-wrapper .demo-tabs {
-    display: flex;
-    background: #21262d;
-    border-radius: 6px;
-    padding: 2px;
-  }
-
-  .demo-wrapper .tab-btn {
-    all: unset;
-    display: inline-block;
-    border-radius: 4px;
-    color: #8b949e;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 3px 10px;
-    line-height: 1.4;
-    transition: background 0.15s, color 0.15s;
-    box-sizing: border-box;
-  }
-
-  .demo-wrapper .tab-btn:hover { color: #c9d1d9; }
-  .demo-wrapper .tab-btn.active { background: #30363d; color: #c9d1d9; }
-
   .demo-wrapper .demo-btn {
     all: unset;
     display: flex;
@@ -209,29 +130,13 @@ jobs:
   .demo-wrapper .status-chip.success .chip-dot { background: #238636; }
   .demo-wrapper .status-chip.failure .chip-dot { background: #da3633; }
 
-  /* Views */
   .demo-wrapper .demo-view { min-height: 340px; }
-  .demo-wrapper .demo-view.hidden { display: none; }
 
   .demo-wrapper #workflow-canvas {
     display: block;
     width: 100%;
     height: 380px;
     background: #0d1117;
-  }
-
-  /* YAML view */
-  .demo-wrapper .yaml-source {
-    margin: 0;
-    padding: 20px 24px;
-    background: #0d1117;
-    color: #c9d1d9;
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    font-size: 13px;
-    line-height: 1.55;
-    overflow-x: auto;
-    max-height: 380px;
-    overflow-y: auto;
   }
 
   /* Log panel */
@@ -323,10 +228,6 @@ jobs:
     const logTitle = document.getElementById('log-title')!;
     const logContent = document.getElementById('log-content')!;
     const logClose = document.getElementById('log-close')!;
-    const tabGraph = document.getElementById('tab-graph')!;
-    const tabYaml = document.getElementById('tab-yaml')!;
-    const viewGraph = document.getElementById('view-graph')!;
-    const viewYaml = document.getElementById('view-yaml')!;
 
     // --- State ---
     let workflow = makeWorkflow();
@@ -334,20 +235,6 @@ jobs:
     let isRunning = false;
     let runCount = 0;
     let initialized = false;
-
-    // --- Tab switching ---
-    tabGraph.addEventListener('click', () => {
-      tabGraph.classList.add('active');
-      tabYaml.classList.remove('active');
-      viewGraph.classList.remove('hidden');
-      viewYaml.classList.add('hidden');
-    });
-    tabYaml.addEventListener('click', () => {
-      tabYaml.classList.add('active');
-      tabGraph.classList.remove('active');
-      viewYaml.classList.remove('hidden');
-      viewGraph.classList.add('hidden');
-    });
 
     // --- Status counts ---
     function updateCounts() {
