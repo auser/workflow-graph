@@ -7,6 +7,6 @@ repository.workspace = true
 description = "Standalone DAG scheduler for split workflow-graph deployments"
 
 [dependencies]
-workflow-graph-queue = { path = "../queue" }
-workflow-graph-shared = { path = "../../shared" }
+workflow-graph-queue.workspace = true
+workflow-graph-shared.workspace = true
 tokio = { version = "1", features = ["full"] }

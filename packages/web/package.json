@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "files": ["dist/", "wasm/", "src/", "README.md"],
   "scripts": {
-    "copy-wasm": "mkdir -p wasm && cp ../../crates/web/pkg/workflow_graph_web.js ../../crates/web/pkg/workflow_graph_web_bg.wasm ../../crates/web/pkg/workflow_graph_web.d.ts ../../crates/web/pkg/workflow_graph_web_bg.wasm.d.ts wasm/",
+    "copy-wasm": "mkdir -p wasm && cp ../../crates/web/pkg/workflow_graph_web.js ../../crates/web/pkg/workflow_graph_web_bg.wasm wasm/",
     "build": "npm run copy-wasm && tsc",
     "prepublishOnly": "npm run build"
   },

@@ -7,8 +7,8 @@ repository.workspace = true
 description = "Embeddable Axum API server for workflow-graph"
 
 [dependencies]
-workflow-graph-shared = { path = "../../shared" }
-workflow-graph-queue = { path = "../queue" }
+workflow-graph-shared.workspace = true
+workflow-graph-queue.workspace = true
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["sync"] }

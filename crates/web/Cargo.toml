@@ -10,7 +10,7 @@ description = "WASM Canvas renderer for interactive workflow DAG visualization"
 crate-type = ["cdylib"]
 
 [dependencies]
-workflow-graph-shared = { path = "../../shared" }
+workflow-graph-shared.workspace = true
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"

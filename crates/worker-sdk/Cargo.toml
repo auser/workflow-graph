@@ -7,8 +7,8 @@ repository.workspace = true
 description = "Worker SDK and binary for executing workflow-graph jobs"
 
 [dependencies]
-workflow-graph-shared = { path = "../../shared" }
-workflow-graph-queue = { path = "../queue" }
+workflow-graph-shared.workspace = true
+workflow-graph-queue.workspace = true
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }

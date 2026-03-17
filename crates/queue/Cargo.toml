@@ -7,7 +7,7 @@ repository.workspace = true
 description = "Queue traits, in-memory backends, and DAG scheduler for workflow-graph"
 
 [dependencies]
-workflow-graph-shared = { path = "../../shared" }
+workflow-graph-shared.workspace = true
 tokio = { version = "1", features = ["sync", "time", "rt", "rt-multi-thread", "macros"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
