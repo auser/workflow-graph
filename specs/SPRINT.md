@@ -67,18 +67,18 @@
 - [ ] Add SSE log streaming endpoint (deferred to Phase 6)
 - [x] Verify all 22 tests pass
 
-## Phase 4: Worker SDK
+## Phase 4: Worker SDK ✅
 > `crates/worker-sdk/` — standalone worker binary + embeddable library
 
-- [ ] Create `crates/worker-sdk/` crate
-- [ ] Move executor logic from server, enhance with incremental output
-- [ ] Implement `Worker` struct with config
-- [ ] Implement poll/claim loop (HTTP polling)
-- [ ] Implement heartbeat sender (concurrent task, every TTL/3)
-- [ ] Implement log streaming (batched push, every 500ms or 50 lines)
-- [ ] Implement cancellation checking + graceful child kill
-- [ ] Add `main.rs` standalone worker binary
-- [ ] Integration test: server + worker end-to-end
+- [x] Create `crates/worker-sdk/` crate
+- [x] Implement `executor.rs` with incremental stdout/stderr streaming
+- [x] Implement `Worker` struct with `WorkerConfig`
+- [x] Implement poll/claim loop (HTTP polling)
+- [x] Implement heartbeat sender (concurrent tokio task)
+- [x] Implement log streaming (batched push via HTTP)
+- [x] Implement cancellation checking + graceful child kill (CancellationToken)
+- [x] Add `main.rs` standalone worker binary (configurable via env vars)
+- [ ] Integration test: server + worker end-to-end (deferred)
 
 ## Phase 5: Enhanced YAML Schema
 - [ ] Add `labels` field to `JobDef` (optional)
