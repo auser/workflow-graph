@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-03-17
+
+### Bug Fixes
+
+- Use workspace-inherited versions and fix bump-versions recipe([366df7a](https://github.com/auser/workflow-graph/commit/366df7a47691b7e1edb5be53e1295c3ecf003399))
+
+### CI/CD
+
+- Fix deploy-pages version and add release workflow([cba20e0](https://github.com/auser/workflow-graph/commit/cba20e0691712f8918e8824bdb3e9084b0fc78ff))
+
+### Miscellaneous
+
+- Bump workspace version to 0.1.1([076b5d9](https://github.com/auser/workflow-graph/commit/076b5d9d337cdfe85af1d85a18ff01fd391fb9f0))
 ## [0.1.0] - 2026-03-17
 
 ### Bug Fixes
@@ -24,6 +37,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog for v0.1.0([cd12d1b](https://github.com/auser/workflow-graph/commit/cd12d1b5230df7ba690c4bb3c56d61ad84d77ce4))
 - Bump workspace version to 0.1.0([1e88070](https://github.com/auser/workflow-graph/commit/1e880707f94bfbb6fef0d42ecadd47b489f9591e))
 
 ### Other
