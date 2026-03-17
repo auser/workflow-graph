@@ -41,9 +41,40 @@ pub async fn create_workflow(
     (StatusCode::CREATED, Json(workflow))
 }
 
-pub async fn list_workflows(State(state): State<AppState>) -> Json<Vec<Workflow>> {
+#[derive(Deserialize)]
+pub struct ListParams {
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+    pub status: Option<String>,
+}
+
+pub async fn list_workflows(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<ListParams>,
+) -> Json<Vec<Workflow>> {
     let s = state.workflow_state.read().await;
-    Json(s.workflows.values().cloned().collect())
+    let limit = params.limit.unwrap_or(100).min(1000);
+    let offset = params.offset.unwrap_or(0);
+
+    let workflows: Vec<Workflow> = s
+        .workflows
+        .values()
+        .filter(|wf| {
+            if let Some(ref status) = params.status {
+                // Filter: at least one job has this status
+                wf.jobs.iter().any(|j| {
+                    let s = serde_json::to_string(&j.status).unwrap_or_default();
+                    s.trim_matches('"') == status.as_str()
+                })
+            } else {
+                true
+            }
+        })
+        .skip(offset)
+        .take(limit)
+        .cloned()
+        .collect();
+    Json(workflows)
 }
 
 pub async fn get_workflow_status(

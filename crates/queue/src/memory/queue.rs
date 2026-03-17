@@ -63,11 +63,14 @@ impl JobQueue for InMemoryJobQueue {
     ) -> Result<Option<(QueuedJob, Lease)>, QueueError> {
         let mut inner = self.inner.lock().await;
 
-        // Find first pending job whose required_labels are a subset of worker's labels
+        let now = Self::now_ms();
+        // Find first pending job whose required_labels match and delay has elapsed
         let pos = inner.pending.iter().position(|job| {
-            job.required_labels
-                .iter()
-                .all(|label| worker_labels.contains(label))
+            job.delayed_until_ms <= now
+                && job
+                    .required_labels
+                    .iter()
+                    .all(|label| worker_labels.contains(label))
         });
 
         let Some(idx) = pos else {
@@ -142,10 +145,13 @@ impl JobQueue for InMemoryJobQueue {
         let should_retry = retryable && job.attempt < job.retry_policy.max_retries;
 
         if should_retry {
-            // Re-enqueue with incremented attempt
+            // Re-enqueue with incremented attempt and backoff delay
             let mut retried = job.clone();
             retried.attempt += 1;
-            retried.enqueued_at_ms = Self::now_ms();
+            let now = Self::now_ms();
+            retried.enqueued_at_ms = now;
+            let delay_ms = retried.retry_policy.backoff.delay_ms(retried.attempt);
+            retried.delayed_until_ms = now + delay_ms;
             inner.pending.push_back(retried);
         }
 
@@ -254,11 +260,13 @@ impl JobQueue for InMemoryJobQueue {
                 worker_id: lease.worker_id.clone(),
             });
 
-            // Re-enqueue if retries remain
+            // Re-enqueue if retries remain (with backoff)
             if job.attempt < job.retry_policy.max_retries {
                 let mut retried = job;
                 retried.attempt += 1;
                 retried.enqueued_at_ms = now;
+                let delay_ms = retried.retry_policy.backoff.delay_ms(retried.attempt);
+                retried.delayed_until_ms = now + delay_ms;
                 inner.pending.push_back(retried);
             }
         }
@@ -292,6 +300,7 @@ mod tests {
             attempt: 0,
             upstream_outputs: HashMap::new(),
             enqueued_at_ms: 0,
+            delayed_until_ms: 0,
         };
 
         queue.enqueue(job).await.unwrap();
@@ -326,6 +335,7 @@ mod tests {
             attempt: 0,
             upstream_outputs: HashMap::new(),
             enqueued_at_ms: 0,
+            delayed_until_ms: 0,
         };
 
         queue.enqueue(job).await.unwrap();
@@ -359,6 +369,7 @@ mod tests {
             attempt: 0,
             upstream_outputs: HashMap::new(),
             enqueued_at_ms: 0,
+            delayed_until_ms: 0,
         };
 
         queue.enqueue(job).await.unwrap();
@@ -401,6 +412,7 @@ mod tests {
             attempt: 0,
             upstream_outputs: HashMap::new(),
             enqueued_at_ms: 0,
+            delayed_until_ms: 0,
         };
 
         queue.enqueue(job).await.unwrap();
@@ -437,6 +449,7 @@ mod tests {
             attempt: 0,
             upstream_outputs: HashMap::new(),
             enqueued_at_ms: 0,
+            delayed_until_ms: 0,
         };
 
         queue.enqueue(job).await.unwrap();
@@ -468,6 +481,7 @@ mod tests {
             attempt: 0,
             upstream_outputs: HashMap::new(),
             enqueued_at_ms: 0,
+            delayed_until_ms: 0,
         };
 
         queue.enqueue(job).await.unwrap();

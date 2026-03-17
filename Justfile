@@ -11,9 +11,15 @@ default:
     @just --list
 
 
-# Build WASM frontend
+# Build WASM frontend (release + optimized)
 build-wasm:
-    wasm-pack build crates/web --target web --no-typescript
+    wasm-pack build crates/web --target web --no-typescript --release
+
+# Build TypeScript packages (requires WASM to be built first)
+build-packages: build-wasm
+    cd packages/web && npm run build
+    cd packages/client && npm run build
+    cd packages/react && npm run build
 
 # Build server
 build-server:

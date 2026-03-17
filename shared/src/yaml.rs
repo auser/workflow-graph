@@ -332,4 +332,137 @@ jobs:
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("nonexistent"));
     }
+
+    #[test]
+    fn job_without_run_or_steps_errors() {
+        let yaml = r#"
+name: Bad
+on: push
+
+jobs:
+  empty:
+    name: Empty Job
+"#;
+        let def = WorkflowDef::from_yaml(yaml).unwrap();
+        let result = def.into_workflow("bad-2");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("must have either 'run' or 'steps'"));
+    }
+
+    #[test]
+    fn empty_jobs_map() {
+        let yaml = r#"
+name: Empty
+on: push
+
+jobs: {}
+"#;
+        let def = WorkflowDef::from_yaml(yaml).unwrap();
+        let wf = def.into_workflow("empty-1").unwrap();
+        assert_eq!(wf.jobs.len(), 0);
+    }
+
+    #[test]
+    fn single_string_dependency() {
+        let yaml = r#"
+name: Single Dep
+on: push
+
+jobs:
+  a:
+    run: echo a
+  b:
+    needs: a
+    run: echo b
+"#;
+        let def = WorkflowDef::from_yaml(yaml).unwrap();
+        let wf = def.into_workflow("single-1").unwrap();
+        assert_eq!(wf.jobs[1].depends_on, vec!["a"]);
+    }
+
+    #[test]
+    fn special_characters_in_job_names() {
+        let yaml = r#"
+name: Special Chars
+on: push
+
+jobs:
+  build-linux_x86:
+    name: "Build (Linux x86_64)"
+    run: echo "building"
+"#;
+        let def = WorkflowDef::from_yaml(yaml).unwrap();
+        let wf = def.into_workflow("special-1").unwrap();
+        assert_eq!(wf.jobs[0].id, "build-linux_x86");
+        assert_eq!(wf.jobs[0].name, "Build (Linux x86_64)");
+    }
+
+    #[test]
+    fn labels_and_retries_parsed() {
+        let yaml = r#"
+name: Config
+on: push
+
+jobs:
+  deploy:
+    name: Deploy
+    run: ./deploy.sh
+    labels: [linux, aws]
+    retries: 3
+"#;
+        let def = WorkflowDef::from_yaml(yaml).unwrap();
+        let wf = def.into_workflow("config-1").unwrap();
+        assert_eq!(wf.jobs[0].required_labels, vec!["linux", "aws"]);
+        assert_eq!(wf.jobs[0].max_retries, 3);
+    }
+
+    #[test]
+    fn env_vars_in_command() {
+        let yaml = r#"
+name: Env
+on: push
+
+env:
+  GLOBAL: "value"
+
+jobs:
+  test:
+    run: echo test
+    env:
+      LOCAL: "local_value"
+"#;
+        let def = WorkflowDef::from_yaml(yaml).unwrap();
+        let wf = def.into_workflow("env-1").unwrap();
+        assert!(wf.jobs[0].command.contains("export GLOBAL="));
+        assert!(wf.jobs[0].command.contains("export LOCAL="));
+    }
+
+    #[test]
+    fn json_format_parsing() {
+        let json = r#"{
+            "name": "JSON Workflow",
+            "on": "push",
+            "jobs": {
+                "test": {
+                    "run": "echo test"
+                }
+            }
+        }"#;
+        let def = WorkflowDef::from_json(json).unwrap();
+        let wf = def.into_workflow("json-1").unwrap();
+        assert_eq!(wf.name, "JSON Workflow");
+        assert_eq!(wf.jobs.len(), 1);
+    }
+
+    #[test]
+    fn malformed_yaml_returns_error() {
+        let yaml = "this is not valid yaml: [[[";
+        assert!(WorkflowDef::from_yaml(yaml).is_err());
+    }
+
+    #[test]
+    fn shell_quote_handles_single_quotes() {
+        let result = super::shell_quote("it's a test");
+        assert_eq!(result, "'it'\\''s a test'");
+    }
 }

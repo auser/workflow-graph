@@ -85,6 +85,7 @@ impl<Q: JobQueue, A: ArtifactStore> DagScheduler<Q, A> {
                 attempt: 0,
                 upstream_outputs: HashMap::new(),
                 enqueued_at_ms: now_ms(),
+                delayed_until_ms: 0,
             };
             self.queue.enqueue(queued).await?;
         }
@@ -251,6 +252,7 @@ impl<Q: JobQueue, A: ArtifactStore> DagScheduler<Q, A> {
                 attempt: 0,
                 upstream_outputs,
                 enqueued_at_ms: now_ms(),
+                delayed_until_ms: 0,
             };
             self.queue.enqueue(queued).await?;
         }

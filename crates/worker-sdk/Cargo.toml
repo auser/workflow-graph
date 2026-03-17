@@ -1,7 +1,10 @@
 [package]
 name = "workflow-graph-worker-sdk"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Worker SDK and binary for executing workflow-graph jobs"
 
 [dependencies]
 workflow-graph-shared = { path = "../../shared" }

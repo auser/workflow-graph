@@ -63,11 +63,12 @@ function onNodeDragEnd(jobId, x, y) {
 
 // ─── Render helpers ──────────────────────────────────────────────────────────
 
-function renderGraph(json) {
+function renderGraph(json, themeJson) {
     render_workflow(
         'graph', json,
         onNodeClick, onNodeHover, onCanvasClick,
         onSelectionChange, onNodeDragEnd,
+        themeJson || null,
     );
 }
 

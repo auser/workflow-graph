@@ -1,16 +1,19 @@
 use std::collections::{HashMap, HashSet};
 use std::f64::consts::PI;
-use wasm_bindgen::JsValue;
+use wasm_bindgen::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
 use workflow_graph_shared::{JobStatus, Workflow};
 
 use crate::layout::{GraphLayout, NodeLayout};
-use crate::theme;
+use crate::theme::{EdgeStyle, LayoutDirection, ResolvedTheme};
 
-pub const COLOR_HIGHLIGHT: &str = "#0969da";
-pub const COLOR_SELECTED: &str = "#0969da";
+/// Optional callbacks that influence rendering.
+pub struct RenderCallbacks<'a> {
+    pub on_render_node: Option<&'a js_sys::Function>,
+}
 
+#[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
 pub fn render(
     ctx: &CanvasRenderingContext2d,
@@ -26,10 +29,53 @@ pub fn render(
     pan_x: f64,
     pan_y: f64,
     selected: &HashSet<String>,
+    theme: &ResolvedTheme,
 ) -> Result<(), JsValue> {
+    render_with_callbacks(
+        ctx,
+        workflow,
+        layout,
+        dpr,
+        highlighted_edges,
+        tw,
+        th,
+        animation_time,
+        now_ms,
+        zoom,
+        pan_x,
+        pan_y,
+        selected,
+        theme,
+        &RenderCallbacks {
+            on_render_node: None,
+        },
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn render_with_callbacks(
+    ctx: &CanvasRenderingContext2d,
+    workflow: &Workflow,
+    layout: &GraphLayout,
+    dpr: f64,
+    highlighted_edges: &[usize],
+    tw: f64,
+    th: f64,
+    animation_time: f64,
+    now_ms: f64,
+    zoom: f64,
+    pan_x: f64,
+    pan_y: f64,
+    selected: &HashSet<String>,
+    theme: &ResolvedTheme,
+    callbacks: &RenderCallbacks,
+) -> Result<(), JsValue> {
+    let colors = &theme.colors;
+    let tl = &theme.layout;
+
     // Clear canvas
     ctx.save();
-    ctx.set_fill_style_str(theme::COLOR_BG);
+    ctx.set_fill_style_str(&colors.bg);
     ctx.fill_rect(0.0, 0.0, tw * dpr, th * dpr);
     ctx.scale(dpr, dpr)?;
 
@@ -40,20 +86,20 @@ pub fn render(
     // Draw graph background card
     draw_rounded_rect(
         ctx,
-        theme::PADDING - 10.0,
-        theme::PADDING - 10.0,
-        tw - 2.0 * theme::PADDING + 20.0,
-        th - 2.0 * theme::PADDING + 20.0,
+        tl.padding - 10.0,
+        tl.padding - 10.0,
+        tw - 2.0 * tl.padding + 20.0,
+        th - 2.0 * tl.padding + 20.0,
         12.0,
     );
-    ctx.set_fill_style_str(theme::COLOR_GRAPH_BG);
+    ctx.set_fill_style_str(&colors.graph_bg);
     ctx.fill();
-    ctx.set_stroke_style_str(theme::COLOR_NODE_BORDER);
+    ctx.set_stroke_style_str(&colors.node_border);
     ctx.set_line_width(1.0);
     ctx.stroke();
 
     // Draw header
-    draw_header(ctx, workflow);
+    draw_header(ctx, workflow, theme);
 
     // Build node lookup
     let node_map: HashMap<&str, &NodeLayout> = layout
@@ -71,7 +117,9 @@ pub fn render(
             node_map.get(edge.to_id.as_str()),
         ) {
             let highlighted = highlighted_edges.contains(&i);
-            draw_edge(ctx, from, to, highlighted);
+            let edge_key = format!("{}->{}", edge.from_id, edge.to_id);
+            let style_override = theme.edge_styles.get(&edge_key);
+            draw_edge(ctx, from, to, highlighted, theme, style_override);
         }
     }
 
@@ -79,32 +127,56 @@ pub fn render(
     for node in &layout.nodes {
         if let Some(job) = job_map.get(node.job_id.as_str()) {
             let is_selected = selected.contains(&node.job_id);
-            draw_node(ctx, node, job, animation_time, now_ms, is_selected);
+
+            // Call custom render callback if provided
+            let mut skip_default = false;
+            if let Some(cb) = callbacks.on_render_node {
+                let job_json =
+                    serde_wasm_bindgen::to_value(job).unwrap_or(JsValue::NULL);
+                if let Ok(result) = cb.apply(
+                    &JsValue::NULL,
+                    &js_sys::Array::of5(
+                        &JsValue::from_f64(node.x),
+                        &JsValue::from_f64(node.y),
+                        &JsValue::from_f64(node.width),
+                        &JsValue::from_f64(node.height),
+                        &job_json,
+                    ),
+                ) {
+                    skip_default = result.as_bool().unwrap_or(false);
+                }
+            }
+
+            if !skip_default {
+                draw_node(ctx, node, job, animation_time, now_ms, is_selected, theme);
+            }
         }
     }
 
     ctx.restore();
+
+    // Draw minimap overlay (drawn in screen space, after restoring transform)
+    if theme.minimap {
+        draw_minimap(ctx, layout, &job_map, dpr, tw, th, zoom, pan_x, pan_y, theme);
+    }
+
     Ok(())
 }
 
-fn draw_header(ctx: &CanvasRenderingContext2d, workflow: &Workflow) {
-    let x = theme::PADDING;
-    let y = theme::PADDING + 10.0;
+fn draw_header(ctx: &CanvasRenderingContext2d, workflow: &Workflow, theme: &ResolvedTheme) {
+    let tl = &theme.layout;
+    let fonts = &theme.fonts;
+    let colors = &theme.colors;
 
-    ctx.set_font(&format!(
-        "bold {}px {}",
-        theme::FONT_SIZE_HEADER,
-        theme::FONT_FAMILY
-    ));
-    ctx.set_fill_style_str(theme::COLOR_HEADER_TEXT);
+    let x = tl.padding;
+    let y = tl.padding + 10.0;
+
+    ctx.set_font(&format!("bold {}px {}", fonts.size_header, fonts.family));
+    ctx.set_fill_style_str(&colors.header_text);
     ctx.fill_text(&workflow.name, x, y).ok();
 
-    ctx.set_font(&format!(
-        "{}px {}",
-        theme::FONT_SIZE_HEADER,
-        theme::FONT_FAMILY
-    ));
-    ctx.set_fill_style_str(theme::COLOR_HEADER_TRIGGER);
+    ctx.set_font(&format!("{}px {}", fonts.size_header, fonts.family));
+    ctx.set_fill_style_str(&colors.header_trigger);
     let name_width = ctx
         .measure_text(&workflow.name)
         .map(|m| m.width())
@@ -118,37 +190,82 @@ fn draw_edge(
     from: &NodeLayout,
     to: &NodeLayout,
     highlighted: bool,
+    theme: &ResolvedTheme,
+    style_override: Option<&EdgeStyle>,
 ) {
-    let x1 = from.x + from.width;
-    let y1 = from.y + from.height / 2.0;
-    let x2 = to.x;
-    let y2 = to.y + to.height / 2.0;
+    let colors = &theme.colors;
+    let tl = &theme.layout;
+    let is_vertical = theme.direction == LayoutDirection::TopToBottom;
 
-    let mid_x = (x1 + x2) / 2.0;
-
-    let (edge_color, junction_color, line_width) = if highlighted {
-        (COLOR_HIGHLIGHT, COLOR_HIGHLIGHT, 2.5)
+    let (x1, y1, x2, y2) = if is_vertical {
+        (
+            from.x + from.width / 2.0,
+            from.y + from.height,
+            to.x + to.width / 2.0,
+            to.y,
+        )
     } else {
-        (theme::COLOR_EDGE, theme::COLOR_JUNCTION, 2.0)
+        (
+            from.x + from.width,
+            from.y + from.height / 2.0,
+            to.x,
+            to.y + to.height / 2.0,
+        )
+    };
+
+    // Resolve colors and width with overrides
+    let (edge_color, junction_color, line_width) = if highlighted {
+        (colors.highlight.as_str(), colors.highlight.as_str(), 2.5)
+    } else {
+        let ec = style_override
+            .and_then(|s| s.color.as_deref())
+            .unwrap_or(colors.edge.as_str());
+        let lw = style_override
+            .and_then(|s| s.width)
+            .unwrap_or(2.0);
+        (ec, colors.junction.as_str(), lw)
     };
 
     ctx.begin_path();
     ctx.set_stroke_style_str(edge_color);
     ctx.set_line_width(line_width);
+
+    // Apply dash pattern if specified
+    if let Some(dash) = style_override.and_then(|s| s.dash.as_ref()) {
+        if !dash.is_empty() {
+            let arr = js_sys::Array::new();
+            for &d in dash {
+                arr.push(&JsValue::from_f64(d));
+            }
+            ctx.set_line_dash(&arr).ok();
+        }
+    }
+
     ctx.move_to(x1, y1);
-    ctx.bezier_curve_to(mid_x, y1, mid_x, y2, x2, y2);
+    if is_vertical {
+        let mid_y = (y1 + y2) / 2.0;
+        ctx.bezier_curve_to(x1, mid_y, x2, mid_y, x2, y2);
+    } else {
+        let mid_x = (x1 + x2) / 2.0;
+        ctx.bezier_curve_to(mid_x, y1, mid_x, y2, x2, y2);
+    }
     ctx.stroke();
+
+    // Reset dash pattern
+    if style_override.and_then(|s| s.dash.as_ref()).is_some() {
+        ctx.set_line_dash(&js_sys::Array::new()).ok();
+    }
 
     // Junction dot at source
     ctx.begin_path();
     ctx.set_fill_style_str(junction_color);
-    ctx.arc(x1, y1, theme::JUNCTION_DOT_RADIUS, 0.0, 2.0 * PI)
+    ctx.arc(x1, y1, tl.junction_dot_radius, 0.0, 2.0 * PI)
         .ok();
     ctx.fill();
 
     // Junction dot at target
     ctx.begin_path();
-    ctx.arc(x2, y2, theme::JUNCTION_DOT_RADIUS, 0.0, 2.0 * PI)
+    ctx.arc(x2, y2, tl.junction_dot_radius, 0.0, 2.0 * PI)
         .ok();
     ctx.fill();
 }
@@ -160,69 +277,60 @@ fn draw_node(
     animation_time: f64,
     now_ms: f64,
     is_selected: bool,
+    theme: &ResolvedTheme,
 ) {
+    let colors = &theme.colors;
+    let fonts = &theme.fonts;
+    let tl = &theme.layout;
+
     // Node background
-    draw_rounded_rect(
-        ctx,
-        node.x,
-        node.y,
-        node.width,
-        node.height,
-        theme::NODE_RADIUS,
-    );
-    ctx.set_fill_style_str(theme::COLOR_NODE_BG);
+    draw_rounded_rect(ctx, node.x, node.y, node.width, node.height, tl.node_radius);
+    ctx.set_fill_style_str(&colors.node_bg);
     ctx.fill();
 
     if is_selected {
-        ctx.set_stroke_style_str(COLOR_SELECTED);
+        ctx.set_stroke_style_str(&colors.selected);
         ctx.set_line_width(2.0);
     } else {
-        ctx.set_stroke_style_str(theme::COLOR_NODE_BORDER);
+        ctx.set_stroke_style_str(&colors.node_border);
         ctx.set_line_width(1.0);
     }
     ctx.stroke();
 
     // Status icon
-    let icon_x = node.x + theme::STATUS_ICON_MARGIN + theme::STATUS_ICON_RADIUS;
+    let icon_x = node.x + tl.status_icon_margin + tl.status_icon_radius;
     let icon_y = node.y + node.height / 2.0;
-    draw_status_icon(ctx, icon_x, icon_y, &job.status, animation_time);
+    draw_status_icon(ctx, icon_x, icon_y, &job.status, animation_time, theme);
 
     // Job name
-    let text_x = icon_x + theme::STATUS_ICON_RADIUS + 8.0;
+    let text_x = icon_x + tl.status_icon_radius + 8.0;
     let text_y = node.y + node.height / 2.0 + 4.0;
-    ctx.set_font(&format!(
-        "600 {}px {}",
-        theme::FONT_SIZE_NAME,
-        theme::FONT_FAMILY
-    ));
-    ctx.set_fill_style_str(theme::COLOR_TEXT);
+    ctx.set_font(&format!("600 {}px {}", fonts.size_name, fonts.family));
+    ctx.set_fill_style_str(&colors.text);
     ctx.fill_text(&job.name, text_x, text_y).ok();
 
-    // Duration / live timer (right-aligned)
+    // Duration / live timer (right-aligned) — uses i18n labels
     let duration_str = match job.status {
         JobStatus::Running => {
-            // Live elapsed timer
             if let Some(started) = job.started_at {
                 let elapsed_secs = ((now_ms - started) / 1000.0).max(0.0) as u64;
-                Some(format_duration(elapsed_secs))
+                Some(theme.labels.format_duration(elapsed_secs))
             } else {
                 None
             }
         }
-        JobStatus::Success | JobStatus::Failure => job.duration_secs.map(format_duration),
+        JobStatus::Success | JobStatus::Failure => {
+            job.duration_secs.map(|s| theme.labels.format_duration(s))
+        }
         _ => None,
     };
 
     if let Some(dur_text) = duration_str {
-        ctx.set_font(&format!(
-            "{}px {}",
-            theme::FONT_SIZE_DURATION,
-            theme::FONT_FAMILY
-        ));
+        ctx.set_font(&format!("{}px {}", fonts.size_duration, fonts.family));
         let color = if job.status == JobStatus::Running {
-            theme::COLOR_RUNNING
+            &colors.running
         } else {
-            theme::COLOR_TEXT_SECONDARY
+            &colors.text_secondary
         };
         ctx.set_fill_style_str(color);
         let dur_width = ctx
@@ -234,6 +342,100 @@ fn draw_node(
     }
 }
 
+// ─── Minimap ─────────────────────────────────────────────────────────────────
+
+const MINIMAP_WIDTH: f64 = 160.0;
+const MINIMAP_HEIGHT: f64 = 100.0;
+const MINIMAP_MARGIN: f64 = 12.0;
+
+#[allow(clippy::too_many_arguments)]
+fn draw_minimap(
+    ctx: &CanvasRenderingContext2d,
+    layout: &GraphLayout,
+    job_map: &HashMap<&str, &workflow_graph_shared::Job>,
+    dpr: f64,
+    canvas_w: f64,
+    canvas_h: f64,
+    zoom: f64,
+    pan_x: f64,
+    pan_y: f64,
+    theme: &ResolvedTheme,
+) {
+    if layout.nodes.is_empty() {
+        return;
+    }
+
+    let colors = &theme.colors;
+
+    // Minimap position (bottom-right corner, in screen coords)
+    ctx.save();
+    ctx.scale(dpr, dpr).ok();
+    let mx = canvas_w - MINIMAP_WIDTH - MINIMAP_MARGIN;
+    let my = canvas_h - MINIMAP_HEIGHT - MINIMAP_MARGIN;
+
+    // Background
+    ctx.set_global_alpha(0.85);
+    draw_rounded_rect(ctx, mx, my, MINIMAP_WIDTH, MINIMAP_HEIGHT, 6.0);
+    ctx.set_fill_style_str(&colors.graph_bg);
+    ctx.fill();
+    ctx.set_stroke_style_str(&colors.node_border);
+    ctx.set_line_width(1.0);
+    ctx.stroke();
+    ctx.set_global_alpha(1.0);
+
+    // Compute scale: fit the entire graph into the minimap
+    let gw = layout.total_width.max(1.0);
+    let gh = layout.total_height.max(1.0);
+    let pad = 4.0;
+    let scale_x = (MINIMAP_WIDTH - 2.0 * pad) / gw;
+    let scale_y = (MINIMAP_HEIGHT - 2.0 * pad) / gh;
+    let scale = scale_x.min(scale_y);
+
+    let ox = mx + pad + (MINIMAP_WIDTH - 2.0 * pad - gw * scale) / 2.0;
+    let oy = my + pad + (MINIMAP_HEIGHT - 2.0 * pad - gh * scale) / 2.0;
+
+    // Draw nodes as small colored rectangles
+    for node in &layout.nodes {
+        let nx = ox + node.x * scale;
+        let ny = oy + node.y * scale;
+        let nw = node.width * scale;
+        let nh = node.height * scale;
+
+        let fill = if let Some(job) = job_map.get(node.job_id.as_str()) {
+            match job.status {
+                JobStatus::Success => &colors.success,
+                JobStatus::Failure => &colors.failure,
+                JobStatus::Running => &colors.running,
+                _ => &colors.node_border,
+            }
+        } else {
+            &colors.node_border
+        };
+
+        ctx.set_fill_style_str(fill);
+        ctx.fill_rect(nx, ny, nw, nh);
+    }
+
+    // Draw viewport indicator
+    let vx = ox + (-pan_x / zoom) * scale;
+    let vy = oy + (-pan_y / zoom) * scale;
+    let vw = (canvas_w / zoom) * scale;
+    let vh = (canvas_h / zoom) * scale;
+
+    ctx.set_stroke_style_str(&colors.highlight);
+    ctx.set_line_width(1.5);
+    ctx.stroke_rect(
+        vx.max(mx + pad),
+        vy.max(my + pad),
+        vw.min(MINIMAP_WIDTH - 2.0 * pad),
+        vh.min(MINIMAP_HEIGHT - 2.0 * pad),
+    );
+
+    ctx.restore();
+}
+
+// ─── Icons ───────────────────────────────────────────────────────────────────
+
 // GitHub Octicon SVG path data (16x16 viewBox)
 const OCTICON_CHECK_CIRCLE_FILL: &str = "M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z";
 const OCTICON_X_CIRCLE_FILL: &str = "M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z";
@@ -241,8 +443,6 @@ const OCTICON_SKIP_FILL: &str = "M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm11.333-2.167
 const OCTICON_CIRCLE: &str =
     "M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z";
 
-/// Draw an Octicon SVG path scaled and positioned at (cx, cy) with the given radius.
-/// The path data is for a 16x16 viewBox, so we scale by (2*radius)/16 and translate.
 fn draw_octicon(
     ctx: &CanvasRenderingContext2d,
     cx: f64,
@@ -253,7 +453,6 @@ fn draw_octicon(
 ) {
     let scale = (2.0 * radius) / 16.0;
     ctx.save();
-    // Translate so that the 16x16 icon center (8,8) maps to (cx, cy)
     ctx.translate(cx - 8.0 * scale, cy - 8.0 * scale).ok();
     ctx.scale(scale, scale).ok();
 
@@ -264,34 +463,36 @@ fn draw_octicon(
     ctx.restore();
 }
 
-/// Draw GitHub Octicon status icons using exact SVG path data.
 fn draw_status_icon(
     ctx: &CanvasRenderingContext2d,
     x: f64,
     y: f64,
     status: &JobStatus,
     animation_time: f64,
+    theme: &ResolvedTheme,
 ) {
-    let r = theme::STATUS_ICON_RADIUS;
+    let r = theme.layout.status_icon_radius;
+    let colors = &theme.colors;
 
     match status {
         JobStatus::Queued => {
-            // Hollow gray circle — octicon circle-16
-            draw_octicon(ctx, x, y, r, OCTICON_CIRCLE, theme::COLOR_QUEUED);
+            draw_octicon(ctx, x, y, r, OCTICON_CIRCLE, &colors.queued);
         }
         JobStatus::Running => {
-            // Glowing arc ring spinner — gradient fade tail
             let track_r = r - 1.0;
             let line_w = 2.5;
 
-            // Dim track ring
+            let running_rgb = hex_to_rgb(&colors.running).unwrap_or((191, 135, 0));
+
             ctx.begin_path();
-            ctx.set_stroke_style_str("rgba(191,135,0,0.15)");
+            ctx.set_stroke_style_str(&format!(
+                "rgba({},{},{},0.15)",
+                running_rgb.0, running_rgb.1, running_rgb.2
+            ));
             ctx.set_line_width(line_w);
             ctx.arc(x, y, track_r, 0.0, 2.0 * PI).ok();
             ctx.stroke();
 
-            // Gradient arc: draw segments from tail (faint) to head (bright)
             let total_sweep = PI * 1.2;
             let head_angle = animation_time * 4.0;
             let segments = 20;
@@ -301,20 +502,21 @@ fn draw_status_icon(
             ctx.set_line_width(line_w);
             for i in 0..segments {
                 let t = i as f64 / segments as f64;
-                let alpha = t * t; // quadratic ease-in: faint tail, bright head
+                let alpha = t * t;
                 let seg_start = head_angle - total_sweep + (i as f64) * seg_sweep;
                 ctx.begin_path();
-                let color = format!("rgba(191,135,0,{:.2})", alpha);
+                let color = format!(
+                    "rgba({},{},{},{:.2})",
+                    running_rgb.0, running_rgb.1, running_rgb.2, alpha
+                );
                 ctx.set_stroke_style_str(&color);
-                // Slight overlap to avoid gaps
                 ctx.arc(x, y, track_r, seg_start, seg_start + seg_sweep + 0.02)
                     .ok();
                 ctx.stroke();
             }
 
-            // Bright head cap
             ctx.begin_path();
-            ctx.set_stroke_style_str(theme::COLOR_RUNNING);
+            ctx.set_stroke_style_str(&colors.running);
             ctx.set_line_width(line_w);
             ctx.set_line_cap("round");
             ctx.arc(x, y, track_r, head_angle - seg_sweep, head_angle)
@@ -324,27 +526,16 @@ fn draw_status_icon(
             ctx.restore();
         }
         JobStatus::Success => {
-            // Green check-circle-fill — exact GitHub octicon
-            draw_octicon(
-                ctx,
-                x,
-                y,
-                r,
-                OCTICON_CHECK_CIRCLE_FILL,
-                theme::COLOR_SUCCESS,
-            );
+            draw_octicon(ctx, x, y, r, OCTICON_CHECK_CIRCLE_FILL, &colors.success);
         }
         JobStatus::Failure => {
-            // Red x-circle-fill — exact GitHub octicon
-            draw_octicon(ctx, x, y, r, OCTICON_X_CIRCLE_FILL, theme::COLOR_FAILURE);
+            draw_octicon(ctx, x, y, r, OCTICON_X_CIRCLE_FILL, &colors.failure);
         }
         JobStatus::Skipped => {
-            // Gray skip-fill — exact GitHub octicon (diagonal line through circle)
-            draw_octicon(ctx, x, y, r, OCTICON_SKIP_FILL, theme::COLOR_SKIPPED);
+            draw_octicon(ctx, x, y, r, OCTICON_SKIP_FILL, &colors.skipped);
         }
         JobStatus::Cancelled => {
-            // Gray circle with stop indicator
-            draw_octicon(ctx, x, y, r, OCTICON_SKIP_FILL, theme::COLOR_CANCELLED);
+            draw_octicon(ctx, x, y, r, OCTICON_SKIP_FILL, &colors.cancelled);
         }
     }
 }
@@ -363,12 +554,14 @@ fn draw_rounded_rect(ctx: &CanvasRenderingContext2d, x: f64, y: f64, w: f64, h: 
     ctx.close_path();
 }
 
-fn format_duration(secs: u64) -> String {
-    if secs >= 60 {
-        let m = secs / 60;
-        let s = secs % 60;
-        format!("{m}m {s}s")
-    } else {
-        format!("{secs}s")
+/// Parse a hex color string (#RRGGBB) into (r, g, b) components.
+fn hex_to_rgb(hex: &str) -> Option<(u8, u8, u8)> {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() != 6 {
+        return None;
     }
+    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+    Some((r, g, b))
 }

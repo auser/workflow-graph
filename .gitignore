@@ -5,3 +5,8 @@ docs/dist
 .claude/
 .playwright-mcp/
 docs/.astro/
+
+# TypeScript build output
+packages/*/dist/
+packages/web/wasm/
+node_modules/

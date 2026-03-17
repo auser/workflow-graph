@@ -2,9 +2,36 @@
   "name": "@workflow-graph/web",
   "version": "0.1.0",
   "description": "Interactive workflow DAG visualizer (WASM + Canvas)",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "files": ["src/", "README.md"],
-  "keywords": ["workflow", "dag", "graph", "wasm", "canvas", "github-actions"],
-  "license": "MIT"
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist/", "wasm/", "src/", "README.md"],
+  "scripts": {
+    "copy-wasm": "mkdir -p wasm && cp ../../crates/web/pkg/workflow_graph_web.js ../../crates/web/pkg/workflow_graph_web_bg.wasm ../../crates/web/pkg/workflow_graph_web.d.ts ../../crates/web/pkg/workflow_graph_web_bg.wasm.d.ts wasm/",
+    "build": "npm run copy-wasm && tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["workflow", "dag", "graph", "wasm", "canvas", "github-actions", "visualization"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/auser/workflow-graph",
+    "directory": "packages/web"
+  },
+  "homepage": "https://auser.github.io/workflow-graph/",
+  "sideEffects": false,
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./wasm/*": "./wasm/*"
+  }
 }

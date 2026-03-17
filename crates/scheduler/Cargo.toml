@@ -1,7 +1,10 @@
 [package]
 name = "workflow-graph-scheduler"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Standalone DAG scheduler for split workflow-graph deployments"
 
 [dependencies]
 workflow-graph-queue = { path = "../queue" }

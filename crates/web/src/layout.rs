@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use workflow_graph_shared::Workflow;
 
-use crate::theme;
+use crate::theme::{LayoutDirection, ResolvedTheme};
 
 #[derive(Clone, Debug)]
 pub struct NodeLayout {
@@ -26,7 +26,7 @@ pub struct GraphLayout {
     pub total_height: f64,
 }
 
-pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
+pub fn compute_layout(workflow: &Workflow, theme: &ResolvedTheme) -> GraphLayout {
     let jobs = &workflow.jobs;
     if jobs.is_empty() {
         return GraphLayout {
@@ -36,6 +36,9 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
             total_height: 0.0,
         };
     }
+
+    let tl = &theme.layout;
+    let is_vertical = theme.direction == LayoutDirection::TopToBottom;
 
     // Build adjacency: job_id -> index
     let id_to_idx: HashMap<&str, usize> = jobs
@@ -82,17 +85,14 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
         layer_groups[layer].push(i);
     }
 
-    // Barycenter ordering: sort each layer by avg Y position of upstream deps
-    // For layer 0, keep original order. For subsequent layers, sort by barycenter.
-    let mut positions: Vec<(usize, f64)> = vec![(0, 0.0); jobs.len()]; // (rank_in_layer, y_center)
+    // Barycenter ordering: sort each layer by avg position of upstream deps
+    let mut positions: Vec<(usize, f64)> = vec![(0, 0.0); jobs.len()];
 
-    // Assign initial ranks for layer 0
     for (rank, &idx) in layer_groups[0].iter().enumerate() {
         positions[idx] = (rank, rank as f64);
     }
 
     for group in layer_groups.iter_mut().skip(1) {
-        // Compute barycenter for each job in this layer
         let mut barycenters: Vec<(usize, f64)> = group
             .iter()
             .map(|&idx| {
@@ -113,7 +113,6 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
 
         barycenters.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-        // Re-order the layer group
         *group = barycenters.iter().map(|&(idx, _)| idx).collect();
         for (rank, &idx) in group.iter().enumerate() {
             positions[idx] = (rank, rank as f64);
@@ -127,23 +126,34 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
 
     for (layer, group) in layer_groups.iter().enumerate() {
         for (rank, &idx) in group.iter().enumerate() {
-            let x = theme::PADDING + layer as f64 * (theme::NODE_WIDTH + theme::H_GAP);
-            let y = theme::PADDING
-                + theme::HEADER_HEIGHT
-                + rank as f64 * (theme::NODE_HEIGHT + theme::V_GAP);
+            let (x, y) = if is_vertical {
+                // Top-to-bottom: layers go down, siblings go right
+                let x = tl.padding + rank as f64 * (tl.node_width + tl.v_gap);
+                let y = tl.padding
+                    + tl.header_height
+                    + layer as f64 * (tl.node_height + tl.h_gap);
+                (x, y)
+            } else {
+                // Left-to-right (default): layers go right, siblings go down
+                let x = tl.padding + layer as f64 * (tl.node_width + tl.h_gap);
+                let y = tl.padding
+                    + tl.header_height
+                    + rank as f64 * (tl.node_height + tl.v_gap);
+                (x, y)
+            };
             nodes.push(NodeLayout {
                 job_id: jobs[idx].id.clone(),
                 x,
                 y,
-                width: theme::NODE_WIDTH,
-                height: theme::NODE_HEIGHT,
+                width: tl.node_width,
+                height: tl.node_height,
             });
-            max_x = max_x.max(x + theme::NODE_WIDTH);
-            max_y = max_y.max(y + theme::NODE_HEIGHT);
+            max_x = max_x.max(x + tl.node_width);
+            max_y = max_y.max(y + tl.node_height);
         }
     }
 
-    // Sort nodes by job_id to match the original order for lookup
+    // Build node lookup
     let node_map: HashMap<&str, &NodeLayout> =
         nodes.iter().map(|n| (n.job_id.as_str(), n)).collect();
 
@@ -163,7 +173,7 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
     GraphLayout {
         nodes,
         edges,
-        total_width: max_x + theme::PADDING,
-        total_height: max_y + theme::PADDING,
+        total_width: max_x + tl.padding,
+        total_height: max_y + tl.padding,
     }
 }

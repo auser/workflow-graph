@@ -12,9 +12,18 @@ Render interactive workflow graphs in the browser with pixel-perfect GitHub Octi
 - **GitHub-accurate DAG rendering** — Octicon SVG icons via Canvas Path2D
 - **Interactive nodes** — drag to reposition, click to select, shift+click for multi-select
 - **Pan & zoom** — mouse wheel zoom (0.25x–4x), click+drag empty space to pan
+- **Touch support** — full touch interaction: drag, pan, tap on mobile devices
 - **Path highlighting** — hover a node to highlight its full upstream/downstream path in blue
 - **Animated status icons** — spinning ring for running jobs, live elapsed timer
-- **Status icons** — queued (hollow circle), running (animated ring), success (green check), failure (red X), skipped (gray slash)
+- **Theming** — light, dark, and high-contrast presets; fully customizable colors, fonts, and dimensions
+- **Layout direction** — left-to-right (default) or top-to-bottom
+- **Minimap** — optional overview overlay for large graphs
+- **Custom node rendering** — callback to draw custom node content
+- **Edge click & styles** — clickable edges with per-edge color, width, and dash patterns
+- **i18n** — configurable status labels and duration formats for any language
+- **Accessibility** — ARIA live region for status announcements, keyboard navigation, high-contrast theme
+- **Auto-resize** — ResizeObserver adapts canvas to container size changes
+- **HiDPI** — adapts to devicePixelRatio changes (multi-monitor)
 
 ### Job Execution (Server + Workers)
 - **Pluggable queue** — trait-based: in-memory (dev), Postgres/pg-boss, Redis
@@ -22,18 +31,21 @@ Render interactive workflow graphs in the browser with pixel-perfect GitHub Octi
 - **External workers** — poll for jobs via HTTP, execute shell commands, stream logs
 - **Atomic job claiming** — lease-based with TTL, prevents double-claiming
 - **Heartbeats** — workers send periodic heartbeats; expired leases trigger re-queue
-- **Retry policy** — configurable per-job retries with backoff
+- **Retry policy** — configurable per-job retries with Fixed or Exponential backoff
 - **Cancellation** — cancel workflows/jobs; workers detect and abort gracefully
+- **Graceful shutdown** — workers handle SIGTERM/SIGINT, finish current job before exit
 - **Worker labels** — jobs require labels, workers register capabilities
 - **Log streaming** — workers push log chunks, server stores and serves them
 - **Artifact outputs** — jobs publish key-value outputs, downstream jobs read them
 
 ### Library Design
 - **6 crates** — shared types, queue engine, WASM frontend, worker SDK, reference server, standalone scheduler
+- **3 npm packages** — `@workflow-graph/web`, `@workflow-graph/react`, `@workflow-graph/client`
 - **Trait-based backends** — `JobQueue`, `ArtifactStore`, `LogSink`, `WorkerRegistry`
 - **YAML/JSON workflows** — GitHub Actions-inspired definition format
 - **Embeddable** — use `create_router()` to embed the API in your own Axum server
 - **Edge-deployable** — API server is stateless; run scheduler separately or in-process
+- **38 tests** — unit, integration, performance, and YAML parsing
 
 ## Architecture
 
@@ -70,6 +82,96 @@ Full documentation is available at **[auser.github.io/workflow-graph](https://au
 | [REST API](https://auser.github.io/workflow-graph/api/rest-api/) | Full HTTP API reference |
 | [WASM API](https://auser.github.io/workflow-graph/api/wasm-api/) | JavaScript API for the canvas renderer |
 
+## NPM Packages
+
+```bash
+npm install @workflow-graph/web      # WASM + Canvas renderer
+npm install @workflow-graph/react    # React component
+npm install @workflow-graph/client   # REST API client
+```
+
+### TypeScript / Vanilla JS
+
+```typescript
+import { WorkflowGraph, darkTheme, setWasmUrl } from '@workflow-graph/web';
+
+// Optional: set custom WASM URL if hosting separately
+// setWasmUrl('https://cdn.example.com/wasm/workflow_graph_web_bg.wasm');
+
+const graph = new WorkflowGraph(document.getElementById('container')!, {
+  onNodeClick: (jobId) => console.log('clicked', jobId),
+  onEdgeClick: (from, to) => console.log('edge', from, to),
+  theme: darkTheme,
+  autoResize: true,
+});
+await graph.setWorkflow(workflowData);
+
+// Update statuses (preserves positions, zoom, selection)
+await graph.updateStatus(newWorkflowData);
+
+// Runtime theme switching
+await graph.setTheme({ minimap: true, direction: 'TopToBottom' });
+```
+
+### React
+
+```tsx
+import { WorkflowGraphComponent, darkTheme } from '@workflow-graph/react';
+import type { WorkflowGraphHandle } from '@workflow-graph/react';
+
+const ref = useRef<WorkflowGraphHandle>(null);
+
+<WorkflowGraphComponent
+  ref={ref}
+  workflow={workflowData}
+  theme={darkTheme}
+  autoResize
+  onNodeClick={(id) => console.log(id)}
+  onError={(err) => console.error(err)}
+/>
+
+// Imperative control via ref
+ref.current?.zoomToFit();
+ref.current?.setTheme({ minimap: true });
+```
+
+### REST API Client
+
+```typescript
+import { WorkflowClient } from '@workflow-graph/client';
+
+const client = new WorkflowClient('http://localhost:3000');
+const workflows = await client.listWorkflows();
+await client.runWorkflow(workflows[0].id);
+
+// Stream logs
+for await (const chunk of client.streamLogs(wfId, jobId)) {
+  console.log(chunk.data);
+}
+```
+
+## Theming
+
+Three built-in presets:
+
+```typescript
+import { darkTheme, lightTheme, highContrastTheme } from '@workflow-graph/web';
+```
+
+Full customization via `ThemeConfig`:
+
+```typescript
+const theme: ThemeConfig = {
+  colors: { bg: '#1a1a2e', node_bg: '#16213e', text: '#e0e0e0' },
+  fonts: { family: 'JetBrains Mono, monospace', size_name: 12 },
+  layout: { node_width: 220, node_height: 48, h_gap: 80 },
+  direction: 'TopToBottom',
+  labels: { running: 'En curso', success: 'Listo' },  // i18n
+  edge_styles: { 'build->deploy': { color: '#ff0', dash: [5, 3] } },
+  minimap: true,
+};
+```
+
 ## Crate Structure
 
 | Crate | Purpose |
@@ -99,8 +201,9 @@ cargo install wasm-pack just
 just dev
 
 # Or separately:
-just build-wasm      # Build WASM
+just build-wasm      # Build WASM (release, optimized)
 just serve           # Start server (auto-finds port if 3000 is taken)
+just build-packages  # Build all TypeScript packages
 
 # Development with auto-reload:
 just watch            # cargo-watch restarts server on changes
@@ -151,51 +254,13 @@ jobs:
 
 Place workflow files in `workflows/` directory (`.yml`, `.yaml`, or `.json`).
 
-## WASM API
-
-```javascript
-import init, {
-  render_workflow,
-  update_workflow_data,
-  select_node,
-  deselect_all,
-  reset_layout,
-  zoom_to_fit,
-  set_zoom,
-  get_node_positions,
-  set_node_positions,
-  destroy,
-} from 'workflow-graph-web';
-
-await init();
-
-// Render with callbacks
-render_workflow(
-  'canvas-id',
-  workflowJson,
-  (jobId) => console.log('clicked', jobId),       // on_node_click
-  (jobId) => console.log('hover', jobId),          // on_node_hover
-  () => console.log('canvas clicked'),             // on_canvas_click
-  (ids) => console.log('selected', ids),           // on_selection_change
-  (id, x, y) => console.log('dragged', id, x, y), // on_node_drag_end
-);
-
-// Update data (preserves positions, zoom, selection)
-update_workflow_data('canvas-id', newWorkflowJson);
-
-// Programmatic control
-select_node('canvas-id', 'build');
-reset_layout('canvas-id');
-zoom_to_fit('canvas-id');
-```
-
 ## REST API
 
 ### Workflow Management
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/workflows` | List all workflows |
+| `GET` | `/api/workflows` | List workflows (`?limit=N&offset=M&status=running`) |
 | `POST` | `/api/workflows` | Create workflow |
 | `GET` | `/api/workflows/{id}/status` | Get workflow status |
 | `POST` | `/api/workflows/{id}/run` | Run workflow |
@@ -214,9 +279,19 @@ zoom_to_fit('canvas-id');
 | `GET` | `/api/jobs/{wf_id}/{job_id}/cancelled` | Check cancellation |
 | `GET` | `/api/workflows/{wf_id}/jobs/{job_id}/logs` | Get job logs |
 
-## Deployment Modes
+## Environment Variables
 
-The server supports two modes, controlled by the `API_ONLY` environment variable:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server port (auto-finds next available if taken) |
+| `API_ONLY` | unset | Set to `1` or `true` for API-only mode (no scheduler) |
+| `WORKFLOWS_DIR` | `workflows/` | Directory to load workflow YAML/JSON files from |
+| `CORS_ORIGINS` | unset | Comma-separated allowed origins (permissive if unset) |
+| `REAP_INTERVAL_SECS` | `5` | Lease reaper interval (standalone scheduler) |
+| `SERVER_URL` | `http://localhost:3000` | Worker SDK: API server address |
+| `WORKER_LABELS` | unset | Worker SDK: comma-separated capabilities |
+
+## Deployment Modes
 
 ### All-in-one (default)
 
@@ -228,7 +303,7 @@ cargo run -p workflow-graph-server
 
 ### Split (edge/serverless)
 
-Runs the API server without the scheduler — suitable for edge platforms (Vercel Workers, Cloudflare Workers, Supabase Edge Functions) where functions are request-scoped.
+Runs the API server without the scheduler — suitable for edge platforms where functions are request-scoped.
 
 ```bash
 # Terminal 1: API server (stateless, edge-deployable)
@@ -237,36 +312,6 @@ API_ONLY=1 cargo run -p workflow-graph-server
 # Terminal 2: Standalone scheduler (long-running)
 cargo run -p workflow-graph-scheduler
 ```
-
-The scheduler supports `REAP_INTERVAL_SECS` to configure the lease reaper interval (default: 5s).
-
-## Implementing a Custom Queue Backend
-
-All backends are trait-based. Implement these traits for your preferred storage:
-
-```rust
-use workflow_graph_queue::traits::*;
-
-struct MyRedisQueue { /* ... */ }
-
-impl JobQueue for MyRedisQueue {
-    async fn enqueue(&self, job: QueuedJob) -> Result<(), QueueError> { /* ... */ }
-    async fn claim(&self, worker_id: &str, labels: &[String], ttl: Duration)
-        -> Result<Option<(QueuedJob, Lease)>, QueueError> { /* ... */ }
-    // ... etc
-}
-```
-
-### Trait → pg-boss Mapping
-
-| Trait Method | pg-boss Equivalent |
-|-------------|-------------------|
-| `enqueue()` | `boss.send(queue, data, options)` |
-| `claim()` | `boss.fetch(queue)` — `SELECT FOR UPDATE SKIP LOCKED` |
-| `complete()` | `boss.complete(jobId)` |
-| `fail()` | `boss.fail(jobId)` |
-| `cancel()` | `boss.cancel(jobId)` |
-| `reap_expired()` | pg-boss `maintain()` (automatic) |
 
 ## Embedding in Your Server
 
@@ -299,12 +344,25 @@ async fn main() {
 }
 ```
 
+## Performance
+
+| Scenario | Recommended Max | Notes |
+|----------|----------------|-------|
+| Interactive editing (60fps) | 100 nodes | Canvas2D redraws entire scene |
+| Static display (no animation) | 500 nodes | No animation loop overhead |
+| With minimap enabled | 200 nodes | Minimap adds second render pass |
+| Queue throughput (in-memory) | < 1µs/op | Enqueue and claim operations |
+
+See [PERFORMANCE.md](PERFORMANCE.md) for benchmarks and optimization tips.
+
 ## Testing
 
 ```bash
-just test              # Run all tests (22 tests)
+just test              # Run all tests (38 tests)
 just check             # Type-check workspace
-cargo test -p workflow-graph-queue   # Queue + scheduler tests only
+cargo test -p workflow-graph-queue                    # Queue + scheduler unit tests
+cargo test --test integration -p workflow-graph-queue # Integration tests
+cargo test --test performance -p workflow-graph-queue -- --nocapture # Benchmarks
 ```
 
 ## License

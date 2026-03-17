@@ -39,11 +39,25 @@ Edge platforms typically:
 
 The API server is stateless — it reads/writes to the queue backend and returns. The scheduler needs to run continuously to cascade the DAG, so it runs as a separate long-lived process.
 
-### Scheduler Configuration
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `REAP_INTERVAL_SECS` | `5` | How often the lease reaper checks for expired leases |
+| `PORT` | `3000` | Server port (auto-finds next available if taken) |
+| `API_ONLY` | unset | Set to `1` or `true` for API-only mode |
+| `WORKFLOWS_DIR` | `workflows/` | Directory to load workflow files from |
+| `CORS_ORIGINS` | unset | Comma-separated allowed origins (permissive if unset) |
+| `REAP_INTERVAL_SECS` | `5` | Lease reaper interval (standalone scheduler) |
+| `SERVER_URL` | `http://localhost:3000` | Worker SDK: API server address |
+| `WORKER_LABELS` | unset | Worker SDK: comma-separated capabilities |
+
+### CORS Configuration
+
+By default, the server uses permissive CORS (all origins). For production, restrict origins:
+
+```bash
+CORS_ORIGINS=https://app.example.com,https://admin.example.com cargo run -p workflow-graph-server
+```
 
 ### Architecture in Split Mode
 

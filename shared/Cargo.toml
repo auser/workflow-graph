@@ -1,7 +1,10 @@
 [package]
 name = "workflow-graph-shared"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core types and YAML parser for workflow-graph"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

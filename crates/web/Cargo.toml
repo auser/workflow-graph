@@ -1,7 +1,10 @@
 [package]
 name = "workflow-graph-web"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WASM Canvas renderer for interactive workflow DAG visualization"
 
 [lib]
 crate-type = ["cdylib"]
@@ -39,4 +42,12 @@ features = [
     "DomRect",
     "WheelEvent",
     "KeyboardEvent",
+    "ResizeObserver",
+    "ResizeObserverEntry",
+    "DomRectReadOnly",
+    "MediaQueryList",
+    "PointerEvent",
+    "Touch",
+    "TouchEvent",
+    "TouchList",
 ]

@@ -78,6 +78,7 @@ impl Worker {
     }
 
     /// Run the worker loop: register, poll for jobs, execute, report results.
+    /// Handles SIGTERM/SIGINT for graceful shutdown — finishes the current job before exiting.
     pub async fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         self.register().await?;
         println!(
@@ -85,19 +86,34 @@ impl Worker {
             self.config.worker_id, self.config.labels
         );
 
+        let shutdown = tokio::signal::ctrl_c();
+        tokio::pin!(shutdown);
+
         loop {
-            match self.poll_and_execute().await {
-                Ok(true) => {} // executed a job, poll again immediately
-                Ok(false) => {
-                    // no job available, wait before polling again
-                    tokio::time::sleep(self.config.poll_interval).await;
+            tokio::select! {
+                biased;
+                _ = &mut shutdown => {
+                    println!("Received shutdown signal, finishing current work...");
+                    break;
                 }
-                Err(e) => {
-                    eprintln!("Worker error: {e}");
-                    tokio::time::sleep(self.config.poll_interval).await;
+                result = self.poll_and_execute() => {
+                    match result {
+                        Ok(true) => {} // executed a job, poll again immediately
+                        Ok(false) => {
+                            // no job available, wait before polling again
+                            tokio::time::sleep(self.config.poll_interval).await;
+                        }
+                        Err(e) => {
+                            eprintln!("Worker error: {e}");
+                            tokio::time::sleep(self.config.poll_interval).await;
+                        }
+                    }
                 }
             }
         }
+
+        println!("Worker {} shutting down gracefully", self.config.worker_id);
+        Ok(())
     }
 
     async fn register(&self) -> Result<(), Box<dyn std::error::Error>> {

@@ -75,6 +75,7 @@ pub async fn start_workflow(
             attempt: 0,
             upstream_outputs: HashMap::new(),
             enqueued_at_ms: now_ms(),
+            delayed_until_ms: 0,
         };
         queue.enqueue(queued).await?;
     }

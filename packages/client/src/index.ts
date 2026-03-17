@@ -38,6 +38,30 @@ export interface WorkerInfo {
   status: 'idle' | 'busy' | 'offline';
 }
 
+/** Error thrown when the API returns a non-OK response. */
+export class WorkflowApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly statusText: string,
+  ) {
+    super(message);
+    this.name = 'WorkflowApiError';
+  }
+}
+
+/** Assert response is OK, throw WorkflowApiError otherwise. */
+async function assertOk(res: Response, context: string): Promise<void> {
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new WorkflowApiError(
+      `${context}: ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`,
+      res.status,
+      res.statusText,
+    );
+  }
+}
+
 /**
  * Client for the workflow-graph REST API.
  *
@@ -53,13 +77,14 @@ export class WorkflowClient {
 
   async listWorkflows(): Promise<Workflow[]> {
     const res = await fetch(`${this.baseUrl}/api/workflows`);
-    return res.json();
+    await assertOk(res, 'listWorkflows');
+    return res.json() as Promise<Workflow[]>;
   }
 
   async getStatus(id: string): Promise<Workflow> {
-    const res = await fetch(`${this.baseUrl}/api/workflows/${id}/status`);
-    if (!res.ok) throw new Error(`Workflow ${id} not found`);
-    return res.json();
+    const res = await fetch(`${this.baseUrl}/api/workflows/${encodeURIComponent(id)}/status`);
+    await assertOk(res, `getStatus(${id})`);
+    return res.json() as Promise<Workflow>;
   }
 
   async createWorkflow(workflow: Omit<Workflow, 'id'>): Promise<Workflow> {
@@ -68,27 +93,39 @@ export class WorkflowClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(workflow),
     });
-    return res.json();
+    await assertOk(res, 'createWorkflow');
+    return res.json() as Promise<Workflow>;
   }
 
   async runWorkflow(id: string): Promise<void> {
-    await fetch(`${this.baseUrl}/api/workflows/${id}/run`, { method: 'POST' });
+    const res = await fetch(`${this.baseUrl}/api/workflows/${encodeURIComponent(id)}/run`, {
+      method: 'POST',
+    });
+    await assertOk(res, `runWorkflow(${id})`);
   }
 
   async cancelWorkflow(id: string): Promise<void> {
-    await fetch(`${this.baseUrl}/api/workflows/${id}/cancel`, { method: 'POST' });
+    const res = await fetch(`${this.baseUrl}/api/workflows/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+    });
+    await assertOk(res, `cancelWorkflow(${id})`);
   }
 
   async getJobLogs(workflowId: string, jobId: string): Promise<LogChunk[]> {
-    const res = await fetch(`${this.baseUrl}/api/workflows/${workflowId}/jobs/${jobId}/logs`);
-    return res.json();
+    const wfId = encodeURIComponent(workflowId);
+    const jId = encodeURIComponent(jobId);
+    const res = await fetch(`${this.baseUrl}/api/workflows/${wfId}/jobs/${jId}/logs`);
+    await assertOk(res, `getJobLogs(${workflowId}, ${jobId})`);
+    return res.json() as Promise<LogChunk[]>;
   }
 
   /**
    * Stream job logs via SSE. Returns an async iterable of log chunks.
    */
   async *streamLogs(workflowId: string, jobId: string): AsyncIterable<LogChunk> {
-    const url = `${this.baseUrl}/api/workflows/${workflowId}/jobs/${jobId}/logs/stream`;
+    const wfId = encodeURIComponent(workflowId);
+    const jId = encodeURIComponent(jobId);
+    const url = `${this.baseUrl}/api/workflows/${wfId}/jobs/${jId}/logs/stream`;
     const eventSource = new EventSource(url);
 
     const chunks: LogChunk[] = [];
@@ -96,7 +133,7 @@ export class WorkflowClient {
     let done = false;
 
     eventSource.addEventListener('log', (event: MessageEvent) => {
-      chunks.push(JSON.parse(event.data));
+      chunks.push(JSON.parse(event.data) as LogChunk);
       if (resolve) {
         resolve();
         resolve = null;
@@ -118,7 +155,9 @@ export class WorkflowClient {
           yield chunks.shift()!;
         }
         if (!done) {
-          await new Promise<void>((r) => { resolve = r; });
+          await new Promise<void>((r) => {
+            resolve = r;
+          });
         }
       }
     } finally {
@@ -128,6 +167,7 @@ export class WorkflowClient {
 
   async listWorkers(): Promise<WorkerInfo[]> {
     const res = await fetch(`${this.baseUrl}/api/workers`);
-    return res.json();
+    await assertOk(res, 'listWorkers');
+    return res.json() as Promise<WorkerInfo[]>;
   }
 }

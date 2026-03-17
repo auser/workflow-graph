@@ -33,6 +33,9 @@ pub struct QueuedJob {
     /// Outputs from upstream jobs, keyed by job_id then output key.
     pub upstream_outputs: HashMap<String, HashMap<String, String>>,
     pub enqueued_at_ms: u64,
+    /// Epoch milliseconds before which this job should not be claimed (backoff delay).
+    #[serde(default)]
+    pub delayed_until_ms: u64,
 }
 
 /// Configurable retry behavior per job.
@@ -56,6 +59,20 @@ pub enum BackoffStrategy {
     None,
     Fixed { delay_secs: u64 },
     Exponential { base_secs: u64, max_secs: u64 },
+}
+
+impl BackoffStrategy {
+    /// Calculate delay in milliseconds for the given attempt number.
+    pub fn delay_ms(&self, attempt: u32) -> u64 {
+        match self {
+            BackoffStrategy::None => 0,
+            BackoffStrategy::Fixed { delay_secs } => delay_secs * 1000,
+            BackoffStrategy::Exponential { base_secs, max_secs } => {
+                let delay = base_secs.saturating_mul(2u64.saturating_pow(attempt));
+                delay.min(*max_secs) * 1000
+            }
+        }
+    }
 }
 
 /// Events emitted by the queue for the scheduler to react to.

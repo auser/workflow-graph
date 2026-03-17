@@ -2,12 +2,39 @@
   "name": "@workflow-graph/react",
   "version": "0.1.0",
   "description": "React component for workflow DAG visualization",
-  "main": "src/index.tsx",
-  "types": "src/index.tsx",
-  "peerDependencies": {
-    "react": ">=18",
-    "@workflow-graph/web": ">=0.1.0"
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist/", "src/", "README.md"],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
   },
-  "files": ["src/", "README.md"],
-  "license": "MIT"
+  "keywords": ["workflow", "dag", "graph", "react", "wasm", "github-actions", "visualization"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/auser/workflow-graph",
+    "directory": "packages/react"
+  },
+  "homepage": "https://auser.github.io/workflow-graph/",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "@workflow-graph/web": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "typescript": "^5.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  }
 }

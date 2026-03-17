@@ -4,3 +4,15 @@ resolver = "3"
 
 [workspace.package]
 version = "0.1.1"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/auser/workflow-graph"
+homepage = "https://auser.github.io/workflow-graph/"
+description = "GitHub Actions-style workflow DAG visualizer and job execution engine"
+
+# Optimize WASM binary size in release builds
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1

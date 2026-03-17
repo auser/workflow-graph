@@ -1,7 +1,10 @@
 [package]
 name = "workflow-graph-server"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Embeddable Axum API server for workflow-graph"
 
 [dependencies]
 workflow-graph-shared = { path = "../../shared" }

@@ -142,8 +142,22 @@ pub fn create_router(state: AppState) -> Router {
     // Static file serving
     let static_files = ServeDir::new("www").fallback(ServeDir::new("."));
 
-    api.fallback_service(static_files)
-        .layer(CorsLayer::permissive())
+    let cors = match std::env::var("CORS_ORIGINS") {
+        Ok(origins) if !origins.is_empty() => {
+            use tower_http::cors::AllowOrigin;
+            let allowed: Vec<_> = origins
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            CorsLayer::new()
+                .allow_origin(AllowOrigin::list(allowed))
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any)
+        }
+        _ => CorsLayer::permissive(),
+    };
+
+    api.fallback_service(static_files).layer(cors)
 }
 
 fn load_workflows_from_dir(dir: &str) -> Vec<workflow_graph_shared::Workflow> {

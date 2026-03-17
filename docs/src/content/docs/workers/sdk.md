@@ -74,6 +74,19 @@ async fn main() {
 
 ## Graceful Shutdown
 
+The worker handles SIGTERM/SIGINT automatically — it finishes the current job before exiting:
+
+```rust
+// worker.run() handles Ctrl+C / SIGTERM internally:
+// 1. Receives signal
+// 2. Finishes executing the current job (if any)
+// 3. Reports result to server
+// 4. Returns Ok(())
+worker.run().await?;
+```
+
+For custom shutdown logic, use `tokio::select!`:
+
 ```rust
 tokio::select! {
     result = worker.run() => {
@@ -81,12 +94,23 @@ tokio::select! {
             eprintln!("Worker failed: {e}");
         }
     }
-    _ = tokio::signal::ctrl_c() => {
-        println!("Shutting down...");
-        // The current job will finish or its lease will expire and be retried
+    _ = custom_shutdown_signal() => {
+        println!("Custom shutdown...");
     }
 }
 ```
+
+## Retry Backoff
+
+Jobs support configurable backoff strategies when retries are enabled:
+
+| Strategy | Config | Behavior |
+|----------|--------|----------|
+| None | `BackoffStrategy::None` | Retry immediately (default) |
+| Fixed | `BackoffStrategy::Fixed { delay_secs: 5 }` | Wait 5s between each retry |
+| Exponential | `BackoffStrategy::Exponential { base_secs: 2, max_secs: 60 }` | Wait 2s, 4s, 8s, 16s... capped at 60s |
+
+Backoff is configured per-job via `RetryPolicy` and enforced by the queue — jobs with pending backoff delay are not claimable until the delay elapses.
 
 ## Custom Executors
 
