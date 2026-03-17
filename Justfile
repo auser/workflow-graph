@@ -79,41 +79,65 @@ changelog version="":
         git cliff --tag "{{version}}"
     fi
 
+# Bump version in all workspace Cargo.toml files
+bump-versions version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for toml in shared/Cargo.toml crates/*/Cargo.toml; do
+        sed -i '' "s/^version = \".*\"/version = \"{{version}}\"/" "$toml"
+    done
+    echo "Bumped all crate versions to {{version}}"
+
 # Cut a release with automatic version bump (based on conventional commits)
 release-auto:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "==> Preparing automatic release"
-    # 1. Quality gates — auto-fix fmt and clippy, then test
+
+    # 1. Ensure working tree is clean
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "Error: working tree is not clean. Commit or stash changes first."
+        exit 1
+    fi
+
+    # 2. Quality gates
     cargo fmt --all
     cargo clippy --fix --allow-dirty --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets -- -D warnings
     cargo nextest run --workspace
-    # 2. Determine next version from conventional commits
+
+    # 3. Determine next version from conventional commits
     NEXT_VERSION=$(git-cliff --bumped-version | sed 's/^v//')
-    echo "==> Auto-detected next version: $NEXT_VERSION"
-    # 3. Bump all workspace versions
+    TAG="v${NEXT_VERSION}"
+    echo "==> Auto-detected next version: $NEXT_VERSION (tag: $TAG)"
+
+    # 4. Bump all workspace versions
     just bump-versions "$NEXT_VERSION"
-    # 4. Commit the version bump + any fmt/clippy fixes + updated Cargo.lock
+
+    # 5. Commit version bump + any fmt/clippy fixes
     if ! git diff --quiet; then
         git add -u
         git commit -m "chore: bump workspace version to $NEXT_VERSION"
     fi
-    # 5. Generate changelog entry from conventional commits (via git-cliff)
-    if ! grep -q "^## \[$NEXT_VERSION\]" CHANGELOG.md; then
-        git-cliff --tag "v$NEXT_VERSION" --unreleased --prepend CHANGELOG.md
+
+    # 6. Generate changelog
+    touch CHANGELOG.md
+    if ! grep -q "^## \[$NEXT_VERSION\]" CHANGELOG.md 2>/dev/null; then
+        git-cliff --tag "$TAG" --output CHANGELOG.md
         git add CHANGELOG.md
-        git commit -m "chore: add changelog entry for v$NEXT_VERSION"
+        git commit -m "chore: add changelog for $TAG"
     fi
-    # 6. Verify changelog & crate versions match
+
+    # 7. Verify changelog & crate versions match
     scripts/verify-release-version.sh --version "$NEXT_VERSION"
-    # 7. Push branch commits, tag, and push tag (triggers .github/workflows/release.yml)
+
+    # 8. Tag and push
     git push
-    if ! git tag -l "v$NEXT_VERSION" | grep -q .; then
-        git tag "v$NEXT_VERSION"
+    if ! git tag -l "$TAG" | grep -q .; then
+        git tag -a "$TAG" -m "Release $TAG"
     fi
-    git push origin "v$NEXT_VERSION"
-    echo "==> Tag v$NEXT_VERSION pushed. Release workflow will build and publish."
+    git push origin "$TAG"
+    echo "==> $TAG released and pushed."
 
 # Start docs dev server
 docs-dev:

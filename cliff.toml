@@ -49,3 +49,6 @@ skip_tags = ""
 ignore_tags = ""
 topo_order = false
 sort_commits = "newest"
+
+[bump]
+initial_tag = "v0.1.0"
