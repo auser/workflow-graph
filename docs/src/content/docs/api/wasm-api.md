@@ -14,7 +14,10 @@ See the [examples directory](https://github.com/auser/workflow-graph/tree/main/e
 ### NPM Package (recommended)
 
 ```typescript
-import { WorkflowGraph, darkTheme } from '@auser/workflow-graph-web';
+import { WorkflowGraph, darkTheme, setWasmUrl } from '@auser/workflow-graph-web';
+
+// Required for Vite; recommended for all bundlers
+setWasmUrl('/workflow_graph_web_bg.wasm');
 
 const graph = new WorkflowGraph(document.getElementById('container')!, {
   onNodeClick: (jobId) => console.log('clicked', jobId),
@@ -24,10 +27,17 @@ const graph = new WorkflowGraph(document.getElementById('container')!, {
 await graph.setWorkflow(workflowData);
 ```
 
+:::note[WASM Binary]
+Copy `workflow_graph_web_bg.wasm` from `node_modules/@auser/workflow-graph-web/wasm/` to your `public/` directory, or configure your bundler to serve it. Then call `setWasmUrl()` with the URL before creating any graph instances.
+:::
+
 ### React Component
 
 ```tsx
+import { setWasmUrl } from '@auser/workflow-graph-web';
 import { WorkflowGraphComponent, darkTheme } from '@auser/workflow-graph-react';
+
+setWasmUrl('/workflow_graph_web_bg.wasm');
 import type { WorkflowGraphHandle } from '@auser/workflow-graph-react';
 
 const ref = useRef<WorkflowGraphHandle>(null);

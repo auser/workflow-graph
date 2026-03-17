@@ -56,7 +56,10 @@ npm install @auser/workflow-graph-react  # React component
 ```
 
 ```typescript
-import { WorkflowGraph, darkTheme } from '@auser/workflow-graph-web';
+import { WorkflowGraph, darkTheme, setWasmUrl } from '@auser/workflow-graph-web';
+
+// Serve the .wasm file from public/ and set the URL
+setWasmUrl('/workflow_graph_web_bg.wasm');
 
 const graph = new WorkflowGraph(document.getElementById('container')!, {
   theme: darkTheme,

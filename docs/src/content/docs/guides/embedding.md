@@ -3,11 +3,13 @@ title: Embedding in Your Application
 description: Use workflow-graph as a library in your Axum server, React app, or vanilla JS project
 ---
 
-:::tip[Examples]
-Working examples for each package are in the [`examples/`](https://github.com/auser/workflow-graph/tree/main/examples) directory:
-- [**vanilla-web**](https://github.com/auser/workflow-graph/tree/main/examples/vanilla-web) — Plain HTML + ES modules
-- [**react-app**](https://github.com/auser/workflow-graph/tree/main/examples/react-app) — React with ref API and theme switching
-- [**client-polling**](https://github.com/auser/workflow-graph/tree/main/examples/client-polling) — Node.js status polling
+:::tip[Working Examples]
+Complete runnable examples for each package:
+- [**vanilla-web**](https://github.com/auser/workflow-graph/tree/main/examples/vanilla-web) — Plain HTML + Vite, theme switching, minimap, direction toggle
+- [**react-app**](https://github.com/auser/workflow-graph/tree/main/examples/react-app) — Vite + React with ref API, custom edge styles, error handling
+- [**client-polling**](https://github.com/auser/workflow-graph/tree/main/examples/client-polling) — Node.js script that runs a workflow and polls status
+
+Each example runs with `npm install && npm run dev` (or `npm start`).
 :::
 
 ## Frontend: NPM Packages
@@ -19,39 +21,72 @@ npm install @auser/workflow-graph-react @auser/workflow-graph-web
 ```
 
 ```tsx
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { setWasmUrl } from '@auser/workflow-graph-web';
 import {
   WorkflowGraphComponent,
   darkTheme,
   highContrastTheme,
 } from '@auser/workflow-graph-react';
-import type { WorkflowGraphHandle } from '@auser/workflow-graph-react';
+import type { WorkflowGraphHandle, ThemeConfig } from '@auser/workflow-graph-react';
+
+// If using Vite, serve the .wasm file from public/ and set the URL:
+setWasmUrl('/workflow_graph_web_bg.wasm');
 
 function App() {
   const ref = useRef<WorkflowGraphHandle>(null);
+  const [minimap, setMinimap] = useState(false);
+
+  const theme: ThemeConfig = { ...darkTheme, minimap };
 
   return (
     <>
       <WorkflowGraphComponent
         ref={ref}
         workflow={workflowData}
-        theme={darkTheme}
+        theme={theme}
         autoResize
         onNodeClick={(id) => console.log('clicked', id)}
         onEdgeClick={(from, to) => console.log('edge', from, to)}
         onError={(err) => console.error('Graph error:', err)}
-        // Custom loading skeleton (optional)
-        loadingSkeleton={<div>Loading graph...</div>}
       />
 
       <button onClick={() => ref.current?.zoomToFit()}>Zoom to Fit</button>
       <button onClick={() => ref.current?.setTheme(highContrastTheme)}>
         High Contrast
       </button>
+      <button onClick={() => setMinimap(m => !m)}>Toggle Minimap</button>
     </>
   );
 }
 ```
+
+#### WASM Setup with Vite
+
+When using Vite, the WASM binary needs to be served as a static asset. Copy it to your `public/` directory or configure `publicDir`:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  // Option 1: copy workflow_graph_web_bg.wasm to public/
+  // Option 2: point publicDir at the wasm directory
+});
+```
+
+Then call `setWasmUrl()` before rendering any graph components:
+
+```ts
+import { setWasmUrl } from '@auser/workflow-graph-web';
+setWasmUrl('/workflow_graph_web_bg.wasm');
+```
+
+:::note
+Without `setWasmUrl()`, the WASM loader uses `import.meta.url` to resolve the binary path. This works in most bundlers but may fail in Vite dev mode. Always set the URL explicitly for reliable behavior.
+:::
 
 #### Props
 
@@ -99,8 +134,8 @@ npm install @auser/workflow-graph-web
 ```typescript
 import { WorkflowGraph, darkTheme, setWasmUrl } from '@auser/workflow-graph-web';
 
-// Optional: host WASM binary on a CDN
-// setWasmUrl('https://cdn.example.com/wasm/workflow_graph_web_bg.wasm');
+// Set WASM URL (required for Vite, recommended for all bundlers)
+setWasmUrl('/workflow_graph_web_bg.wasm');
 
 const graph = new WorkflowGraph(document.getElementById('container')!, {
   onNodeClick: (jobId) => showJobDetails(jobId),
@@ -127,6 +162,52 @@ setInterval(async () => {
   const updated = await fetch('/api/workflows/ci-1/status').then(r => r.json());
   graph.updateStatus(updated);
 }, 1000);
+```
+
+### REST API Client (Node.js / Server-side)
+
+```bash
+npm install @auser/workflow-graph-client
+```
+
+```typescript
+import { WorkflowClient, WorkflowApiError } from '@auser/workflow-graph-client';
+
+const client = new WorkflowClient('http://localhost:4000');
+
+// List and run workflows
+const workflows = await client.listWorkflows();
+await client.runWorkflow(workflows[0].id);
+
+// Poll for status
+const status = await client.getStatus(workflows[0].id);
+
+// Stream logs
+for await (const chunk of client.streamLogs(wfId, jobId)) {
+  process.stdout.write(chunk.data);
+}
+
+// Error handling
+try {
+  await client.getStatus('nonexistent');
+} catch (err) {
+  if (err instanceof WorkflowApiError) {
+    console.error(`API ${err.status}: ${err.message}`);
+  }
+}
+```
+
+The client requires a running server and worker:
+
+```bash
+# Terminal 1: Server
+PORT=4000 just dev
+
+# Terminal 2: Worker
+SERVER_URL=http://localhost:4000 cargo run -p workflow-graph-worker-sdk
+
+# Terminal 3: Client script
+cd examples/client-polling && npm install && npm start
 ```
 
 ---

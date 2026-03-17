@@ -97,8 +97,8 @@ npm install @auser/workflow-graph-client   # REST API client
 ```typescript
 import { WorkflowGraph, darkTheme, setWasmUrl } from '@auser/workflow-graph-web';
 
-// Optional: set custom WASM URL if hosting separately
-// setWasmUrl('https://cdn.example.com/wasm/workflow_graph_web_bg.wasm');
+// Serve the .wasm file from public/ and set the URL
+setWasmUrl('/workflow_graph_web_bg.wasm');
 
 const graph = new WorkflowGraph(document.getElementById('container')!, {
   onNodeClick: (jobId) => console.log('clicked', jobId),
@@ -118,8 +118,11 @@ await graph.setTheme({ minimap: true, direction: 'TopToBottom' });
 ### React
 
 ```tsx
+import { setWasmUrl } from '@auser/workflow-graph-web';
 import { WorkflowGraphComponent, darkTheme } from '@auser/workflow-graph-react';
 import type { WorkflowGraphHandle } from '@auser/workflow-graph-react';
+
+setWasmUrl('/workflow_graph_web_bg.wasm');
 
 const ref = useRef<WorkflowGraphHandle>(null);
 

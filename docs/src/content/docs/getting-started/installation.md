@@ -46,12 +46,24 @@ npm install @auser/workflow-graph-react    # React component (peer dep: @auser/w
 npm install @auser/workflow-graph-client   # TypeScript REST API client
 ```
 
-The `@auser/workflow-graph-web` package bundles the compiled WASM binary — no separate build step needed. If you need to host the WASM file on a CDN, use `setWasmUrl()`:
+The `@auser/workflow-graph-web` package bundles the compiled WASM binary in its `wasm/` directory. You need to serve this file and tell the loader where to find it:
 
 ```typescript
 import { setWasmUrl } from '@auser/workflow-graph-web';
-setWasmUrl('https://cdn.example.com/wasm/workflow_graph_web_bg.wasm');
+
+// Point to where you serve the .wasm file (e.g., public/ directory)
+setWasmUrl('/workflow_graph_web_bg.wasm');
 ```
+
+Copy the WASM file to your static assets:
+
+```bash
+cp node_modules/@auser/workflow-graph-web/wasm/workflow_graph_web_bg.wasm public/
+```
+
+:::tip
+See the [examples directory](https://github.com/auser/workflow-graph/tree/main/examples) for complete Vite setups (vanilla JS and React) that handle WASM serving automatically.
+:::
 
 ## What's Included
 
