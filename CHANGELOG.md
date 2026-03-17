@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-03-17
+
+### Features
+
+- React-app example with Vite + React([e827997](https://github.com/auser/workflow-graph/commit/e827997eb56ea9bddce84dadb3da62a92a702bc6))
+- Vanilla-web example with Vite dev server([8724e0a](https://github.com/auser/workflow-graph/commit/8724e0a942afcf1cec14c9cc52c4fc0a6295e648))
+
+### Bug Fixes
+
+- Serve WASM as static asset and set explicit URL in React example([3345e33](https://github.com/auser/workflow-graph/commit/3345e334f5eef0ff16c16e4acc969f2553dad259))
+- Use Vite aliases to resolve packages from source([e613646](https://github.com/auser/workflow-graph/commit/e61364686be1a73574c5badd87f77deeb627f7b3))
+- Add PORT env var to client-polling and server URL logging to worker([62220b8](https://github.com/auser/workflow-graph/commit/62220b874705ef36615fc11b7ce434b9c3ac1dc4))
+- Allow Vite to serve WASM files from monorepo root([e04969a](https://github.com/auser/workflow-graph/commit/e04969a0da92f464d5e56a513e385d0543963f9e))
+- Don't interrupt spinner animation with static redraws([95ebdb1](https://github.com/auser/workflow-graph/commit/95ebdb1a793a1a4185338ba28fd02f0d97f6fc81))
+- Only guard re-run when jobs are Running, not Queued([b145be0](https://github.com/auser/workflow-graph/commit/b145be0207c65d5c7394ac40482cd86d13bbb0c3))
+- Client-polling example uses local package until next npm release([51e1e01](https://github.com/auser/workflow-graph/commit/51e1e01029671d31fa5560d592752cd05977159a))
+- Prevent re-running a workflow that is already active([fa26e03](https://github.com/auser/workflow-graph/commit/fa26e03b6650c60192d4d1b69823ea52407fc53c))
+- Justfile port reads from PORT env var([94647e4](https://github.com/auser/workflow-graph/commit/94647e40f56abe0ff11d38795d5d5c59c7795d06))
+- Default client-polling example to port 4000([f40cb02](https://github.com/auser/workflow-graph/commit/f40cb02de09aa546ac71eb9f84e28cb7f08b8d7a))
+- Add package.json and @types/node to client-polling example([fe09b1c](https://github.com/auser/workflow-graph/commit/fe09b1cfc6b01cc46096e675b1edb7dc5545d93d))
+- Add type:module to npm packages and fix client-polling example([7073bc9](https://github.com/auser/workflow-graph/commit/7073bc9836cda29663841b037882469d61f2436b))
+
+### Documentation
+
+- Add setWasmUrl() requirement and update all examples([52fd8bb](https://github.com/auser/workflow-graph/commit/52fd8bbe6b83a7cc09f09564e7fc7513285c07f0))
+- Update client-polling README with 3-terminal setup([6a11270](https://github.com/auser/workflow-graph/commit/6a11270e5f72552073ade84ad82dfbbea0d731ed))
+- Add working examples for each npm package([15f1dc1](https://github.com/auser/workflow-graph/commit/15f1dc11c1edf2eeb18ce7a2be1c51d1a5d3b1f4))
+- Add npm badges to README and update quick-start guide([a7e63e1](https://github.com/auser/workflow-graph/commit/a7e63e1e3706e9e2044e56074d90dc2c21b4d883))
+
+### Miscellaneous
+
+- Bump workspace version to 0.4.0([4c91ce2](https://github.com/auser/workflow-graph/commit/4c91ce21a68e7b627e9e4b7fa0a78075f3379042))
 ## [0.3.0] - 2026-03-17
 
 ### Features
@@ -12,6 +44,10 @@ All notable changes to this project will be documented in this file.
 
 - Sync workspace dep versions to 0.3.0([82a2131](https://github.com/auser/workflow-graph/commit/82a21316b64677745b6a6a80dee68cc82293ab2b))
 - Bump-versions recipe now syncs workspace.dependencies versions([3c55c22](https://github.com/auser/workflow-graph/commit/3c55c22b339595970b1583004a8279151829a3a6))
+
+### Miscellaneous
+
+- Add changelog for v0.3.0([e47fa1c](https://github.com/auser/workflow-graph/commit/e47fa1c5968a8ce9f9c2fdb1f5251678843a0bd6))
 ## [0.2.6] - 2026-03-17
 
 ### Bug Fixes
