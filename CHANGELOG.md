@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.6] - 2026-03-17
+
+### Bug Fixes
+
+- Resolve React TS build in CI with paths mapping([9426776](https://github.com/auser/workflow-graph/commit/9426776026de69641ec7aa8edd8ac67c13c13841))
+
+### Miscellaneous
+
+- Bump workspace version to 0.2.6([7620187](https://github.com/auser/workflow-graph/commit/76201874222bb86de633fc7d7be237e127a61794))
 ## [0.2.5] - 2026-03-17
 
 ### Bug Fixes
@@ -10,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog for v0.2.5([3b551ce](https://github.com/auser/workflow-graph/commit/3b551ce1d242b04ede9d7cb29610fa768e70d3f1))
 - Bump workspace version to 0.2.5([87e341c](https://github.com/auser/workflow-graph/commit/87e341c80fe0d6329cc83b4d6de41cd4a01dad50))
 ## [0.2.4] - 2026-03-17
 
