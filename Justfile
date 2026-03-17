@@ -11,9 +11,9 @@ default:
     @just --list
 
 
-# Build WASM frontend (release + optimized)
+# Build WASM frontend (release, skip wasm-opt — bundled version is outdated)
 build-wasm:
-    wasm-pack build crates/web --target web --no-typescript --release
+    wasm-pack build crates/web --target web --no-typescript --release --no-opt
 
 # Build TypeScript packages (requires WASM to be built first)
 build-packages: build-wasm

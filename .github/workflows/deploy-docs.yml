@@ -30,8 +30,8 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack
 
-      - name: Build WASM
-        run: wasm-pack build crates/web --target web --no-typescript
+      - name: Build WASM (skip wasm-opt — bundled version is outdated)
+        run: wasm-pack build crates/web --target web --no-typescript --no-opt
 
       - name: Copy WASM to docs
         run: |
