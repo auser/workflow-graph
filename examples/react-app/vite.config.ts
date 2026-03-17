@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // Point directly at source so Vite compiles it — no pre-build needed
+      // Resolve to source — Vite compiles on the fly
       '@auser/workflow-graph-react': path.resolve(__dirname, '../../packages/react/src/index.tsx'),
       '@auser/workflow-graph-web': path.resolve(__dirname, '../../packages/web/src/index.ts'),
     },
@@ -16,4 +16,6 @@ export default defineConfig({
       allow: [path.resolve(__dirname, '../..')],
     },
   },
+  // Serve WASM files as static assets
+  publicDir: path.resolve(__dirname, '../../packages/web/wasm'),
 });

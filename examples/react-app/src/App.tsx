@@ -11,6 +11,11 @@
  */
 
 import { useRef, useState, useCallback } from 'react';
+import { setWasmUrl } from '@auser/workflow-graph-web';
+
+// Tell the WASM loader where to find the binary (served from publicDir)
+setWasmUrl('/workflow_graph_web_bg.wasm');
+
 import {
   WorkflowGraphComponent,
   darkTheme,
@@ -120,7 +125,7 @@ export default function App() {
         theme={theme}
         autoResize
         onNodeClick={handleNodeClick}
-        onEdgeClick={(from, to) => console.log('Edge:', from, '->', to)}
+        onEdgeClick={(from: any, to: any) => console.log('Edge:', from, '->', to)}
         onError={handleError}
         style={{ border: '1px solid #30363d', borderRadius: 8, overflow: 'hidden' }}
       />
