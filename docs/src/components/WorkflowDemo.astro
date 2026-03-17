@@ -2,8 +2,8 @@
 /**
  * Animated workflow graph demo for the landing page.
  * Mirrors the real ci.yml workflow: 8 jobs with full DAG topology.
- * Pure SVG + JS — no WASM dependency. Cycles through job statuses
- * to show the visualization in action.
+ * Features: drag-and-drop nodes, YAML source view, animated execution.
+ * Pure SVG + JS — no WASM dependency.
  */
 ---
 
@@ -17,6 +17,10 @@
     <span class="demo-title">ci.yml — workflow run</span>
     <div class="demo-controls">
       <span class="demo-status" id="demo-run-status"></span>
+      <div class="demo-tabs">
+        <button class="tab-btn active" id="tab-graph" aria-label="Graph view">Graph</button>
+        <button class="tab-btn" id="tab-yaml" aria-label="YAML view">YAML</button>
+      </div>
       <button class="demo-btn" id="demo-run" aria-label="Run workflow">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
           <path d="M4 2l10 6-10 6z"/>
@@ -34,131 +38,104 @@
     <span class="status-chip failure"><span class="chip-dot"></span><span id="count-failure">0</span> failure</span>
   </div>
 
-  <svg
-    id="workflow-demo"
-    viewBox="0 0 960 460"
-    xmlns="http://www.w3.org/2000/svg"
-    role="img"
-    aria-label="Animated workflow graph demo showing a CI pipeline"
-  >
-    <defs>
-      <marker id="arrow" viewBox="0 0 10 7" refX="10" refY="3.5"
-              markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-        <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#484f58"/>
-      </marker>
-      <marker id="arrow-hl" viewBox="0 0 10 7" refX="10" refY="3.5"
-              markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-        <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#58a6ff"/>
-      </marker>
-      <marker id="arrow-active" viewBox="0 0 10 7" refX="10" refY="3.5"
-              markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-        <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#3fb950"/>
-      </marker>
+  <!-- Graph view -->
+  <div class="demo-view" id="view-graph">
+    <svg
+      id="workflow-demo"
+      viewBox="0 0 880 420"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="Animated workflow graph demo showing a CI pipeline"
+    >
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 7" refX="10" refY="3.5"
+                markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#484f58"/>
+        </marker>
+        <marker id="arrow-hl" viewBox="0 0 10 7" refX="10" refY="3.5"
+                markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#58a6ff"/>
+        </marker>
+        <marker id="arrow-active" viewBox="0 0 10 7" refX="10" refY="3.5"
+                markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#3fb950"/>
+        </marker>
 
-      <!-- Icon templates -->
-      <g id="icon-queued">
-        <circle r="8" fill="none" stroke="#484f58" stroke-width="2"/>
-      </g>
-      <g id="icon-running">
-        <circle r="8" fill="none" stroke="#d29922" stroke-width="2" stroke-dasharray="16 34">
-          <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1s" repeatCount="indefinite"/>
-        </circle>
-      </g>
-      <g id="icon-success">
-        <circle r="8" fill="#238636" stroke="none"/>
-        <path d="M -4 0 L -1.5 3 L 4 -3" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </g>
-      <g id="icon-failure">
-        <circle r="8" fill="#da3633" stroke="none"/>
-        <path d="M -3 -3 L 3 3 M 3 -3 L -3 3" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
-      </g>
-    </defs>
+        <!-- Icon templates -->
+        <g id="icon-queued">
+          <circle r="8" fill="none" stroke="#484f58" stroke-width="2"/>
+        </g>
+        <g id="icon-running">
+          <circle r="8" fill="none" stroke="#d29922" stroke-width="2" stroke-dasharray="16 34">
+            <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1s" repeatCount="indefinite"/>
+          </circle>
+        </g>
+        <g id="icon-success">
+          <circle r="8" fill="#238636" stroke="none"/>
+          <path d="M -4 0 L -1.5 3 L 4 -3" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <g id="icon-failure">
+          <circle r="8" fill="#da3633" stroke="none"/>
+          <path d="M -3 -3 L 3 3 M 3 -3 L -3 3" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </g>
+      </defs>
 
-    <!-- Edges (matches ci.yml DAG) -->
-    <g id="edges">
-      <!-- unit-tests → build -->
-      <path class="edge" data-from="unit-tests" data-to="build"
-            d="M 205,70 C 280,70 280,230 355,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
-      <!-- lint → build -->
-      <path class="edge" data-from="lint" data-to="build"
-            d="M 205,200 C 260,200 300,230 355,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
-      <!-- typecheck → build -->
-      <path class="edge" data-from="typecheck" data-to="build"
-            d="M 205,340 C 280,340 280,230 355,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
-      <!-- build → deploy-db -->
-      <path class="edge" data-from="build" data-to="deploy-db"
-            d="M 515,230 C 570,230 570,70 625,70" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
-      <!-- build → e2e-tests -->
-      <path class="edge" data-from="build" data-to="e2e-tests"
-            d="M 515,230 L 625,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
-      <!-- build → deploy-preview -->
-      <path class="edge" data-from="build" data-to="deploy-preview"
-            d="M 515,230 C 570,230 570,390 625,390" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
-      <!-- deploy-db → deploy-web -->
-      <path class="edge" data-from="deploy-db" data-to="deploy-web"
-            d="M 805,70 C 860,70 860,200 860,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
-    </g>
+      <!-- Edges (dynamically updated on drag) -->
+      <g id="edges"></g>
 
-    <!-- Nodes (all 8 jobs from ci.yml) -->
-    <g id="nodes">
-      <!-- Column 1: parallel starters -->
-      <g class="node" data-id="unit-tests" data-status="queued" transform="translate(45, 40)">
-        <rect width="160" height="56" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
-        <text x="46" y="33" class="node-label">Unit Tests</text>
-        <text x="46" y="47" class="node-meta">retries: 1</text>
-      </g>
+      <!-- Nodes -->
+      <g id="nodes"></g>
+    </svg>
+  </div>
 
-      <g class="node" data-id="lint" data-status="queued" transform="translate(45, 170)">
-        <rect width="160" height="56" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
-        <text x="46" y="33" class="node-label">Lint</text>
-      </g>
+  <!-- YAML view -->
+  <div class="demo-view hidden" id="view-yaml">
+    <pre class="yaml-source"><code id="yaml-content">name: CI
+on: push
 
-      <g class="node" data-id="typecheck" data-status="queued" transform="translate(45, 310)">
-        <rect width="160" height="56" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
-        <text x="46" y="33" class="node-label">Typecheck</text>
-      </g>
+jobs:
+  unit-tests:
+    name: Unit Tests
+    run: echo 'Running unit tests' && sleep 2
+    retries: 1
 
-      <!-- Column 2: build -->
-      <g class="node" data-id="build" data-status="queued" transform="translate(355, 200)">
-        <rect width="160" height="56" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
-        <text x="46" y="33" class="node-label">Build</text>
-        <text x="46" y="47" class="node-meta">linux</text>
-      </g>
+  lint:
+    name: Lint
+    run: echo 'Running linter' && sleep 1
 
-      <!-- Column 3: post-build -->
-      <g class="node" data-id="deploy-db" data-status="queued" transform="translate(625, 40)">
-        <rect width="180" height="56" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
-        <text x="46" y="33" class="node-label">Deploy DB</text>
-        <text x="46" y="47" class="node-meta">linux, aws</text>
-      </g>
+  typecheck:
+    name: Typecheck
+    run: echo 'Running typecheck' && sleep 2
 
-      <g class="node" data-id="e2e-tests" data-status="queued" transform="translate(625, 200)">
-        <rect width="180" height="56" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
-        <text x="46" y="33" class="node-label">E2E Tests</text>
-        <text x="46" y="47" class="node-meta">retries: 2</text>
-      </g>
+  build:
+    name: Build
+    needs: [unit-tests, lint, typecheck]
+    run: echo 'Building project' && sleep 3
+    labels: [linux]
 
-      <g class="node" data-id="deploy-preview" data-status="queued" transform="translate(625, 360)">
-        <rect width="180" height="56" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
-        <text x="46" y="33" class="node-label">Deploy Preview</text>
-      </g>
+  deploy-db:
+    name: Deploy DB Migrations
+    needs: [build]
+    run: echo 'Deploying DB migrations' && sleep 1
+    labels: [linux, aws]
 
-      <!-- Column 4: final -->
-      <g class="node" data-id="deploy-web" data-status="queued" transform="translate(830, 200)">
-        <rect width="120" height="56" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
-        <text x="46" y="33" class="node-label">Deploy Web</text>
-        <text x="46" y="47" class="node-meta">linux, aws</text>
-      </g>
-    </g>
-  </svg>
+  e2e-tests:
+    name: E2E Tests
+    needs: [build]
+    run: echo 'Running E2E tests' && sleep 5
+    retries: 2
+
+  deploy-preview:
+    name: Deploy Preview
+    needs: [build]
+    run: echo 'Deploying preview' && sleep 1
+
+  deploy-web:
+    name: Deploy Web
+    needs: [deploy-db]
+    run: echo 'Deploying to production' && sleep 3
+    labels: [linux, aws]</code></pre>
+  </div>
 
   <!-- Log panel -->
   <div class="demo-logpanel" id="demo-logpanel">
@@ -176,7 +153,7 @@
     border: 1px solid #30363d;
     border-radius: 12px;
     overflow: hidden;
-    max-width: 980px;
+    max-width: 920px;
     margin: 2rem auto;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
@@ -185,22 +162,13 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 10px 16px;
     background: #161b22;
     border-bottom: 1px solid #30363d;
   }
 
-  .demo-dots {
-    display: flex;
-    gap: 6px;
-  }
-
-  .dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-  }
-
+  .demo-dots { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
   .dot.red { background: #ff5f57; }
   .dot.yellow { background: #febc2e; }
   .dot.green { background: #28c840; }
@@ -212,11 +180,7 @@
     flex: 1;
   }
 
-  .demo-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+  .demo-controls { display: flex; align-items: center; gap: 10px; }
 
   .demo-status {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
@@ -224,6 +188,30 @@
     color: #8b949e;
     transition: color 0.3s;
   }
+
+  /* Tabs */
+  .demo-tabs {
+    display: flex;
+    background: #21262d;
+    border-radius: 6px;
+    padding: 2px;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: #8b949e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 3px 10px;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .tab-btn:hover { color: #c9d1d9; }
+  .tab-btn.active { background: #30363d; color: #c9d1d9; }
 
   .demo-btn {
     display: flex;
@@ -241,16 +229,8 @@
     transition: background 0.15s;
   }
 
-  .demo-btn:hover {
-    background: #2ea043;
-  }
-
-  .demo-btn:disabled {
-    background: #21262d;
-    border-color: #30363d;
-    color: #484f58;
-    cursor: default;
-  }
+  .demo-btn:hover { background: #2ea043; }
+  .demo-btn:disabled { background: #21262d; border-color: #30363d; color: #484f58; cursor: default; }
 
   /* Status bar */
   .demo-statusbar {
@@ -263,29 +243,36 @@
     font-size: 12px;
   }
 
-  .status-chip {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    color: #8b949e;
-  }
-
-  .chip-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-
+  .status-chip { display: flex; align-items: center; gap: 5px; color: #8b949e; }
+  .chip-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   .status-chip.queued .chip-dot { background: #484f58; }
   .status-chip.running .chip-dot { background: #d29922; }
   .status-chip.success .chip-dot { background: #238636; }
   .status-chip.failure .chip-dot { background: #da3633; }
 
+  /* Views */
+  .demo-view { min-height: 340px; }
+  .demo-view.hidden { display: none; }
+
   #workflow-demo {
     display: block;
     width: 100%;
-    padding: 16px;
+    padding: 12px;
+    user-select: none;
+  }
+
+  /* YAML view */
+  .yaml-source {
+    margin: 0;
+    padding: 20px 24px;
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    overflow-x: auto;
+    max-height: 380px;
+    overflow-y: auto;
   }
 
   /* Node styles */
@@ -296,24 +283,23 @@
     transition: stroke 0.3s, fill 0.3s;
   }
 
-  .node:hover .node-bg {
-    stroke: #58a6ff;
-    fill: #1c2129;
-  }
-
-  .node { cursor: pointer; }
+  .node:hover .node-bg { stroke: #58a6ff; fill: #1c2129; }
+  .node { cursor: grab; }
+  .node.dragging { cursor: grabbing; }
 
   .node-label {
     fill: #c9d1d9;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
+    pointer-events: none;
   }
 
   .node-meta {
     fill: #484f58;
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    font-size: 10px;
+    font-size: 9px;
+    pointer-events: none;
   }
 
   /* Status-driven node border */
@@ -322,87 +308,63 @@
   .node[data-status="failure"] .node-bg { stroke: #da3633; }
 
   /* Edge styles */
-  .edge {
-    transition: stroke 0.2s, stroke-width 0.2s;
-  }
-
-  .edge.highlighted {
-    stroke: #58a6ff !important;
-    stroke-width: 2.5;
-    marker-end: url(#arrow-hl);
-  }
-
-  .edge.active {
-    stroke: #3fb950 !important;
-    stroke-width: 2.5;
-    marker-end: url(#arrow-active);
-  }
+  .edge { transition: stroke 0.15s, stroke-width 0.15s; }
+  .edge.highlighted { stroke: #58a6ff !important; stroke-width: 2.5; marker-end: url(#arrow-hl); }
+  .edge.active { stroke: #3fb950 !important; stroke-width: 2.5; marker-end: url(#arrow-active); }
 
   /* Log panel */
-  .demo-logpanel {
-    display: none;
-    background: #161b22;
-    border-top: 1px solid #30363d;
-    max-height: 160px;
-    overflow: hidden;
-  }
-
+  .demo-logpanel { display: none; background: #161b22; border-top: 1px solid #30363d; max-height: 140px; overflow: hidden; }
   .demo-logpanel.visible { display: block; }
-
-  .log-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 16px;
-    border-bottom: 1px solid #21262d;
-  }
-
-  .log-title {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    color: #c9d1d9;
-  }
-
-  .log-close {
-    background: none;
-    border: none;
-    color: #8b949e;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-    padding: 0 4px;
-  }
-
+  .log-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #21262d; }
+  .log-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif; font-size: 12px; font-weight: 600; color: #c9d1d9; }
+  .log-close { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; }
   .log-close:hover { color: #c9d1d9; }
-
-  .log-content {
-    padding: 12px 16px;
-    margin: 0;
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    color: #8b949e;
-    overflow-y: auto;
-    max-height: 110px;
-  }
+  .log-content { padding: 10px 16px; margin: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.6; color: #8b949e; overflow-y: auto; max-height: 90px; }
 </style>
 
 <script>
   function initDemo() {
-    const svg = document.getElementById('workflow-demo');
+    const svg = document.getElementById('workflow-demo') as unknown as SVGSVGElement;
     if (!svg) return;
 
-    const JOBS: Record<string, { name: string; cmd: string; dur: number }> = {
-      'unit-tests':     { name: 'Unit Tests',    cmd: 'cargo test',               dur: 2000 },
-      'lint':           { name: 'Lint',           cmd: 'cargo clippy',             dur: 1200 },
-      'typecheck':      { name: 'Typecheck',      cmd: 'cargo check --all',        dur: 1800 },
-      'build':          { name: 'Build',          cmd: 'cargo build --release',    dur: 3000 },
-      'deploy-db':      { name: 'Deploy DB',      cmd: './scripts/migrate.sh',     dur: 1000 },
-      'e2e-tests':      { name: 'E2E Tests',      cmd: 'playwright test',          dur: 5000 },
-      'deploy-preview': { name: 'Deploy Preview', cmd: './scripts/deploy-preview.sh', dur: 1200 },
-      'deploy-web':     { name: 'Deploy Web',     cmd: './scripts/deploy.sh',      dur: 2500 },
-    };
+    const edgesG = document.getElementById('edges')!;
+    const nodesG = document.getElementById('nodes')!;
+
+    // --- Node layout data (compact to fit all 8 nodes) ---
+    const NODE_W = 140;
+    const NODE_H = 50;
+
+    interface NodeDef {
+      id: string;
+      name: string;
+      cmd: string;
+      dur: number;
+      x: number;
+      y: number;
+      w: number;
+      meta?: string;
+    }
+
+    const nodeData: NodeDef[] = [
+      { id: 'unit-tests',     name: 'Unit Tests',      cmd: 'cargo test',                     dur: 2000, x: 30,  y: 30,  w: NODE_W, meta: 'retries: 1' },
+      { id: 'lint',           name: 'Lint',             cmd: 'cargo clippy',                   dur: 1200, x: 30,  y: 150, w: NODE_W },
+      { id: 'typecheck',      name: 'Typecheck',        cmd: 'cargo check --all',              dur: 1800, x: 30,  y: 270, w: NODE_W },
+      { id: 'build',          name: 'Build',            cmd: 'cargo build --release',          dur: 3000, x: 260, y: 150, w: NODE_W, meta: 'linux' },
+      { id: 'deploy-db',      name: 'Deploy DB',        cmd: './scripts/migrate.sh',           dur: 1000, x: 480, y: 30,  w: 150, meta: 'linux, aws' },
+      { id: 'e2e-tests',      name: 'E2E Tests',        cmd: 'playwright test',                dur: 5000, x: 480, y: 150, w: 150, meta: 'retries: 2' },
+      { id: 'deploy-preview', name: 'Deploy Preview',   cmd: './scripts/deploy-preview.sh',    dur: 1200, x: 480, y: 270, w: 150 },
+      { id: 'deploy-web',     name: 'Deploy Web',       cmd: './scripts/deploy.sh',            dur: 2500, x: 710, y: 30,  w: 140, meta: 'linux, aws' },
+    ];
+
+    const EDGES: [string, string][] = [
+      ['unit-tests', 'build'],
+      ['lint', 'build'],
+      ['typecheck', 'build'],
+      ['build', 'deploy-db'],
+      ['build', 'e2e-tests'],
+      ['build', 'deploy-preview'],
+      ['deploy-db', 'deploy-web'],
+    ];
 
     const DEPS: Record<string, string[]> = {
       'build':          ['unit-tests', 'lint', 'typecheck'],
@@ -414,6 +376,88 @@
 
     const FAIL_JOB = 'e2e-tests';
 
+    // Lookup maps
+    const nodeMap = new Map<string, NodeDef>();
+    for (const n of nodeData) nodeMap.set(n.id, n);
+
+    // --- Build SVG nodes ---
+    function buildNodes() {
+      nodesG.textContent = '';
+      for (const n of nodeData) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.classList.add('node');
+        g.setAttribute('data-id', n.id);
+        g.setAttribute('data-status', 'queued');
+        g.setAttribute('transform', `translate(${n.x}, ${n.y})`);
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('width', String(n.w));
+        rect.setAttribute('height', String(NODE_H));
+        rect.setAttribute('rx', '8');
+        rect.classList.add('node-bg');
+        g.appendChild(rect);
+
+        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        use.setAttribute('href', '#icon-queued');
+        use.classList.add('status-icon-use');
+        use.setAttribute('x', '20');
+        use.setAttribute('y', String(NODE_H / 2));
+        g.appendChild(use);
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', '40');
+        label.setAttribute('y', n.meta ? String(NODE_H / 2 - 3) : String(NODE_H / 2 + 4));
+        label.classList.add('node-label');
+        label.textContent = n.name;
+        g.appendChild(label);
+
+        if (n.meta) {
+          const meta = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          meta.setAttribute('x', '40');
+          meta.setAttribute('y', String(NODE_H / 2 + 11));
+          meta.classList.add('node-meta');
+          meta.textContent = n.meta;
+          g.appendChild(meta);
+        }
+
+        nodesG.appendChild(g);
+      }
+    }
+
+    // --- Build SVG edges (recalculated on drag) ---
+    function updateEdges() {
+      edgesG.textContent = '';
+      for (const [fromId, toId] of EDGES) {
+        const from = nodeMap.get(fromId)!;
+        const to = nodeMap.get(toId)!;
+
+        const x1 = from.x + from.w;
+        const y1 = from.y + NODE_H / 2;
+        const x2 = to.x;
+        const y2 = to.y + NODE_H / 2;
+        const mx = (x1 + x2) / 2;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.classList.add('edge');
+        path.setAttribute('data-from', fromId);
+        path.setAttribute('data-to', toId);
+        path.setAttribute('d', `M ${x1},${y1} C ${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', '#484f58');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('marker-end', 'url(#arrow)');
+
+        // Re-apply active/highlighted classes based on current status
+        const toStatus = statuses[toId];
+        if (toStatus === 'success' || toStatus === 'failure') {
+          path.classList.add('active');
+        }
+
+        edgesG.appendChild(path);
+      }
+    }
+
+    // --- State ---
     let timeouts: number[] = [];
     let statuses: Record<string, string> = {};
     let startTimes: Record<string, number> = {};
@@ -426,7 +470,26 @@
     const logTitle = document.getElementById('log-title')!;
     const logContent = document.getElementById('log-content')!;
     const logClose = document.getElementById('log-close')!;
+    const tabGraph = document.getElementById('tab-graph')!;
+    const tabYaml = document.getElementById('tab-yaml')!;
+    const viewGraph = document.getElementById('view-graph')!;
+    const viewYaml = document.getElementById('view-yaml')!;
 
+    // --- Tab switching ---
+    tabGraph.addEventListener('click', () => {
+      tabGraph.classList.add('active');
+      tabYaml.classList.remove('active');
+      viewGraph.classList.remove('hidden');
+      viewYaml.classList.add('hidden');
+    });
+    tabYaml.addEventListener('click', () => {
+      tabYaml.classList.add('active');
+      tabGraph.classList.remove('active');
+      viewYaml.classList.remove('hidden');
+      viewGraph.classList.add('hidden');
+    });
+
+    // --- Status management ---
     function setStatus(jobId: string, status: string) {
       statuses[jobId] = status;
       const node = svg.querySelector(`.node[data-id="${jobId}"]`);
@@ -454,6 +517,7 @@
       }
     }
 
+    // --- Edge highlighting ---
     function highlightPath(jobId: string) {
       const visited = new Set<string>();
       function walkUp(id: string) {
@@ -483,40 +547,95 @@
       svg.querySelectorAll('.edge.highlighted').forEach((e: Element) => e.classList.remove('highlighted'));
     }
 
+    // --- Log panel ---
     function showLogs(jobId: string) {
-      const job = JOBS[jobId];
-      if (!job) return;
+      const nd = nodeMap.get(jobId);
+      if (!nd) return;
       const status = statuses[jobId] || 'queued';
-      logTitle.textContent = job.name + ' \u2014 ' + status;
+      logTitle.textContent = nd.name + ' \u2014 ' + status;
 
       const isFail = jobId === FAIL_JOB && runCount === 1 && status === 'failure';
       const elapsed = startTimes[jobId] ? ((Date.now() - startTimes[jobId]) / 1000).toFixed(1) : '0.0';
-      const durStr = (job.dur / 1000).toFixed(1);
+      const durStr = (nd.dur / 1000).toFixed(1);
 
-      // Build log text safely using textContent
-      let text = '[0.0s] $ ' + job.cmd + '\n';
+      let text = '[0.0s] $ ' + nd.cmd + '\n';
       if (status === 'running') {
         text += '[' + elapsed + 's] Running...\n';
       } else if (status === 'success') {
         text += '\u2713 Completed successfully (' + durStr + 's)\n';
       } else if (status === 'failure') {
         text += '\u2717 Process exited with code 1\n';
-        if (isFail) {
-          text += '[' + durStr + 's] Error: 2 tests failed\n';
-        }
+        if (isFail) text += '[' + durStr + 's] Error: 2 tests failed\n';
       }
       logContent.textContent = text;
       logPanel.classList.add('visible');
     }
 
+    // --- Drag and drop ---
+    let dragNode: NodeDef | null = null;
+    let dragOffset = { x: 0, y: 0 };
+
+    function svgPoint(e: MouseEvent | Touch) {
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return { x: 0, y: 0 };
+      const svgP = pt.matrixTransform(ctm.inverse());
+      return { x: svgP.x, y: svgP.y };
+    }
+
+    function onPointerDown(e: PointerEvent) {
+      const nodeEl = (e.target as Element).closest('.node');
+      if (!nodeEl) return;
+      const id = nodeEl.getAttribute('data-id');
+      if (!id) return;
+      const nd = nodeMap.get(id);
+      if (!nd) return;
+
+      e.preventDefault();
+      dragNode = nd;
+      const p = svgPoint(e);
+      dragOffset.x = p.x - nd.x;
+      dragOffset.y = p.y - nd.y;
+      nodeEl.classList.add('dragging');
+      svg.style.cursor = 'grabbing';
+      svg.setPointerCapture(e.pointerId);
+    }
+
+    function onPointerMove(e: PointerEvent) {
+      if (!dragNode) return;
+      e.preventDefault();
+      const p = svgPoint(e);
+      dragNode.x = p.x - dragOffset.x;
+      dragNode.y = p.y - dragOffset.y;
+
+      const nodeEl = svg.querySelector(`.node[data-id="${dragNode.id}"]`);
+      if (nodeEl) {
+        nodeEl.setAttribute('transform', `translate(${dragNode.x}, ${dragNode.y})`);
+      }
+      updateEdges();
+    }
+
+    function onPointerUp(e: PointerEvent) {
+      if (!dragNode) return;
+      const nodeEl = svg.querySelector(`.node[data-id="${dragNode.id}"]`);
+      if (nodeEl) nodeEl.classList.remove('dragging');
+      svg.style.cursor = '';
+      dragNode = null;
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown);
+    svg.addEventListener('pointermove', onPointerMove);
+    svg.addEventListener('pointerup', onPointerUp);
+
+    // --- Reset / schedule ---
     function resetAll() {
       timeouts.forEach(t => clearTimeout(t));
       timeouts = [];
       statuses = {};
       startTimes = {};
-      for (const id of Object.keys(JOBS)) {
-        setStatus(id, 'queued');
-      }
+      for (const n of nodeData) setStatus(n.id, 'queued');
       svg.querySelectorAll('.edge').forEach((e: Element) => {
         e.classList.remove('active', 'highlighted');
       });
@@ -530,6 +649,7 @@
       return t;
     }
 
+    // --- Run workflow ---
     function runWorkflow() {
       if (isRunning) return;
       isRunning = true;
@@ -547,17 +667,17 @@
           setStatus(jobId, 'running');
           startTimes[jobId] = Date.now();
 
-          const job = JOBS[jobId];
+          const nd = nodeMap.get(jobId)!;
           const shouldFail = jobId === FAIL_JOB && runCount === 1;
 
-          schedule(job.dur, () => {
+          schedule(nd.dur, () => {
             if (shouldFail) {
               setStatus(jobId, 'failure');
               runStatus.textContent = 'Retrying e2e-tests...';
               schedule(1500, () => {
                 setStatus(jobId, 'running');
                 startTimes[jobId] = Date.now();
-                schedule(job.dur, () => {
+                schedule(nd.dur, () => {
                   setStatus(jobId, 'success');
                   completed.add(jobId);
                   tryStartAll();
@@ -575,15 +695,15 @@
       }
 
       function tryStartAll() {
-        for (const id of Object.keys(JOBS)) {
-          if (!completed.has(id) && statuses[id] === 'queued') {
-            tryStart(id);
+        for (const n of nodeData) {
+          if (!completed.has(n.id) && statuses[n.id] === 'queued') {
+            tryStart(n.id);
           }
         }
       }
 
       function checkDone() {
-        if (completed.size === Object.keys(JOBS).length) {
+        if (completed.size === nodeData.length) {
           isRunning = false;
           runBtn.removeAttribute('disabled');
           runStatus.textContent = 'Completed';
@@ -599,18 +719,23 @@
       schedule(400, tryStartAll);
     }
 
-    // Event listeners
-    svg.querySelectorAll('.node').forEach((node: Element) => {
-      node.addEventListener('mouseenter', () => {
-        const id = node.getAttribute('data-id');
-        if (id) highlightPath(id);
+    // --- Event listeners for nodes ---
+    function attachNodeListeners() {
+      svg.querySelectorAll('.node').forEach((node: Element) => {
+        node.addEventListener('mouseenter', () => {
+          const id = node.getAttribute('data-id');
+          if (id && !dragNode) highlightPath(id);
+        });
+        node.addEventListener('mouseleave', () => {
+          if (!dragNode) clearHighlights();
+        });
+        node.addEventListener('click', (e) => {
+          // Don't show logs if we just finished dragging
+          const id = node.getAttribute('data-id');
+          if (id) showLogs(id);
+        });
       });
-      node.addEventListener('mouseleave', clearHighlights);
-      node.addEventListener('click', () => {
-        const id = node.getAttribute('data-id');
-        if (id) showLogs(id);
-      });
-    });
+    }
 
     runBtn.addEventListener('click', () => {
       runCount = 0;
@@ -621,7 +746,12 @@
       logPanel.classList.remove('visible');
     });
 
-    // Auto-start
+    // --- Initialize ---
+    buildNodes();
+    updateEdges();
+    attachNodeListeners();
+
+    // Auto-start animation
     setTimeout(() => runWorkflow(), 800);
   }
 
