@@ -41,7 +41,7 @@ jobs:
           cp crates/web/pkg/workflow_graph_web_bg.wasm docs/public/wasm/github_graph_web_bg.wasm
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22
 
