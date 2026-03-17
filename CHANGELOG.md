@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-03-17
+
+### Features
+
+- Rename npm scope from @workflow-graph to @auser([2e954e7](https://github.com/auser/workflow-graph/commit/2e954e7d6b8913042710fb77a7c0ae9d046cf7ef))
+
+### Bug Fixes
+
+- Sync workspace dep versions to 0.3.0([82a2131](https://github.com/auser/workflow-graph/commit/82a21316b64677745b6a6a80dee68cc82293ab2b))
+- Bump-versions recipe now syncs workspace.dependencies versions([3c55c22](https://github.com/auser/workflow-graph/commit/3c55c22b339595970b1583004a8279151829a3a6))
 ## [0.2.6] - 2026-03-17
 
 ### Bug Fixes
@@ -10,6 +20,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog for v0.2.6([19abb6a](https://github.com/auser/workflow-graph/commit/19abb6aed6b3d15d04b8b9d68d336ce8f43564cb))
 - Bump workspace version to 0.2.6([7620187](https://github.com/auser/workflow-graph/commit/76201874222bb86de633fc7d7be237e127a61794))
 ## [0.2.5] - 2026-03-17
 
