@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5] - 2026-03-17
+
+### Bug Fixes
+
+- Use --legacy-peer-deps and --no-save for React CI build([fb89dca](https://github.com/auser/workflow-graph/commit/fb89dca309cdaa3c2299b038506d496aa0a216a3))
+
+### Miscellaneous
+
+- Bump workspace version to 0.2.5([87e341c](https://github.com/auser/workflow-graph/commit/87e341c80fe0d6329cc83b4d6de41cd4a01dad50))
 ## [0.2.4] - 2026-03-17
 
 ### Bug Fixes
@@ -10,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog for v0.2.4([96a669d](https://github.com/auser/workflow-graph/commit/96a669d5361e2760bd76197f01a67af407dcdf1d))
 - Bump workspace version to 0.2.4([2b3c8a0](https://github.com/auser/workflow-graph/commit/2b3c8a04af643e2c243a62d02df922b276ec0a61))
 ## [0.2.3] - 2026-03-17
 
