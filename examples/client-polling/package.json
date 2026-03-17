@@ -2,10 +2,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@auser/workflow-graph-client": "latest"
+    "@auser/workflow-graph-client": "file:../../packages/client"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.19.15",
     "tsx": "^4.0.0"
   },
   "scripts": {
