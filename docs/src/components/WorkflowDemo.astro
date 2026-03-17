@@ -1,13 +1,12 @@
 ---
 /**
- * Animated workflow graph demo for the landing page.
- * Mirrors the real ci.yml workflow: 8 jobs with full DAG topology.
- * Features: drag-and-drop nodes, YAML source view, animated execution.
- * Pure SVG + JS — no WASM dependency.
+ * Interactive workflow graph demo for the landing page.
+ * Uses the real workflow-graph WASM library (canvas renderer)
+ * with simulated job execution to showcase the actual product.
  */
 ---
 
-<div class="demo-wrapper">
+<div class="demo-wrapper" id="demo-wrapper">
   <div class="demo-header">
     <div class="demo-dots">
       <span class="dot red"></span>
@@ -38,46 +37,14 @@
     <span class="status-chip failure"><span class="chip-dot"></span><span id="count-failure">0</span> failure</span>
   </div>
 
-  <!-- Graph view -->
+  <!-- Graph view (real WASM canvas) -->
   <div class="demo-view" id="view-graph">
-    <svg
-      id="workflow-demo"
-      viewBox="0 0 880 420"
-      xmlns="http://www.w3.org/2000/svg"
-      role="img"
-      aria-label="Animated workflow graph demo showing a CI pipeline"
-    >
-      <defs>
-        <!-- Icon templates -->
-        <g id="icon-queued">
-          <circle r="8" fill="none" stroke="#484f58" stroke-width="2"/>
-        </g>
-        <g id="icon-running">
-          <circle r="8" fill="none" stroke="#d29922" stroke-width="2" stroke-dasharray="16 34">
-            <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1s" repeatCount="indefinite"/>
-          </circle>
-        </g>
-        <g id="icon-success">
-          <circle r="8" fill="#238636" stroke="none"/>
-          <path d="M -4 0 L -1.5 3 L 4 -3" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-        <g id="icon-failure">
-          <circle r="8" fill="#da3633" stroke="none"/>
-          <path d="M -3 -3 L 3 3 M 3 -3 L -3 3" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
-        </g>
-      </defs>
-
-      <!-- Edges (dynamically updated on drag) -->
-      <g id="edges"></g>
-
-      <!-- Nodes -->
-      <g id="nodes"></g>
-    </svg>
+    <canvas id="workflow-canvas" tabindex="0"></canvas>
   </div>
 
   <!-- YAML view -->
   <div class="demo-view hidden" id="view-yaml">
-    <pre class="yaml-source"><code id="yaml-content">name: CI
+    <pre class="yaml-source"><code>name: CI
 on: push
 
 jobs:
@@ -246,11 +213,11 @@ jobs:
   .demo-wrapper .demo-view { min-height: 340px; }
   .demo-wrapper .demo-view.hidden { display: none; }
 
-  .demo-wrapper #workflow-demo {
+  .demo-wrapper #workflow-canvas {
     display: block;
     width: 100%;
-    padding: 12px;
-    user-select: none;
+    height: 380px;
+    background: #0d1117;
   }
 
   /* YAML view */
@@ -267,49 +234,6 @@ jobs:
     overflow-y: auto;
   }
 
-  /* SVG text defaults */
-  .demo-wrapper #workflow-demo text {
-    fill: #c9d1d9;
-    stroke: none;
-  }
-
-  /* Node styles */
-  .demo-wrapper .node-bg {
-    fill: #161b22;
-    stroke: #30363d;
-    stroke-width: 1.5;
-    transition: stroke 0.3s, fill 0.3s;
-  }
-
-  .demo-wrapper .node:hover .node-bg { stroke: #58a6ff; fill: #1c2129; }
-  .demo-wrapper .node { cursor: grab; }
-  .demo-wrapper .node.dragging { cursor: grabbing; }
-
-  .demo-wrapper .node-label {
-    fill: #c9d1d9;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    pointer-events: none;
-  }
-
-  .demo-wrapper .node-meta {
-    fill: #6e7681;
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    font-size: 9px;
-    pointer-events: none;
-  }
-
-  /* Status-driven node border */
-  .demo-wrapper .node[data-status="running"] .node-bg { stroke: #d29922; }
-  .demo-wrapper .node[data-status="success"] .node-bg { stroke: #238636; }
-  .demo-wrapper .node[data-status="failure"] .node-bg { stroke: #da3633; }
-
-  /* Edge styles */
-  .demo-wrapper .edge { transition: stroke 0.15s, stroke-width 0.15s; }
-  .demo-wrapper .edge.highlighted { stroke: #58a6ff !important; stroke-width: 2.5; }
-  .demo-wrapper .edge.active { stroke: #3fb950 !important; stroke-width: 2.5; }
-
   /* Log panel */
   .demo-wrapper .demo-logpanel { display: none; background: #161b22; border-top: 1px solid #30363d; max-height: 140px; overflow: hidden; }
   .demo-wrapper .demo-logpanel.visible { display: block; }
@@ -321,146 +245,78 @@ jobs:
 </style>
 
 <script>
-  function initDemo() {
-    const svg = document.getElementById('workflow-demo') as unknown as SVGSVGElement;
-    if (!svg) return;
+  async function initDemo() {
+    const BASE = import.meta.env.BASE_URL || '/workflow-graph/';
+    const wasmUrl = `${BASE}wasm/workflow_graph_web.js`;
 
-    const edgesG = document.getElementById('edges')!;
-    const nodesG = document.getElementById('nodes')!;
+    const wasmBinaryUrl = `${BASE}wasm/github_graph_web_bg.wasm`;
 
-    // --- Node layout data (compact to fit all 8 nodes) ---
-    const NODE_W = 140;
-    const NODE_H = 50;
-
-    interface NodeDef {
-      id: string;
-      name: string;
-      cmd: string;
-      dur: number;
-      x: number;
-      y: number;
-      w: number;
-      meta?: string;
+    // Dynamically import the WASM module
+    let wasmModule: any;
+    try {
+      wasmModule = await import(/* @vite-ignore */ wasmUrl);
+      await wasmModule.default(wasmBinaryUrl);
+    } catch (e) {
+      console.error('Failed to load WASM module:', e);
+      return;
     }
 
-    const nodeData: NodeDef[] = [
-      { id: 'unit-tests',     name: 'Unit Tests',      cmd: 'cargo test',                     dur: 2000, x: 30,  y: 30,  w: NODE_W, meta: 'retries: 1' },
-      { id: 'lint',           name: 'Lint',             cmd: 'cargo clippy',                   dur: 1200, x: 30,  y: 150, w: NODE_W },
-      { id: 'typecheck',      name: 'Typecheck',        cmd: 'cargo check --all',              dur: 1800, x: 30,  y: 270, w: NODE_W },
-      { id: 'build',          name: 'Build',            cmd: 'cargo build --release',          dur: 3000, x: 260, y: 150, w: NODE_W, meta: 'linux' },
-      { id: 'deploy-db',      name: 'Deploy DB',        cmd: './scripts/migrate.sh',           dur: 1000, x: 480, y: 30,  w: 150, meta: 'linux, aws' },
-      { id: 'e2e-tests',      name: 'E2E Tests',        cmd: 'playwright test',                dur: 5000, x: 480, y: 150, w: 150, meta: 'retries: 2' },
-      { id: 'deploy-preview', name: 'Deploy Preview',   cmd: './scripts/deploy-preview.sh',    dur: 1200, x: 480, y: 270, w: 150 },
-      { id: 'deploy-web',     name: 'Deploy Web',       cmd: './scripts/deploy.sh',            dur: 2500, x: 710, y: 30,  w: 140, meta: 'linux, aws' },
-    ];
+    const { render_workflow, update_workflow_data } = wasmModule;
 
-    const EDGES: [string, string][] = [
-      ['unit-tests', 'build'],
-      ['lint', 'build'],
-      ['typecheck', 'build'],
-      ['build', 'deploy-db'],
-      ['build', 'e2e-tests'],
-      ['build', 'deploy-preview'],
-      ['deploy-db', 'deploy-web'],
-    ];
+    const CANVAS_ID = 'workflow-canvas';
+
+    // --- Resize canvas to match container ---
+    function resizeCanvas() {
+      const canvas = document.getElementById(CANVAS_ID) as HTMLCanvasElement;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+    }
+
+    // --- Workflow data (matches ci.yml / Workflow::sample()) ---
+    function makeWorkflow(): any {
+      return {
+        id: 'ci-1',
+        name: 'ci.yml',
+        trigger: 'on: push',
+        jobs: [
+          { id: 'unit-tests', name: 'Unit Tests', status: 'queued', command: "echo 'Running unit tests' && sleep 2", duration_secs: null, started_at: null, depends_on: [], output: null, required_labels: [], max_retries: 1, attempt: 0 },
+          { id: 'lint', name: 'Lint', status: 'queued', command: "echo 'Running linter' && sleep 1", duration_secs: null, started_at: null, depends_on: [], output: null, required_labels: [], max_retries: 0, attempt: 0 },
+          { id: 'typecheck', name: 'Typecheck', status: 'queued', command: "echo 'Running typecheck' && sleep 2", duration_secs: null, started_at: null, depends_on: [], output: null, required_labels: [], max_retries: 0, attempt: 0 },
+          { id: 'build', name: 'Build', status: 'queued', command: "echo 'Building project' && sleep 3", duration_secs: null, started_at: null, depends_on: ['unit-tests', 'lint', 'typecheck'], output: null, required_labels: ['linux'], max_retries: 0, attempt: 0 },
+          { id: 'deploy-db', name: 'Deploy DB Migrations', status: 'queued', command: "echo 'Deploying DB migrations' && sleep 1", duration_secs: null, started_at: null, depends_on: ['build'], output: null, required_labels: ['linux', 'aws'], max_retries: 0, attempt: 0 },
+          { id: 'e2e-tests', name: 'E2E Tests', status: 'queued', command: "echo 'Running E2E tests' && sleep 5", duration_secs: null, started_at: null, depends_on: ['build'], output: null, required_labels: [], max_retries: 2, attempt: 0 },
+          { id: 'deploy-preview', name: 'Deploy Preview', status: 'queued', command: "echo 'Deploying preview' && sleep 1", duration_secs: null, started_at: null, depends_on: ['build'], output: null, required_labels: [], max_retries: 0, attempt: 0 },
+          { id: 'deploy-web', name: 'Deploy Web', status: 'queued', command: "echo 'Deploying to production' && sleep 3", duration_secs: null, started_at: null, depends_on: ['deploy-db'], output: null, required_labels: ['linux', 'aws'], max_retries: 0, attempt: 0 },
+        ],
+      };
+    }
+
+    // Job durations for the simulation (ms)
+    const JOB_DURATIONS: Record<string, number> = {
+      'unit-tests': 2000,
+      'lint': 1200,
+      'typecheck': 1800,
+      'build': 3000,
+      'deploy-db': 1000,
+      'e2e-tests': 4000,
+      'deploy-preview': 1200,
+      'deploy-web': 2500,
+    };
 
     const DEPS: Record<string, string[]> = {
-      'build':          ['unit-tests', 'lint', 'typecheck'],
-      'deploy-db':      ['build'],
-      'e2e-tests':      ['build'],
+      'build': ['unit-tests', 'lint', 'typecheck'],
+      'deploy-db': ['build'],
+      'e2e-tests': ['build'],
       'deploy-preview': ['build'],
-      'deploy-web':     ['deploy-db'],
+      'deploy-web': ['deploy-db'],
     };
 
     const FAIL_JOB = 'e2e-tests';
 
-    // Lookup maps
-    const nodeMap = new Map<string, NodeDef>();
-    for (const n of nodeData) nodeMap.set(n.id, n);
-
-    // --- Build SVG nodes ---
-    function buildNodes() {
-      nodesG.textContent = '';
-      for (const n of nodeData) {
-        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        g.classList.add('node');
-        g.setAttribute('data-id', n.id);
-        g.setAttribute('data-status', 'queued');
-        g.setAttribute('transform', `translate(${n.x}, ${n.y})`);
-
-        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        rect.setAttribute('width', String(n.w));
-        rect.setAttribute('height', String(NODE_H));
-        rect.setAttribute('rx', '8');
-        rect.classList.add('node-bg');
-        g.appendChild(rect);
-
-        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-        use.setAttribute('href', '#icon-queued');
-        use.classList.add('status-icon-use');
-        use.setAttribute('x', '20');
-        use.setAttribute('y', String(NODE_H / 2));
-        g.appendChild(use);
-
-        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        label.setAttribute('x', '40');
-        label.setAttribute('y', n.meta ? String(NODE_H / 2 - 3) : String(NODE_H / 2 + 4));
-        label.classList.add('node-label');
-        label.textContent = n.name;
-        g.appendChild(label);
-
-        if (n.meta) {
-          const meta = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          meta.setAttribute('x', '40');
-          meta.setAttribute('y', String(NODE_H / 2 + 11));
-          meta.classList.add('node-meta');
-          meta.textContent = n.meta;
-          g.appendChild(meta);
-        }
-
-        nodesG.appendChild(g);
-      }
-    }
-
-    // --- Build SVG edges (recalculated on drag) ---
-    function updateEdges() {
-      edgesG.textContent = '';
-      for (const [fromId, toId] of EDGES) {
-        const from = nodeMap.get(fromId)!;
-        const to = nodeMap.get(toId)!;
-
-        const x1 = from.x + from.w;
-        const y1 = from.y + NODE_H / 2;
-        const x2 = to.x;
-        const y2 = to.y + NODE_H / 2;
-        const mx = (x1 + x2) / 2;
-
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.classList.add('edge');
-        path.setAttribute('data-from', fromId);
-        path.setAttribute('data-to', toId);
-        path.setAttribute('d', `M ${x1},${y1} C ${mx},${y1} ${mx},${y2} ${x2},${y2}`);
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', '#484f58');
-        path.setAttribute('stroke-width', '2');
-
-        // Re-apply active/highlighted classes based on current status
-        const toStatus = statuses[toId];
-        if (toStatus === 'success' || toStatus === 'failure') {
-          path.classList.add('active');
-        }
-
-        edgesG.appendChild(path);
-      }
-    }
-
-    // --- State ---
-    let timeouts: number[] = [];
-    let statuses: Record<string, string> = {};
-    let startTimes: Record<string, number> = {};
-    let isRunning = false;
-    let runCount = 0;
-
+    // --- DOM references ---
     const runBtn = document.getElementById('demo-run') as HTMLButtonElement;
     const runStatus = document.getElementById('demo-run-status')!;
     const logPanel = document.getElementById('demo-logpanel')!;
@@ -471,6 +327,13 @@ jobs:
     const tabYaml = document.getElementById('tab-yaml')!;
     const viewGraph = document.getElementById('view-graph')!;
     const viewYaml = document.getElementById('view-yaml')!;
+
+    // --- State ---
+    let workflow = makeWorkflow();
+    let timeouts: number[] = [];
+    let isRunning = false;
+    let runCount = 0;
+    let initialized = false;
 
     // --- Tab switching ---
     tabGraph.addEventListener('click', () => {
@@ -486,27 +349,11 @@ jobs:
       viewGraph.classList.add('hidden');
     });
 
-    // --- Status management ---
-    function setStatus(jobId: string, status: string) {
-      statuses[jobId] = status;
-      const node = svg.querySelector(`.node[data-id="${jobId}"]`);
-      if (!node) return;
-      node.setAttribute('data-status', status);
-      const useEl = node.querySelector('.status-icon-use');
-      if (useEl) useEl.setAttribute('href', `#icon-${status}`);
-      updateCounts();
-
-      if (status === 'success' || status === 'failure') {
-        svg.querySelectorAll(`.edge[data-to="${jobId}"]`).forEach((e: Element) => {
-          e.classList.add('active');
-        });
-      }
-    }
-
+    // --- Status counts ---
     function updateCounts() {
       const counts: Record<string, number> = { queued: 0, running: 0, success: 0, failure: 0 };
-      for (const s of Object.values(statuses)) {
-        if (s in counts) counts[s]++;
+      for (const job of workflow.jobs) {
+        if (job.status in counts) counts[job.status]++;
       }
       for (const [k, v] of Object.entries(counts)) {
         const el = document.getElementById(`count-${k}`);
@@ -514,139 +361,81 @@ jobs:
       }
     }
 
-    // --- Edge highlighting ---
-    function highlightPath(jobId: string) {
-      const visited = new Set<string>();
-      function walkUp(id: string) {
-        if (visited.has(id)) return;
-        visited.add(id);
-        svg.querySelectorAll(`.edge[data-to="${id}"]`).forEach((e: Element) => {
-          e.classList.add('highlighted');
-          const from = e.getAttribute('data-from');
-          if (from) walkUp(from);
-        });
-      }
-      function walkDown(id: string) {
-        if (visited.has(id)) return;
-        visited.add(id);
-        svg.querySelectorAll(`.edge[data-from="${id}"]`).forEach((e: Element) => {
-          e.classList.add('highlighted');
-          const to = e.getAttribute('data-to');
-          if (to) walkDown(to);
-        });
-      }
-      walkUp(jobId);
-      visited.clear();
-      walkDown(jobId);
-    }
-
-    function clearHighlights() {
-      svg.querySelectorAll('.edge.highlighted').forEach((e: Element) => e.classList.remove('highlighted'));
-    }
-
     // --- Log panel ---
-    function showLogs(jobId: string) {
-      const nd = nodeMap.get(jobId);
-      if (!nd) return;
-      const status = statuses[jobId] || 'queued';
-      logTitle.textContent = nd.name + ' \u2014 ' + status;
+    function onNodeClick(jobId: string) {
+      const job = workflow.jobs.find((j: any) => j.id === jobId);
+      if (!job) return;
+      logTitle.textContent = job.name + ' \u2014 ' + job.status;
 
-      const isFail = jobId === FAIL_JOB && runCount === 1 && status === 'failure';
-      const elapsed = startTimes[jobId] ? ((Date.now() - startTimes[jobId]) / 1000).toFixed(1) : '0.0';
-      const durStr = (nd.dur / 1000).toFixed(1);
-
-      let text = '[0.0s] $ ' + nd.cmd + '\n';
-      if (status === 'running') {
-        text += '[' + elapsed + 's] Running...\n';
-      } else if (status === 'success') {
-        text += '\u2713 Completed successfully (' + durStr + 's)\n';
-      } else if (status === 'failure') {
+      let text = '$ ' + job.command + '\n';
+      if (job.status === 'running') {
+        text += 'Running...\n';
+      } else if (job.status === 'success') {
+        const dur = job.duration_secs ? job.duration_secs + 's' : '';
+        text += '\u2713 Completed successfully' + (dur ? ' (' + dur + ')' : '') + '\n';
+      } else if (job.status === 'failure') {
         text += '\u2717 Process exited with code 1\n';
-        if (isFail) text += '[' + durStr + 's] Error: 2 tests failed\n';
       }
+      if (job.output) text += job.output + '\n';
+
       logContent.textContent = text;
       logPanel.classList.add('visible');
     }
 
-    // --- Drag and drop ---
-    let dragNode: NodeDef | null = null;
-    let dragOffset = { x: 0, y: 0 };
-
-    function svgPoint(e: MouseEvent | Touch) {
-      const pt = svg.createSVGPoint();
-      pt.x = e.clientX;
-      pt.y = e.clientY;
-      const ctm = svg.getScreenCTM();
-      if (!ctm) return { x: 0, y: 0 };
-      const svgP = pt.matrixTransform(ctm.inverse());
-      return { x: svgP.x, y: svgP.y };
-    }
-
-    function onPointerDown(e: PointerEvent) {
-      const nodeEl = (e.target as Element).closest('.node');
-      if (!nodeEl) return;
-      const id = nodeEl.getAttribute('data-id');
-      if (!id) return;
-      const nd = nodeMap.get(id);
-      if (!nd) return;
-
-      e.preventDefault();
-      dragNode = nd;
-      const p = svgPoint(e);
-      dragOffset.x = p.x - nd.x;
-      dragOffset.y = p.y - nd.y;
-      nodeEl.classList.add('dragging');
-      svg.style.cursor = 'grabbing';
-      svg.setPointerCapture(e.pointerId);
-    }
-
-    function onPointerMove(e: PointerEvent) {
-      if (!dragNode) return;
-      e.preventDefault();
-      const p = svgPoint(e);
-      dragNode.x = p.x - dragOffset.x;
-      dragNode.y = p.y - dragOffset.y;
-
-      const nodeEl = svg.querySelector(`.node[data-id="${dragNode.id}"]`);
-      if (nodeEl) {
-        nodeEl.setAttribute('transform', `translate(${dragNode.x}, ${dragNode.y})`);
-      }
-      updateEdges();
-    }
-
-    function onPointerUp(e: PointerEvent) {
-      if (!dragNode) return;
-      const nodeEl = svg.querySelector(`.node[data-id="${dragNode.id}"]`);
-      if (nodeEl) nodeEl.classList.remove('dragging');
-      svg.style.cursor = '';
-      dragNode = null;
-    }
-
-    svg.addEventListener('pointerdown', onPointerDown);
-    svg.addEventListener('pointermove', onPointerMove);
-    svg.addEventListener('pointerup', onPointerUp);
-
-    // --- Reset / schedule ---
-    function resetAll() {
-      timeouts.forEach(t => clearTimeout(t));
-      timeouts = [];
-      statuses = {};
-      startTimes = {};
-      for (const n of nodeData) setStatus(n.id, 'queued');
-      svg.querySelectorAll('.edge').forEach((e: Element) => {
-        e.classList.remove('active', 'highlighted');
-      });
+    function onNodeHover(_jobId: string | null) {}
+    function onCanvasClick() {
       logPanel.classList.remove('visible');
+    }
+    function onSelectionChange(_ids: string[]) {}
+    function onNodeDragEnd(_jobId: string, _x: number, _y: number) {}
+
+    logClose.addEventListener('click', () => logPanel.classList.remove('visible'));
+
+    // --- Render helpers ---
+    function renderFull() {
+      const json = JSON.stringify(workflow);
+      try {
+        if (!initialized) {
+          resizeCanvas();
+          render_workflow(CANVAS_ID, json, onNodeClick, onNodeHover, onCanvasClick, onSelectionChange, onNodeDragEnd);
+          initialized = true;
+        } else {
+          update_workflow_data(CANVAS_ID, json);
+        }
+      } catch (e) {
+        console.error('Render error:', e);
+      }
       updateCounts();
     }
 
+    // --- Simulation engine ---
     function schedule(delay: number, fn: () => void) {
       const t = setTimeout(fn, delay) as unknown as number;
       timeouts.push(t);
-      return t;
     }
 
-    // --- Run workflow ---
+    function setJobStatus(jobId: string, status: string, durationSecs?: number) {
+      const job = workflow.jobs.find((j: any) => j.id === jobId);
+      if (!job) return;
+      job.status = status;
+      if (status === 'running') {
+        job.started_at = Date.now();
+        job.duration_secs = null;
+      }
+      if (durationSecs !== undefined) {
+        job.duration_secs = durationSecs;
+      }
+      renderFull();
+    }
+
+    function resetAll() {
+      timeouts.forEach(t => clearTimeout(t));
+      timeouts = [];
+      workflow = makeWorkflow();
+      renderFull();
+      logPanel.classList.remove('visible');
+    }
+
     function runWorkflow() {
       if (isRunning) return;
       isRunning = true;
@@ -660,52 +449,57 @@ jobs:
 
       function tryStart(jobId: string) {
         const deps = DEPS[jobId] || [];
-        if (deps.every(d => completed.has(d)) && statuses[jobId] === 'queued') {
-          setStatus(jobId, 'running');
-          startTimes[jobId] = Date.now();
+        const job = workflow.jobs.find((j: any) => j.id === jobId);
+        if (!job || job.status !== 'queued') return;
+        if (!deps.every(d => completed.has(d))) return;
 
-          const nd = nodeMap.get(jobId)!;
-          const shouldFail = jobId === FAIL_JOB && runCount === 1;
+        setJobStatus(jobId, 'running');
 
-          schedule(nd.dur, () => {
-            if (shouldFail) {
-              setStatus(jobId, 'failure');
-              runStatus.textContent = 'Retrying e2e-tests...';
-              schedule(1500, () => {
-                setStatus(jobId, 'running');
-                startTimes[jobId] = Date.now();
-                schedule(nd.dur, () => {
-                  setStatus(jobId, 'success');
-                  completed.add(jobId);
-                  tryStartAll();
-                  checkDone();
-                });
+        const dur = JOB_DURATIONS[jobId] || 2000;
+        const shouldFail = jobId === FAIL_JOB && runCount === 1;
+
+        schedule(dur, () => {
+          if (shouldFail) {
+            setJobStatus(jobId, 'failure');
+            runStatus.textContent = 'Retrying e2e-tests...';
+
+            // Retry after pause
+            schedule(1500, () => {
+              job.attempt = 1;
+              setJobStatus(jobId, 'running');
+
+              schedule(dur, () => {
+                setJobStatus(jobId, 'success', Math.round(dur / 1000));
+                completed.add(jobId);
+                tryStartAll();
+                checkDone();
               });
-            } else {
-              setStatus(jobId, 'success');
-              completed.add(jobId);
-              tryStartAll();
-              checkDone();
-            }
-          });
-        }
+            });
+          } else {
+            setJobStatus(jobId, 'success', Math.round(dur / 1000));
+            completed.add(jobId);
+            tryStartAll();
+            checkDone();
+          }
+        });
       }
 
       function tryStartAll() {
-        for (const n of nodeData) {
-          if (!completed.has(n.id) && statuses[n.id] === 'queued') {
-            tryStart(n.id);
+        for (const job of workflow.jobs) {
+          if (!completed.has(job.id) && job.status === 'queued') {
+            tryStart(job.id);
           }
         }
       }
 
       function checkDone() {
-        if (completed.size === nodeData.length) {
+        if (completed.size === workflow.jobs.length) {
           isRunning = false;
           runBtn.removeAttribute('disabled');
           runStatus.textContent = 'Completed';
           runStatus.style.color = '#3fb950';
 
+          // Auto-restart after pause
           schedule(4000, () => {
             runStatus.textContent = '';
             runWorkflow();
@@ -716,39 +510,20 @@ jobs:
       schedule(400, tryStartAll);
     }
 
-    // --- Event listeners for nodes ---
-    function attachNodeListeners() {
-      svg.querySelectorAll('.node').forEach((node: Element) => {
-        node.addEventListener('mouseenter', () => {
-          const id = node.getAttribute('data-id');
-          if (id && !dragNode) highlightPath(id);
-        });
-        node.addEventListener('mouseleave', () => {
-          if (!dragNode) clearHighlights();
-        });
-        node.addEventListener('click', (e) => {
-          // Don't show logs if we just finished dragging
-          const id = node.getAttribute('data-id');
-          if (id) showLogs(id);
-        });
-      });
-    }
-
+    // --- Events ---
     runBtn.addEventListener('click', () => {
       runCount = 0;
       runWorkflow();
     });
 
-    logClose.addEventListener('click', () => {
-      logPanel.classList.remove('visible');
+    // Handle resize
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      renderFull();
     });
 
     // --- Initialize ---
-    buildNodes();
-    updateEdges();
-    attachNodeListeners();
-
-    // Auto-start animation
+    renderFull();
     setTimeout(() => runWorkflow(), 800);
   }
 
