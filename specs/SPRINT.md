@@ -40,16 +40,16 @@
 > | `reap_expired()`     | pg-boss `maintain()` (automatic)          |
 > | `subscribe()`        | pg-boss `work()` / LISTEN/NOTIFY          |
 
-## Phase 2: DagScheduler
+## Phase 2: DagScheduler ✅
 > Event-driven DAG cascade — replaces the inline orchestrator
 
-- [ ] Implement `DagScheduler` struct with event-driven loop
-- [ ] On workflow start: enqueue root jobs (no deps)
-- [ ] On Completed: find ready downstream → enqueue with upstream outputs
-- [ ] On Failed (non-retryable): mark transitive downstream as Skipped
-- [ ] On LeaseExpired: check retry budget → re-enqueue or fail
-- [ ] Update `SharedState` on each event (frontend compat)
-- [ ] Unit tests for scheduler with mock queue
+- [x] Implement `DagScheduler` struct with event-driven loop
+- [x] On workflow start: enqueue root jobs (no deps)
+- [x] On Completed: find ready downstream → enqueue with upstream outputs
+- [x] On Failed (non-retryable): mark transitive downstream as Skipped
+- [x] On LeaseExpired: check retry budget → re-enqueue or fail
+- [x] Update `SharedState` on each event (frontend compat)
+- [x] Unit tests for scheduler (4 tests: start, cascade, failure skip, cancel)
 
 ## Phase 3: Server Integration
 > Wire queue into server, expose worker protocol via HTTP
