@@ -83,10 +83,13 @@ changelog version="":
 bump-versions version:
     #!/usr/bin/env bash
     set -euo pipefail
-    for toml in shared/Cargo.toml crates/*/Cargo.toml; do
-        sed -i '' "s/^version = \".*\"/version = \"{{version}}\"/" "$toml"
-    done
-    echo "Bumped all crate versions to {{version}}"
+    awk -v ver="{{version}}" '
+        /^\[workspace\.package\]/ { in_ws=1 }
+        /^\[/ && !/^\[workspace\.package\]/ { in_ws=0 }
+        in_ws && /^version = "/ { print "version = \"" ver "\""; next }
+        { print }
+    ' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
+    echo "Bumped workspace version to {{version}}"
 
 # Cut a release with automatic version bump (based on conventional commits)
 release-auto:

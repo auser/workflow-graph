@@ -1,3 +1,6 @@
 [workspace]
 members = ["shared", "crates/web", "crates/server", "crates/queue", "crates/worker-sdk", "crates/scheduler"]
 resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
