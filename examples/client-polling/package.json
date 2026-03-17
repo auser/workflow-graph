@@ -9,6 +9,6 @@
     "tsx": "^4.0.0"
   },
   "scripts": {
-    "start": "tsx index.ts"
+    "start": "SERVER_URL=${SERVER_URL:-http://localhost:4000} tsx index.ts"
   }
 }

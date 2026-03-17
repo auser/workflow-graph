@@ -12,11 +12,11 @@ Demonstrates `@auser/workflow-graph-client` for server-side workflow management.
 
 ## Run
 
-Start the server first:
+Start the server first (on a free port):
 
 ```bash
 # In the workflow-graph repo root
-just dev
+PORT=4000 just dev
 ```
 
 Then in this directory:
@@ -24,7 +24,7 @@ Then in this directory:
 ```bash
 cd examples/client-polling
 npm install
-npm start
+SERVER_URL=http://localhost:4000 npm start
 ```
 
 You'll see a live-updating status display as jobs transition from queued → running → success.
