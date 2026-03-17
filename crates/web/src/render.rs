@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::f64::consts::PI;
 use wasm_bindgen::JsValue;
 use web_sys::CanvasRenderingContext2d;
@@ -9,6 +9,7 @@ use crate::layout::{GraphLayout, NodeLayout};
 use crate::theme;
 
 pub const COLOR_HIGHLIGHT: &str = "#0969da";
+pub const COLOR_SELECTED: &str = "#0969da";
 
 pub fn render(
     ctx: &CanvasRenderingContext2d,
@@ -20,6 +21,10 @@ pub fn render(
     th: f64,
     animation_time: f64,
     now_ms: f64,
+    zoom: f64,
+    pan_x: f64,
+    pan_y: f64,
+    selected: &HashSet<String>,
 ) -> Result<(), JsValue> {
 
     // Clear canvas
@@ -27,6 +32,10 @@ pub fn render(
     ctx.set_fill_style_str(theme::COLOR_BG);
     ctx.fill_rect(0.0, 0.0, tw * dpr, th * dpr);
     ctx.scale(dpr, dpr)?;
+
+    // Apply pan and zoom transform
+    ctx.translate(pan_x, pan_y)?;
+    ctx.scale(zoom, zoom)?;
 
     // Draw graph background card
     draw_rounded_rect(
@@ -66,7 +75,8 @@ pub fn render(
     // Draw nodes
     for node in &layout.nodes {
         if let Some(job) = job_map.get(node.job_id.as_str()) {
-            draw_node(ctx, node, job, animation_time, now_ms);
+            let is_selected = selected.contains(&node.job_id);
+            draw_node(ctx, node, job, animation_time, now_ms, is_selected);
         }
     }
 
@@ -127,13 +137,20 @@ fn draw_node(
     job: &github_graph_shared::Job,
     animation_time: f64,
     now_ms: f64,
+    is_selected: bool,
 ) {
     // Node background
     draw_rounded_rect(ctx, node.x, node.y, node.width, node.height, theme::NODE_RADIUS);
     ctx.set_fill_style_str(theme::COLOR_NODE_BG);
     ctx.fill();
-    ctx.set_stroke_style_str(theme::COLOR_NODE_BORDER);
-    ctx.set_line_width(1.0);
+
+    if is_selected {
+        ctx.set_stroke_style_str(COLOR_SELECTED);
+        ctx.set_line_width(2.0);
+    } else {
+        ctx.set_stroke_style_str(theme::COLOR_NODE_BORDER);
+        ctx.set_line_width(1.0);
+    }
     ctx.stroke();
 
     // Status icon

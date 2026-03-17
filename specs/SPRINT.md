@@ -97,36 +97,36 @@
 
 ## Web Component Library (Plan 002)
 
-### Config + Events
-- [ ] Add `GraphConfig` object (theme, layout, behavior options)
-- [ ] Add `on_node_hover` callback (job_id or null)
-- [ ] Add `on_node_drag_end` callback (job_id, x, y)
-- [ ] Add `on_edge_click` callback (from_id, to_id)
-- [ ] Add `on_canvas_click` callback (deselect)
-- [ ] Add `on_selection_change` callback
+### Config + Events ✅
+- [ ] Add `GraphConfig` object (theme, layout, behavior options) — deferred
+- [x] Add `on_node_hover` callback (job_id or null)
+- [x] Add `on_node_drag_end` callback (job_id, x, y)
+- [ ] Add `on_edge_click` callback (from_id, to_id) — deferred
+- [x] Add `on_canvas_click` callback (deselect)
+- [x] Add `on_selection_change` callback
 
-### Pan & Zoom
-- [ ] Mouse wheel zoom (centered on cursor)
-- [ ] Click+drag on empty space to pan
-- [ ] Zoom level clamping (0.25x to 4x)
-- [ ] Transform matrix in GraphState
+### Pan & Zoom ✅
+- [x] Mouse wheel zoom (centered on cursor)
+- [x] Click+drag on empty space to pan
+- [x] Zoom level clamping (0.25x to 4x)
+- [x] Transform matrix in GraphState (zoom, pan_x, pan_y)
 
-### Selection State
-- [ ] Click node → selected (blue ring)
-- [ ] Shift+click → multi-select toggle
-- [ ] Click empty → deselect all
-- [ ] Visual feedback for selected nodes
-- [ ] `on_selection_change` fires with selected IDs
+### Selection State ✅
+- [x] Click node → selected (blue ring)
+- [x] Shift+click → multi-select toggle
+- [x] Click empty → deselect all
+- [x] Visual feedback for selected nodes (blue border)
+- [x] `on_selection_change` fires with selected IDs
 
-### Programmatic Control API
-- [ ] `select_node(canvas_id, job_id)`
-- [ ] `deselect_all(canvas_id)`
-- [ ] `reset_layout(canvas_id)`
-- [ ] `zoom_to_fit(canvas_id)`
-- [ ] `set_zoom(canvas_id, level)`
-- [ ] `get_node_positions(canvas_id) -> JSON`
-- [ ] `set_node_positions(canvas_id, positions_json)`
-- [ ] `destroy(canvas_id)`
+### Programmatic Control API ✅
+- [x] `select_node(canvas_id, job_id)`
+- [x] `deselect_all(canvas_id)`
+- [x] `reset_layout(canvas_id)`
+- [x] `zoom_to_fit(canvas_id)`
+- [x] `set_zoom(canvas_id, level)`
+- [x] `get_node_positions(canvas_id) -> JSON`
+- [x] `set_node_positions(canvas_id, positions_json)`
+- [x] `destroy(canvas_id)`
 
 ### NPM Package
 - [ ] TypeScript wrapper class (`WorkflowGraph`)

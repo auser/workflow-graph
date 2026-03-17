@@ -1,26 +1,64 @@
-import init, { render_workflow, update_workflow_data } from './crates/web/pkg/github_graph_web.js';
+import init, {
+    render_workflow,
+    update_workflow_data,
+    select_node,
+    deselect_all,
+    reset_layout,
+    zoom_to_fit,
+} from './crates/web/pkg/github_graph_web.js';
 
 const API_BASE = window.location.origin;
 let currentWorkflowId = null;
 let pollInterval = null;
 let initialized = false;
 
+// ─── Event callbacks ─────────────────────────────────────────────────────────
+
 function onNodeClick(jobId) {
     console.log('Node clicked:', jobId);
     document.getElementById('status').textContent = `Clicked: ${jobId}`;
 }
 
+function onNodeHover(jobId) {
+    // jobId is null when hover ends
+    if (jobId) {
+        console.log('Hovering:', jobId);
+    }
+}
+
+function onCanvasClick() {
+    console.log('Canvas clicked (empty space)');
+}
+
+function onSelectionChange(selectedIds) {
+    console.log('Selection:', selectedIds);
+}
+
+function onNodeDragEnd(jobId, x, y) {
+    console.log(`Node ${jobId} dragged to (${x.toFixed(0)}, ${y.toFixed(0)})`);
+}
+
+// ─── Render helpers ──────────────────────────────────────────────────────────
+
+function renderGraph(json) {
+    render_workflow(
+        'graph', json,
+        onNodeClick, onNodeHover, onCanvasClick,
+        onSelectionChange, onNodeDragEnd,
+    );
+}
+
+// ─── Initialization ──────────────────────────────────────────────────────────
+
 async function initialize() {
     await init();
 
-    // Fetch workflows from server
     const res = await fetch(`${API_BASE}/api/workflows`);
     const workflows = await res.json();
 
     if (workflows.length > 0) {
         currentWorkflowId = workflows[0].id;
-        const json = JSON.stringify(workflows[0]);
-        render_workflow('graph', json, onNodeClick);
+        renderGraph(JSON.stringify(workflows[0]));
         initialized = true;
         updateStatus(workflows[0]);
         startPolling();
@@ -43,9 +81,7 @@ function updateStatus(workflow) {
 async function runWorkflow() {
     if (!currentWorkflowId) return;
     document.getElementById('status').textContent = 'Starting workflow...';
-    await fetch(`${API_BASE}/api/workflows/${currentWorkflowId}/run`, {
-        method: 'POST',
-    });
+    await fetch(`${API_BASE}/api/workflows/${currentWorkflowId}/run`, { method: 'POST' });
 }
 
 async function loadSample() {
@@ -54,8 +90,7 @@ async function loadSample() {
     if (res.ok) {
         const workflow = await res.json();
         currentWorkflowId = workflow.id;
-        const json = JSON.stringify(workflow);
-        render_workflow('graph', json, onNodeClick);
+        renderGraph(JSON.stringify(workflow));
         initialized = true;
         updateStatus(workflow);
     }
@@ -73,7 +108,7 @@ function startPolling() {
                 if (initialized) {
                     update_workflow_data('graph', json);
                 } else {
-                    render_workflow('graph', json);
+                    renderGraph(json);
                     initialized = true;
                 }
                 updateStatus(workflow);

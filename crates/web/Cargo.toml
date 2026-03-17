@@ -37,4 +37,5 @@ features = [
     "EventTarget",
     "AddEventListenerOptions",
     "DomRect",
+    "WheelEvent",
 ]
