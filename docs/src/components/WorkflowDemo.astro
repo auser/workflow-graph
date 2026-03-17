@@ -1,6 +1,7 @@
 ---
 /**
  * Animated workflow graph demo for the landing page.
+ * Mirrors the real ci.yml workflow: 8 jobs with full DAG topology.
  * Pure SVG + JS — no WASM dependency. Cycles through job statuses
  * to show the visualization in action.
  */
@@ -14,15 +15,28 @@
       <span class="dot green"></span>
     </div>
     <span class="demo-title">ci.yml — workflow run</span>
-    <button class="demo-replay" id="demo-replay" aria-label="Replay animation">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.071-1.071A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.071 1.071A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z"/>
-      </svg>
-    </button>
+    <div class="demo-controls">
+      <span class="demo-status" id="demo-run-status"></span>
+      <button class="demo-btn" id="demo-run" aria-label="Run workflow">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M4 2l10 6-10 6z"/>
+        </svg>
+        Run
+      </button>
+    </div>
   </div>
+
+  <!-- Status bar -->
+  <div class="demo-statusbar" id="demo-statusbar">
+    <span class="status-chip queued"><span class="chip-dot"></span><span id="count-queued">8</span> queued</span>
+    <span class="status-chip running"><span class="chip-dot"></span><span id="count-running">0</span> running</span>
+    <span class="status-chip success"><span class="chip-dot"></span><span id="count-success">0</span> success</span>
+    <span class="status-chip failure"><span class="chip-dot"></span><span id="count-failure">0</span> failure</span>
+  </div>
+
   <svg
     id="workflow-demo"
-    viewBox="0 0 820 380"
+    viewBox="0 0 960 460"
     xmlns="http://www.w3.org/2000/svg"
     role="img"
     aria-label="Animated workflow graph demo showing a CI pipeline"
@@ -32,12 +46,16 @@
               markerWidth="8" markerHeight="6" orient="auto-start-reverse">
         <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#484f58"/>
       </marker>
-      <marker id="arrow-highlight" viewBox="0 0 10 7" refX="10" refY="3.5"
+      <marker id="arrow-hl" viewBox="0 0 10 7" refX="10" refY="3.5"
               markerWidth="8" markerHeight="6" orient="auto-start-reverse">
         <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#58a6ff"/>
       </marker>
+      <marker id="arrow-active" viewBox="0 0 10 7" refX="10" refY="3.5"
+              markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#3fb950"/>
+      </marker>
 
-      <!-- Pre-defined icon templates -->
+      <!-- Icon templates -->
       <g id="icon-queued">
         <circle r="8" fill="none" stroke="#484f58" stroke-width="2"/>
       </g>
@@ -56,67 +74,100 @@
       </g>
     </defs>
 
-    <!-- Edges -->
+    <!-- Edges (matches ci.yml DAG) -->
     <g id="edges">
+      <!-- unit-tests → build -->
       <path class="edge" data-from="unit-tests" data-to="build"
-            d="M 205,60 C 270,60 270,190 335,190" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+            d="M 205,70 C 280,70 280,230 355,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+      <!-- lint → build -->
       <path class="edge" data-from="lint" data-to="build"
-            d="M 205,190 L 335,190" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+            d="M 205,200 C 260,200 300,230 355,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+      <!-- typecheck → build -->
       <path class="edge" data-from="typecheck" data-to="build"
-            d="M 205,320 C 270,320 270,190 335,190" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+            d="M 205,340 C 280,340 280,230 355,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+      <!-- build → deploy-db -->
       <path class="edge" data-from="build" data-to="deploy-db"
-            d="M 495,190 C 545,190 545,60 595,60" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+            d="M 515,230 C 570,230 570,70 625,70" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+      <!-- build → e2e-tests -->
       <path class="edge" data-from="build" data-to="e2e-tests"
-            d="M 495,190 L 595,190" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+            d="M 515,230 L 625,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+      <!-- build → deploy-preview -->
       <path class="edge" data-from="build" data-to="deploy-preview"
-            d="M 495,190 C 545,190 545,320 595,320" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+            d="M 515,230 C 570,230 570,390 625,390" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
+      <!-- deploy-db → deploy-web -->
+      <path class="edge" data-from="deploy-db" data-to="deploy-web"
+            d="M 805,70 C 860,70 860,200 860,230" fill="none" stroke="#484f58" stroke-width="2" marker-end="url(#arrow)"/>
     </g>
 
-    <!-- Nodes -->
+    <!-- Nodes (all 8 jobs from ci.yml) -->
     <g id="nodes">
-      <g class="node" data-id="unit-tests" data-status="queued" transform="translate(45, 30)">
-        <rect width="160" height="60" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="20" y="30"/>
-        <text x="42" y="35" class="node-label">Unit Tests</text>
+      <!-- Column 1: parallel starters -->
+      <g class="node" data-id="unit-tests" data-status="queued" transform="translate(45, 40)">
+        <rect width="160" height="56" rx="10" class="node-bg"/>
+        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
+        <text x="46" y="33" class="node-label">Unit Tests</text>
+        <text x="46" y="47" class="node-meta">retries: 1</text>
       </g>
 
-      <g class="node" data-id="lint" data-status="queued" transform="translate(45, 160)">
-        <rect width="160" height="60" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="20" y="30"/>
-        <text x="42" y="35" class="node-label">Lint</text>
+      <g class="node" data-id="lint" data-status="queued" transform="translate(45, 170)">
+        <rect width="160" height="56" rx="10" class="node-bg"/>
+        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
+        <text x="46" y="33" class="node-label">Lint</text>
       </g>
 
-      <g class="node" data-id="typecheck" data-status="queued" transform="translate(45, 290)">
-        <rect width="160" height="60" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="20" y="30"/>
-        <text x="42" y="35" class="node-label">Typecheck</text>
+      <g class="node" data-id="typecheck" data-status="queued" transform="translate(45, 310)">
+        <rect width="160" height="56" rx="10" class="node-bg"/>
+        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
+        <text x="46" y="33" class="node-label">Typecheck</text>
       </g>
 
-      <g class="node" data-id="build" data-status="queued" transform="translate(335, 160)">
-        <rect width="160" height="60" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="20" y="30"/>
-        <text x="42" y="35" class="node-label">Build</text>
+      <!-- Column 2: build -->
+      <g class="node" data-id="build" data-status="queued" transform="translate(355, 200)">
+        <rect width="160" height="56" rx="10" class="node-bg"/>
+        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
+        <text x="46" y="33" class="node-label">Build</text>
+        <text x="46" y="47" class="node-meta">linux</text>
       </g>
 
-      <g class="node" data-id="deploy-db" data-status="queued" transform="translate(595, 30)">
-        <rect width="180" height="60" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="20" y="30"/>
-        <text x="42" y="35" class="node-label">Deploy DB</text>
+      <!-- Column 3: post-build -->
+      <g class="node" data-id="deploy-db" data-status="queued" transform="translate(625, 40)">
+        <rect width="180" height="56" rx="10" class="node-bg"/>
+        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
+        <text x="46" y="33" class="node-label">Deploy DB</text>
+        <text x="46" y="47" class="node-meta">linux, aws</text>
       </g>
 
-      <g class="node" data-id="e2e-tests" data-status="queued" transform="translate(595, 160)">
-        <rect width="180" height="60" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="20" y="30"/>
-        <text x="42" y="35" class="node-label">E2E Tests</text>
+      <g class="node" data-id="e2e-tests" data-status="queued" transform="translate(625, 200)">
+        <rect width="180" height="56" rx="10" class="node-bg"/>
+        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
+        <text x="46" y="33" class="node-label">E2E Tests</text>
+        <text x="46" y="47" class="node-meta">retries: 2</text>
       </g>
 
-      <g class="node" data-id="deploy-preview" data-status="queued" transform="translate(595, 290)">
-        <rect width="180" height="60" rx="10" class="node-bg"/>
-        <use href="#icon-queued" class="status-icon-use" x="20" y="30"/>
-        <text x="42" y="35" class="node-label">Deploy Preview</text>
+      <g class="node" data-id="deploy-preview" data-status="queued" transform="translate(625, 360)">
+        <rect width="180" height="56" rx="10" class="node-bg"/>
+        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
+        <text x="46" y="33" class="node-label">Deploy Preview</text>
+      </g>
+
+      <!-- Column 4: final -->
+      <g class="node" data-id="deploy-web" data-status="queued" transform="translate(830, 200)">
+        <rect width="120" height="56" rx="10" class="node-bg"/>
+        <use href="#icon-queued" class="status-icon-use" x="24" y="28"/>
+        <text x="46" y="33" class="node-label">Deploy Web</text>
+        <text x="46" y="47" class="node-meta">linux, aws</text>
       </g>
     </g>
   </svg>
+
+  <!-- Log panel -->
+  <div class="demo-logpanel" id="demo-logpanel">
+    <div class="log-header">
+      <span class="log-title" id="log-title"></span>
+      <button class="log-close" id="log-close" aria-label="Close logs">&times;</button>
+    </div>
+    <pre class="log-content" id="log-content"></pre>
+  </div>
 </div>
 
 <style>
@@ -125,7 +176,7 @@
     border: 1px solid #30363d;
     border-radius: 12px;
     overflow: hidden;
-    max-width: 860px;
+    max-width: 980px;
     margin: 2rem auto;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
@@ -161,22 +212,75 @@
     flex: 1;
   }
 
-  .demo-replay {
-    background: none;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    color: #8b949e;
-    cursor: pointer;
-    padding: 4px 8px;
+  .demo-controls {
     display: flex;
     align-items: center;
-    transition: color 0.15s, border-color 0.15s;
+    gap: 10px;
   }
 
-  .demo-replay:hover {
-    color: #c9d1d9;
-    border-color: #484f58;
+  .demo-status {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    font-size: 12px;
+    color: #8b949e;
+    transition: color 0.3s;
   }
+
+  .demo-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #238636;
+    border: 1px solid #2ea043;
+    border-radius: 6px;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 12px;
+    transition: background 0.15s;
+  }
+
+  .demo-btn:hover {
+    background: #2ea043;
+  }
+
+  .demo-btn:disabled {
+    background: #21262d;
+    border-color: #30363d;
+    color: #484f58;
+    cursor: default;
+  }
+
+  /* Status bar */
+  .demo-statusbar {
+    display: flex;
+    gap: 16px;
+    padding: 8px 16px;
+    background: #0d1117;
+    border-bottom: 1px solid #21262d;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    font-size: 12px;
+  }
+
+  .status-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #8b949e;
+  }
+
+  .chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .status-chip.queued .chip-dot { background: #484f58; }
+  .status-chip.running .chip-dot { background: #d29922; }
+  .status-chip.success .chip-dot { background: #238636; }
+  .status-chip.failure .chip-dot { background: #da3633; }
 
   #workflow-demo {
     display: block;
@@ -189,11 +293,12 @@
     fill: #161b22;
     stroke: #30363d;
     stroke-width: 1.5;
-    transition: stroke 0.3s;
+    transition: stroke 0.3s, fill 0.3s;
   }
 
   .node:hover .node-bg {
     stroke: #58a6ff;
+    fill: #1c2129;
   }
 
   .node { cursor: pointer; }
@@ -202,119 +307,324 @@
     fill: #c9d1d9;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
+  }
+
+  .node-meta {
+    fill: #484f58;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 10px;
   }
 
   /* Status-driven node border */
-  .node[data-status="running"] .node-bg {
-    stroke: #d29922;
-  }
-
-  .node[data-status="success"] .node-bg {
-    stroke: #238636;
-  }
-
-  .node[data-status="failure"] .node-bg {
-    stroke: #da3633;
-  }
+  .node[data-status="running"] .node-bg { stroke: #d29922; }
+  .node[data-status="success"] .node-bg { stroke: #238636; }
+  .node[data-status="failure"] .node-bg { stroke: #da3633; }
 
   /* Edge styles */
   .edge {
-    transition: stroke 0.2s;
+    transition: stroke 0.2s, stroke-width 0.2s;
   }
 
   .edge.highlighted {
     stroke: #58a6ff !important;
-    marker-end: url(#arrow-highlight);
+    stroke-width: 2.5;
+    marker-end: url(#arrow-hl);
+  }
+
+  .edge.active {
+    stroke: #3fb950 !important;
+    stroke-width: 2.5;
+    marker-end: url(#arrow-active);
+  }
+
+  /* Log panel */
+  .demo-logpanel {
+    display: none;
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    max-height: 160px;
+    overflow: hidden;
+  }
+
+  .demo-logpanel.visible { display: block; }
+
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    border-bottom: 1px solid #21262d;
+  }
+
+  .log-title {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #c9d1d9;
+  }
+
+  .log-close {
+    background: none;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 4px;
+  }
+
+  .log-close:hover { color: #c9d1d9; }
+
+  .log-content {
+    padding: 12px 16px;
+    margin: 0;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #8b949e;
+    overflow-y: auto;
+    max-height: 110px;
   }
 </style>
 
 <script>
   function initDemo() {
-    const TIMELINE = [
-      [800,  'unit-tests',     'running'],
-      [0,    'lint',           'running'],
-      [0,    'typecheck',      'running'],
-      [1200, 'lint',           'success'],
-      [600,  'typecheck',      'success'],
-      [800,  'unit-tests',     'success'],
-      [300,  'build',          'running'],
-      [2000, 'build',          'success'],
-      [300,  'deploy-db',      'running'],
-      [0,    'e2e-tests',      'running'],
-      [0,    'deploy-preview', 'running'],
-      [800,  'deploy-preview', 'success'],
-      [400,  'deploy-db',      'success'],
-      [1600, 'e2e-tests',      'failure'],
-    ];
-
     const svg = document.getElementById('workflow-demo');
     if (!svg) return;
 
+    const JOBS: Record<string, { name: string; cmd: string; dur: number }> = {
+      'unit-tests':     { name: 'Unit Tests',    cmd: 'cargo test',               dur: 2000 },
+      'lint':           { name: 'Lint',           cmd: 'cargo clippy',             dur: 1200 },
+      'typecheck':      { name: 'Typecheck',      cmd: 'cargo check --all',        dur: 1800 },
+      'build':          { name: 'Build',          cmd: 'cargo build --release',    dur: 3000 },
+      'deploy-db':      { name: 'Deploy DB',      cmd: './scripts/migrate.sh',     dur: 1000 },
+      'e2e-tests':      { name: 'E2E Tests',      cmd: 'playwright test',          dur: 5000 },
+      'deploy-preview': { name: 'Deploy Preview', cmd: './scripts/deploy-preview.sh', dur: 1200 },
+      'deploy-web':     { name: 'Deploy Web',     cmd: './scripts/deploy.sh',      dur: 2500 },
+    };
+
+    const DEPS: Record<string, string[]> = {
+      'build':          ['unit-tests', 'lint', 'typecheck'],
+      'deploy-db':      ['build'],
+      'e2e-tests':      ['build'],
+      'deploy-preview': ['build'],
+      'deploy-web':     ['deploy-db'],
+    };
+
+    const FAIL_JOB = 'e2e-tests';
+
+    let timeouts: number[] = [];
+    let statuses: Record<string, string> = {};
+    let startTimes: Record<string, number> = {};
+    let isRunning = false;
+    let runCount = 0;
+
+    const runBtn = document.getElementById('demo-run') as HTMLButtonElement;
+    const runStatus = document.getElementById('demo-run-status')!;
+    const logPanel = document.getElementById('demo-logpanel')!;
+    const logTitle = document.getElementById('log-title')!;
+    const logContent = document.getElementById('log-content')!;
+    const logClose = document.getElementById('log-close')!;
+
     function setStatus(jobId: string, status: string) {
+      statuses[jobId] = status;
       const node = svg.querySelector(`.node[data-id="${jobId}"]`);
       if (!node) return;
       node.setAttribute('data-status', status);
       const useEl = node.querySelector('.status-icon-use');
-      if (useEl) {
-        useEl.setAttribute('href', `#icon-${status}`);
+      if (useEl) useEl.setAttribute('href', `#icon-${status}`);
+      updateCounts();
+
+      if (status === 'success' || status === 'failure') {
+        svg.querySelectorAll(`.edge[data-to="${jobId}"]`).forEach((e: Element) => {
+          e.classList.add('active');
+        });
       }
     }
 
-    function highlightEdges(jobId: string) {
-      svg.querySelectorAll('.edge').forEach((e: Element) => {
-        if (e.getAttribute('data-from') === jobId || e.getAttribute('data-to') === jobId) {
+    function updateCounts() {
+      const counts: Record<string, number> = { queued: 0, running: 0, success: 0, failure: 0 };
+      for (const s of Object.values(statuses)) {
+        if (s in counts) counts[s]++;
+      }
+      for (const [k, v] of Object.entries(counts)) {
+        const el = document.getElementById(`count-${k}`);
+        if (el) el.textContent = String(v);
+      }
+    }
+
+    function highlightPath(jobId: string) {
+      const visited = new Set<string>();
+      function walkUp(id: string) {
+        if (visited.has(id)) return;
+        visited.add(id);
+        svg.querySelectorAll(`.edge[data-to="${id}"]`).forEach((e: Element) => {
           e.classList.add('highlighted');
-        }
-      });
+          const from = e.getAttribute('data-from');
+          if (from) walkUp(from);
+        });
+      }
+      function walkDown(id: string) {
+        if (visited.has(id)) return;
+        visited.add(id);
+        svg.querySelectorAll(`.edge[data-from="${id}"]`).forEach((e: Element) => {
+          e.classList.add('highlighted');
+          const to = e.getAttribute('data-to');
+          if (to) walkDown(to);
+        });
+      }
+      walkUp(jobId);
+      visited.clear();
+      walkDown(jobId);
     }
 
     function clearHighlights() {
-      svg.querySelectorAll('.edge').forEach((e: Element) => e.classList.remove('highlighted'));
+      svg.querySelectorAll('.edge.highlighted').forEach((e: Element) => e.classList.remove('highlighted'));
     }
 
-    let timeouts: number[] = [];
+    function showLogs(jobId: string) {
+      const job = JOBS[jobId];
+      if (!job) return;
+      const status = statuses[jobId] || 'queued';
+      logTitle.textContent = job.name + ' \u2014 ' + status;
 
-    function runAnimation() {
+      const isFail = jobId === FAIL_JOB && runCount === 1 && status === 'failure';
+      const elapsed = startTimes[jobId] ? ((Date.now() - startTimes[jobId]) / 1000).toFixed(1) : '0.0';
+      const durStr = (job.dur / 1000).toFixed(1);
+
+      // Build log text safely using textContent
+      let text = '[0.0s] $ ' + job.cmd + '\n';
+      if (status === 'running') {
+        text += '[' + elapsed + 's] Running...\n';
+      } else if (status === 'success') {
+        text += '\u2713 Completed successfully (' + durStr + 's)\n';
+      } else if (status === 'failure') {
+        text += '\u2717 Process exited with code 1\n';
+        if (isFail) {
+          text += '[' + durStr + 's] Error: 2 tests failed\n';
+        }
+      }
+      logContent.textContent = text;
+      logPanel.classList.add('visible');
+    }
+
+    function resetAll() {
       timeouts.forEach(t => clearTimeout(t));
       timeouts = [];
-
-      // Reset all nodes to queued
-      svg.querySelectorAll('.node').forEach((n: Element) => {
-        const id = n.getAttribute('data-id');
-        if (id) setStatus(id, 'queued');
-      });
-      clearHighlights();
-
-      let cumulative = 500;
-      for (const [delay, jobId, status] of TIMELINE) {
-        cumulative += delay as number;
-        const jid = jobId as string;
-        const st = status as string;
-        const t = cumulative;
-        timeouts.push(setTimeout(() => setStatus(jid, st), t) as unknown as number);
+      statuses = {};
+      startTimes = {};
+      for (const id of Object.keys(JOBS)) {
+        setStatus(id, 'queued');
       }
-
-      // Loop
-      timeouts.push(setTimeout(() => runAnimation(), cumulative + 3000) as unknown as number);
+      svg.querySelectorAll('.edge').forEach((e: Element) => {
+        e.classList.remove('active', 'highlighted');
+      });
+      logPanel.classList.remove('visible');
+      updateCounts();
     }
 
-    // Hover highlighting
+    function schedule(delay: number, fn: () => void) {
+      const t = setTimeout(fn, delay) as unknown as number;
+      timeouts.push(t);
+      return t;
+    }
+
+    function runWorkflow() {
+      if (isRunning) return;
+      isRunning = true;
+      runCount++;
+      resetAll();
+      runBtn.setAttribute('disabled', '');
+      runStatus.textContent = 'Running...';
+      runStatus.style.color = '#d29922';
+
+      const completed = new Set<string>();
+
+      function tryStart(jobId: string) {
+        const deps = DEPS[jobId] || [];
+        if (deps.every(d => completed.has(d)) && statuses[jobId] === 'queued') {
+          setStatus(jobId, 'running');
+          startTimes[jobId] = Date.now();
+
+          const job = JOBS[jobId];
+          const shouldFail = jobId === FAIL_JOB && runCount === 1;
+
+          schedule(job.dur, () => {
+            if (shouldFail) {
+              setStatus(jobId, 'failure');
+              runStatus.textContent = 'Retrying e2e-tests...';
+              schedule(1500, () => {
+                setStatus(jobId, 'running');
+                startTimes[jobId] = Date.now();
+                schedule(job.dur, () => {
+                  setStatus(jobId, 'success');
+                  completed.add(jobId);
+                  tryStartAll();
+                  checkDone();
+                });
+              });
+            } else {
+              setStatus(jobId, 'success');
+              completed.add(jobId);
+              tryStartAll();
+              checkDone();
+            }
+          });
+        }
+      }
+
+      function tryStartAll() {
+        for (const id of Object.keys(JOBS)) {
+          if (!completed.has(id) && statuses[id] === 'queued') {
+            tryStart(id);
+          }
+        }
+      }
+
+      function checkDone() {
+        if (completed.size === Object.keys(JOBS).length) {
+          isRunning = false;
+          runBtn.removeAttribute('disabled');
+          runStatus.textContent = 'Completed';
+          runStatus.style.color = '#3fb950';
+
+          schedule(4000, () => {
+            runStatus.textContent = '';
+            runWorkflow();
+          });
+        }
+      }
+
+      schedule(400, tryStartAll);
+    }
+
+    // Event listeners
     svg.querySelectorAll('.node').forEach((node: Element) => {
       node.addEventListener('mouseenter', () => {
         const id = node.getAttribute('data-id');
-        if (id) highlightEdges(id);
+        if (id) highlightPath(id);
       });
       node.addEventListener('mouseleave', clearHighlights);
+      node.addEventListener('click', () => {
+        const id = node.getAttribute('data-id');
+        if (id) showLogs(id);
+      });
     });
 
-    // Replay button
-    document.getElementById('demo-replay')?.addEventListener('click', runAnimation);
+    runBtn.addEventListener('click', () => {
+      runCount = 0;
+      runWorkflow();
+    });
 
-    runAnimation();
+    logClose.addEventListener('click', () => {
+      logPanel.classList.remove('visible');
+    });
+
+    // Auto-start
+    setTimeout(() => runWorkflow(), 800);
   }
 
-  // Run after DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initDemo);
   } else {
