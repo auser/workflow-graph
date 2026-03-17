@@ -85,14 +85,16 @@ changelog version="":
         git cliff --tag "{{version}}"
     fi
 
-# Bump version in all workspace Cargo.toml files
+# Bump version in all workspace Cargo.toml files (package + dependency versions)
 bump-versions version:
     #!/usr/bin/env bash
     set -euo pipefail
     awk -v ver="{{version}}" '
-        /^\[workspace\.package\]/ { in_ws=1 }
-        /^\[/ && !/^\[workspace\.package\]/ { in_ws=0 }
+        /^\[workspace\.package\]/ { in_ws=1; in_deps=0 }
+        /^\[workspace\.dependencies\]/ { in_deps=1; in_ws=0 }
+        /^\[/ && !/^\[workspace\.package\]/ && !/^\[workspace\.dependencies\]/ { in_ws=0; in_deps=0 }
         in_ws && /^version = "/ { print "version = \"" ver "\""; next }
+        in_deps && /version = "/ { gsub(/version = "[^"]*"/, "version = \"" ver "\"") }
         { print }
     ' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
     echo "Bumped workspace version to {{version}}"
