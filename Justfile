@@ -87,18 +87,22 @@ changelog version="":
     fi
 
 # Bump version in all workspace Cargo.toml files (package + dependency versions)
-bump-versions version:
+bump-versions VERSION:
     #!/usr/bin/env bash
     set -euo pipefail
-    awk -v ver="{{version}}" '
-        /^\[workspace\.package\]/ { in_ws=1; in_deps=0 }
-        /^\[workspace\.dependencies\]/ { in_deps=1; in_ws=0 }
-        /^\[/ && !/^\[workspace\.package\]/ && !/^\[workspace\.dependencies\]/ { in_ws=0; in_deps=0 }
-        in_ws && /^version = "/ { print "version = \"" ver "\""; next }
-        in_deps && /version = "/ { gsub(/version = "[^"]*"/, "version = \"" ver "\"") }
-        { print }
-    ' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
-    echo "Bumped workspace version to {{version}}"
+    # Root workspace manifest: [workspace.package] version and inline dep versions
+    sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' Cargo.toml
+    # Update existing workspace dep versions, then add version to any that lack it
+    perl -i -pe 's|(version = )"[^"]+"|${1}"{{VERSION}}"| if /^agentzero-/' Cargo.toml
+    perl -i -pe 's| \}$|, version = "{{VERSION}}" }| if /^agentzero-/ && !/version/' Cargo.toml
+    echo "    Cargo.toml [workspace.package] → {{VERSION}}"
+    # Standalone Cargo.toml files (plugins, fixtures) that don't use version.workspace
+    rg --files -g 'Cargo.toml' | grep -v '^Cargo\.toml$' | while IFS= read -r f; do
+        if grep -q '^version = ' "$f" && ! grep -q 'version\.workspace' "$f"; then
+            sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' "$f"
+            echo "    $f → {{VERSION}}"
+        fi
+    done
 
 # Cut a release with automatic version bump (based on conventional commits)
 release-auto:
@@ -151,6 +155,40 @@ release-auto:
     fi
     git push origin "$TAG"
     echo "==> $TAG released and pushed."
+
+# Cut a release with specific version: just release 0.4.0
+release VERSION:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "==> Releasing v{{VERSION}}"
+    # 1. Bump all versions
+    just bump-versions {{VERSION}}
+    # 2. Quality gates — auto-fix fmt and clippy, then test
+    cargo fmt --all
+    cargo clippy --fix --allow-dirty --workspace --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo nextest run --workspace
+    # 3. Commit the version bump + any fmt/clippy fixes + updated Cargo.lock
+    if ! git diff --quiet; then
+        git add -u
+        git commit -m "chore: bump workspace version to {{VERSION}}"
+    fi
+    # 4. Generate changelog entry from conventional commits (via git-cliff)
+    if ! grep -q "^## \[{{VERSION}}\]" CHANGELOG.md; then
+        git-cliff --tag "v{{VERSION}}" --unreleased --prepend CHANGELOG.md
+        git add CHANGELOG.md
+        git commit -m "chore: add changelog entry for v{{VERSION}}"
+    fi
+    # 5. Verify changelog & crate versions match
+    scripts/verify-release-version.sh --version "{{VERSION}}"
+    # 6. Push branch commits, tag, and push tag (triggers .github/workflows/release.yml)
+    git push
+    if ! git tag -l "v{{VERSION}}" | grep -q .; then
+        git tag "v{{VERSION}}"
+    fi
+    git push origin "v{{VERSION}}"
+    echo "==> Tag v{{VERSION}} pushed. Release workflow will build and publish."
+
 
 # Start docs dev server
 docs-dev:
