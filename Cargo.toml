@@ -11,8 +11,8 @@ homepage = "https://auser.github.io/workflow-graph/"
 description = "GitHub Actions-style workflow DAG visualizer and job execution engine"
 
 [workspace.dependencies]
-workflow-graph-shared = { path = "shared", version = "0.2.2" }
-workflow-graph-queue = { path = "crates/queue", version = "0.2.2" }
+workflow-graph-shared = { path = "shared", version = "0.2.3" }
+workflow-graph-queue = { path = "crates/queue", version = "0.2.3" }
 
 # Optimize WASM binary size in release builds
 [profile.release]

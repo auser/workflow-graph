@@ -95,6 +95,12 @@ jobs:
         working-directory: packages/client
         run: npm run build
 
+      - name: Install React build dependencies
+        working-directory: packages/react
+        run: |
+          npm install --save-dev @types/react typescript
+          npm install --save-dev @workflow-graph/web@file:../web
+
       - name: Build @workflow-graph/react
         working-directory: packages/react
         run: npm run build
