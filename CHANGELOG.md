@@ -1,0 +1,296 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [0.1.0] - 2026-03-17
+
+### Bug Fixes
+
+- Fix release-auto cliff config and add bump-versions recipe([d8451cf](https://github.com/auser/workflow-graph/commit/d8451cfe80540546d61bc17c9526c4accbeda281))
+- Resolve all clippy warnings in web crate([d2e1a4d](https://github.com/auser/workflow-graph/commit/d2e1a4d35dfc7a5dbc69a33e9205ce9a1e495231))
+
+### Documentation
+
+- Add Vercel, Cloudflare Workers, and Supabase Edge deployment guides([55ff436](https://github.com/auser/workflow-graph/commit/55ff43680c2bf08f0b9c0b47bbdbbc333a378e80))
+
+### Refactoring
+
+- Improve scheduler, web, and worker-sdk implementations([420d4eb](https://github.com/auser/workflow-graph/commit/420d4ebeb40cef513f4ee0bf2c7cc2d3863e2e77))
+- Simplify crate code and add release verification script([b08cd40](https://github.com/auser/workflow-graph/commit/b08cd40a2bba679db83d5292ed9a9c6767084a8b))
+
+### CI/CD
+
+- Bump GitHub Actions to v5 (Node.js 24 support)([5038435](https://github.com/auser/workflow-graph/commit/5038435e1a43153fdf8125a44204c12d82daf2cf))
+
+### Miscellaneous
+
+- Bump workspace version to 0.1.0([1e88070](https://github.com/auser/workflow-graph/commit/1e880707f94bfbb6fef0d42ecadd47b489f9591e))
+
+### Other
+
+- Update README guide links to point to GitHub Pages docs site
+
+Replace broken local file links (docs/guide-workers.md, etc.) with
+links to the live documentation at auser.github.io/workflow-graph.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([1b1ccd6](https://github.com/auser/workflow-graph/commit/1b1ccd60ab31cb5b1834e9beddd69995c442f62e))
+- Add git-cliff config and release-auto Justfile recipe
+
+- cliff.toml with conventional commit parsing and GitHub link generation
+- `just release-auto <version>` bumps all crate versions, generates
+  CHANGELOG.md, commits, tags, and pushes
+- `just changelog` previews unreleased changes
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([a6212f8](https://github.com/auser/workflow-graph/commit/a6212f8d97618495beb5d8baa385185fcd55b4a2))
+- Merge branch 'feat/queue-worker-system'([91acc88](https://github.com/auser/workflow-graph/commit/91acc88f803a1549a340c6c614550907205eae78))
+- Add docs/.astro/ to gitignore
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([f450238](https://github.com/auser/workflow-graph/commit/f4502382129eb327dc7c67472c2bee3a9285f8a0))
+- Add edge deployment split, standalone scheduler, and workflow ops
+
+- Add standalone scheduler crate for split deployments (stateless API
+  + separate long-running scheduler process)
+- Extract workflow operations into workflow_ops module for the server
+- Update server to support API_ONLY mode via environment variable
+- Add edge deployment architecture plan (003)
+- Update sprint tracking, specs, and dependency versions across all
+  crates and NPM packages
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([e69f1db](https://github.com/auser/workflow-graph/commit/e69f1dbbe3bb456e12bc217eb175d2c4c6bfc187))
+- Add creating workers guide with Python, TypeScript, Go examples
+
+Step-by-step tutorial covering standalone binary, Rust SDK, and
+custom HTTP workers in Python, TypeScript/Node.js, and Go, plus
+best practices for heartbeats, idempotency, and error handling.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([eba91a5](https://github.com/auser/workflow-graph/commit/eba91a5731c43da6b0bfa9156948389f299ff2fc))
+- Add animated workflow demo to landing page, Postgres and Redis guides
+
+- Add SVG-based animated workflow graph demo that cycles through job
+  statuses (queued → running → success/failure) with hover edge
+  highlighting and a replay button
+- Add Postgres/pg-boss backend guide with full schema, trait impls,
+  and LISTEN/NOTIFY for split deployments
+- Add Redis backend guide with Lua-scripted atomic claiming, pub/sub
+  events, and comparison table
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([41c513f](https://github.com/auser/workflow-graph/commit/41c513f2a2460186d3e8c8a60c7ea05029526d34))
+- Add Astro + Starlight documentation site with GitHub Pages deployment
+
+Create a full documentation site in docs/ using Astro + Starlight with
+13 content pages migrated from README.md, guide-workers.md, and
+guide-postgres.md. Includes a landing page with hero section and feature
+cards, organized sidebar navigation, and a GitHub Actions workflow for
+automated deployment to GitHub Pages.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([9ff6fea](https://github.com/auser/workflow-graph/commit/9ff6feab022c25426a101e14acb96b9c1ab073fe))
+- Add integration guides for Postgres, Redis, and worker authoring
+
+Three new docs covering how to implement all four backend traits
+(JobQueue, ArtifactStore, LogSink, WorkerRegistry) with Postgres/pg-boss
+and Redis, plus a comprehensive guide for writing workers in any language
+including HTTP protocol reference, custom executors, and a Python example.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([5f5f271](https://github.com/auser/workflow-graph/commit/5f5f271b9efedf1215f86ad8a2155b0cf2c63f1f))
+- Complete all sprint items: SSE, NPM packages, accessibility, docs
+
+SSE Log Streaming:
+- GET /api/workflows/{wf_id}/jobs/{job_id}/logs/stream — SSE endpoint
+  replays existing chunks then streams live via broadcast
+- Frontend log panel: click node → fetch and display logs
+- Click empty space → hide log panel
+
+TypeScript NPM Packages:
+- @github-graph/web: WorkflowGraph class wrapping WASM with full API
+- @github-graph/react: <WorkflowGraphComponent /> with props
+- @github-graph/client: WorkflowClient with REST + SSE streaming
+
+Accessibility:
+- Canvas role="img" + aria-label + tabindex="0"
+- Tab/Shift+Tab cycles through nodes
+- Enter/Space activates (fires click callback)
+- Escape deselects all
+
+All sprint items marked complete. 22 tests passing.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([f943ebc](https://github.com/auser/workflow-graph/commit/f943ebc6267fad6b31f6593c0495aa0a0e2f8224))
+- Add comprehensive README with architecture, API docs, and guides
+
+Covers: features, architecture diagram, crate structure, quick start,
+workflow YAML schema, WASM API reference, REST API table, custom
+queue backend guide (pg-boss mapping), server embedding guide, testing.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([f9517f0](https://github.com/auser/workflow-graph/commit/f9517f06e1e3cf3bb582f3539f8a9cdfc3c054db))
+- Add pan/zoom, selection, events, and control API (Web Component)
+
+Pan & Zoom:
+- Mouse wheel zoom centered on cursor (0.25x to 4x)
+- Click+drag on empty canvas space to pan
+- Transform applied via ctx.translate/scale in render
+
+Selection:
+- Click node → selected (blue border ring)
+- Shift+click → toggle multi-select
+- Click empty space → deselect all
+- Selected state persists across redraws
+
+Event Callbacks (all optional):
+- on_node_click(jobId) — fires on click, not drag
+- on_node_hover(jobId | null) — fires on hover enter/exit
+- on_node_drag_end(jobId, x, y) — fires when drag completes
+- on_canvas_click() — fires on empty space click
+- on_selection_change(selectedIds[]) — fires on selection change
+
+Programmatic Control API:
+- select_node, deselect_all, reset_layout, zoom_to_fit
+- set_zoom, get_node_positions, set_node_positions, destroy
+
+22 tests passing.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([f18ea47](https://github.com/auser/workflow-graph/commit/f18ea475e8b0bc8ac661f5858ee30ad7e12e9ed7))
+- Add labels/retries to YAML schema, complete log API (Phases 5-6)
+
+Shared types: add required_labels, max_retries, attempt to Job
+(all #[serde(default)] for backwards compat).
+
+YAML parser: add labels and retries fields to JobDef, propagate
+through into_workflow().
+
+Sample workflow updated with labels (linux, aws) and retries
+to demonstrate the new schema.
+
+Log collection API already wired in Phase 3:
+- POST /api/jobs/{lease_id}/logs (worker pushes chunks)
+- GET /api/workflows/{wf_id}/jobs/{job_id}/logs (historical)
+
+22 tests passing.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([d3b283d](https://github.com/auser/workflow-graph/commit/d3b283d028247e3bc31af8e08169a0b347c5684a))
+- Add Worker SDK with poll/execute/heartbeat/log streaming (Phase 4)
+
+New crate: github-graph-worker-sdk
+
+Worker struct with configurable:
+- Poll interval, lease TTL, heartbeat interval
+- Log batch interval, cancellation check interval
+- Server URL, worker labels
+
+Worker loop: register → poll/claim → execute with concurrent:
+- Heartbeat sender (renews lease every TTL/3)
+- Cancellation checker (polls server, kills child on cancel)
+- Log streamer (batches stdout/stderr lines, pushes to server)
+
+Executor: spawns sh -c, reads stdout/stderr incrementally via
+AsyncBufReadExt, streams log chunks to server in batches.
+Supports graceful cancellation via tokio CancellationToken.
+
+Standalone binary: configurable via SERVER_URL and WORKER_LABELS
+env vars. Can also be embedded as a library.
+
+22 tests passing across workspace.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([7429ca4](https://github.com/auser/workflow-graph/commit/7429ca4b345a64e4651780400c841238041f2644))
+- Wire queue system into server, add worker protocol API (Phase 3)
+
+Replace inline orchestrator with queue-backed architecture:
+- Delete orchestrator.rs and executor.rs (logic now in queue crate)
+- Server creates InMemory* backends, spawns DagScheduler event loop
+  and lease reaper background task
+- Expose create_router() for library consumers to embed in their apps
+- run_workflow now calls scheduler.start_workflow()
+
+New API endpoints for worker protocol:
+- POST /api/workers/register — register worker with labels
+- POST /api/workers/{id}/heartbeat — worker heartbeat
+- GET  /api/workers — list registered workers
+- POST /api/jobs/claim — atomic job claim with lease TTL
+- POST /api/jobs/{lease_id}/heartbeat — renew job lease
+- POST /api/jobs/{lease_id}/complete — report success + outputs
+- POST /api/jobs/{lease_id}/fail — report failure
+- POST /api/jobs/{lease_id}/logs — push log chunks
+- GET  /api/jobs/{wf_id}/{job_id}/cancelled — check cancellation
+- POST /api/workflows/{id}/cancel — cancel workflow
+- GET  /api/workflows/{wf_id}/jobs/{job_id}/logs — get job logs
+
+22 tests passing across workspace.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([86521e0](https://github.com/auser/workflow-graph/commit/86521e0b0cf9787d969cf4f6d11e350454e4f6e4))
+- Add DagScheduler with event-driven DAG cascade (Phase 2)
+
+Event-driven scheduler that subscribes to JobQueue events:
+- start_workflow(): resets jobs, enqueues roots (no deps)
+- On Completed: finds downstream jobs with all deps satisfied,
+  collects upstream outputs from ArtifactStore, enqueues them
+- On Failed (non-retryable): marks transitive downstream as Skipped
+- On LeaseExpired: marks job as Queued for retry
+- On Cancelled: marks job as Cancelled
+- Updates SharedState so frontend polling works unchanged
+
+4 new tests (19 total): start enqueues roots, completed cascades
+downstream, failure skips downstream, cancel marks all cancelled.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([799db5b](https://github.com/auser/workflow-graph/commit/799db5bd2c2446923819aeea79b3b48a481da8e5))
+- Add queue crate with traits and in-memory implementations (Phase 1)
+
+New crate: github-graph-queue with pluggable trait system:
+- JobQueue: enqueue, atomic claim with lease TTL, renew, complete,
+  fail with retry policy, cancel, reap expired leases, event subscribe
+- ArtifactStore: put/get job outputs for downstream consumption
+- LogSink: append/get log chunks with broadcast subscribe for SSE
+- WorkerRegistry: register/deregister workers with labels, heartbeat
+
+All traits designed for pg-boss (Postgres), Redis, or in-memory backends.
+In-memory implementations included with 15 passing unit tests covering:
+claim/complete/fail/retry, label-based routing, lease expiry reaping,
+cancellation, artifact storage, log streaming, worker lifecycle.
+
+Also scaffolds worker-sdk crate (placeholder for Phase 4).
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([6c81a30](https://github.com/auser/workflow-graph/commit/6c81a307df7b49bf4c10ff19ff7199f3eb464d18))
+- Update sprint with pg-boss mapping and full implementation plan
+
+Document how JobQueue trait maps to pg-boss operations
+(SELECT FOR UPDATE SKIP LOCKED for atomic claiming, maintain()
+for lease reaping). Reorganize phases with descriptions.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([5576a5e](https://github.com/auser/workflow-graph/commit/5576a5ed79383a3b6cb047986e801e617b89193c))
+- Add web component library plan (002) and update sprint tracker
+
+Covers: config API, event callbacks, pan/zoom, selection state,
+programmatic control, NPM packaging, React adapter, client SDK,
+accessibility, and documentation.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([1721d9d](https://github.com/auser/workflow-graph/commit/1721d9dae912847f00e4ba3e34c20b168326c03c))
+- Add node click events and sprint specs for queue/worker system
+
+- Add on_node_click JS callback to render_workflow() API
+- Distinguish click from drag via 5px movement threshold
+- Click fires callback with job ID; drag moves node as before
+- Update running icon to glowing arc spinner (user's design)
+- Add specs/SPRINT.md with full task checklist
+- Add specs/plans/001-queue-worker-architecture.md with architecture plan
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([8ea7b3d](https://github.com/auser/workflow-graph/commit/8ea7b3d0213d97582d4fc02a5fa733fb9ed1dffb))
+- Initial implementation of GitHub Actions workflow DAG visualizer
+
+WASM + Axum workspace with three crates:
+- shared: Job/Workflow types, YAML/JSON workflow parser
+- web: Canvas-based DAG renderer with interactive drag-to-move,
+  path highlighting on hover, and animated GitHub Octicon status icons
+- server: Axum backend with shell command executor, DAG cascade
+  orchestrator, and REST API for workflow management
+
+Features:
+- Pixel-perfect GitHub Octicon SVG icons via Canvas Path2D
+- Animated orbiting dot spinner for running jobs
+- Live elapsed timer counting up while jobs execute
+- Automatic cascade: downstream jobs start when deps succeed,
+  skip when deps fail
+- Pluggable workflow definitions via YAML or JSON files
+- Node drag-and-drop with boundary clamping
+- Edge highlighting showing full upstream/downstream path on hover
+- Auto port discovery if preferred port is taken
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>([f5c5050](https://github.com/auser/workflow-graph/commit/f5c505046a85d9b59ebad4a9c45cd6da332b3ba2))
+- Initial commit([440669d](https://github.com/auser/workflow-graph/commit/440669dbbb82846994eaba7e7535bd98fcb19ecd))
+
