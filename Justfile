@@ -114,11 +114,12 @@ release-auto:
     TAG="v${NEXT_VERSION}"
     echo "==> Auto-detected next version: $NEXT_VERSION (tag: $TAG)"
 
-    # 4. Bump all workspace versions
+    # 4. Bump all workspace versions and update lockfile
     just bump-versions "$NEXT_VERSION"
+    cargo update --workspace
 
     # 5. Commit version bump + any fmt/clippy fixes
-    if ! git diff --quiet; then
+    if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
         git add -u
         git commit -m "chore: bump workspace version to $NEXT_VERSION"
     fi
