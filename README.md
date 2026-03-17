@@ -40,7 +40,7 @@ Render interactive workflow graphs in the browser with pixel-perfect GitHub Octi
 
 ### Library Design
 - **6 crates** — shared types, queue engine, WASM frontend, worker SDK, reference server, standalone scheduler
-- **3 npm packages** — `@workflow-graph/web`, `@workflow-graph/react`, `@workflow-graph/client`
+- **3 npm packages** — `@auser/workflow-graph-web`, `@auser/workflow-graph-react`, `@auser/workflow-graph-client`
 - **Trait-based backends** — `JobQueue`, `ArtifactStore`, `LogSink`, `WorkerRegistry`
 - **YAML/JSON workflows** — GitHub Actions-inspired definition format
 - **Embeddable** — use `create_router()` to embed the API in your own Axum server
@@ -85,15 +85,15 @@ Full documentation is available at **[auser.github.io/workflow-graph](https://au
 ## NPM Packages
 
 ```bash
-npm install @workflow-graph/web      # WASM + Canvas renderer
-npm install @workflow-graph/react    # React component
-npm install @workflow-graph/client   # REST API client
+npm install @auser/workflow-graph-web      # WASM + Canvas renderer
+npm install @auser/workflow-graph-react    # React component
+npm install @auser/workflow-graph-client   # REST API client
 ```
 
 ### TypeScript / Vanilla JS
 
 ```typescript
-import { WorkflowGraph, darkTheme, setWasmUrl } from '@workflow-graph/web';
+import { WorkflowGraph, darkTheme, setWasmUrl } from '@auser/workflow-graph-web';
 
 // Optional: set custom WASM URL if hosting separately
 // setWasmUrl('https://cdn.example.com/wasm/workflow_graph_web_bg.wasm');
@@ -116,8 +116,8 @@ await graph.setTheme({ minimap: true, direction: 'TopToBottom' });
 ### React
 
 ```tsx
-import { WorkflowGraphComponent, darkTheme } from '@workflow-graph/react';
-import type { WorkflowGraphHandle } from '@workflow-graph/react';
+import { WorkflowGraphComponent, darkTheme } from '@auser/workflow-graph-react';
+import type { WorkflowGraphHandle } from '@auser/workflow-graph-react';
 
 const ref = useRef<WorkflowGraphHandle>(null);
 
@@ -138,7 +138,7 @@ ref.current?.setTheme({ minimap: true });
 ### REST API Client
 
 ```typescript
-import { WorkflowClient } from '@workflow-graph/client';
+import { WorkflowClient } from '@auser/workflow-graph-client';
 
 const client = new WorkflowClient('http://localhost:3000');
 const workflows = await client.listWorkflows();
@@ -155,7 +155,7 @@ for await (const chunk of client.streamLogs(wfId, jobId)) {
 Three built-in presets:
 
 ```typescript
-import { darkTheme, lightTheme, highContrastTheme } from '@workflow-graph/web';
+import { darkTheme, lightTheme, highContrastTheme } from '@auser/workflow-graph-web';
 ```
 
 Full customization via `ThemeConfig`:

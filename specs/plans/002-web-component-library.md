@@ -55,7 +55,7 @@ Exported WASM functions:
 - Arrow keys to navigate the DAG structure
 
 ### 7. NPM Package
-- Publish as `@workflow-graph/web` (or `workflow-graph`)
+- Publish as `@auser/workflow-graph-web` (or `workflow-graph`)
 - TypeScript type definitions generated from WASM bindings
 - Wrapper class:
   ```typescript
@@ -76,7 +76,7 @@ Exported WASM functions:
   - Vanilla JS: `new WorkflowGraph(document.getElementById('container'))`
 
 ### 8. Client SDK
-- `@workflow-graph/client` npm package
+- `@auser/workflow-graph-client` npm package
 - TypeScript client for the REST API:
   ```typescript
   class WorkflowClient {

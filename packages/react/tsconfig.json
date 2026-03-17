@@ -6,7 +6,7 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@workflow-graph/web": ["../web/dist"]
+      "@auser/workflow-graph-web": ["../web/dist"]
     }
   },
   "include": ["src"]

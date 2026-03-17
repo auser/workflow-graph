@@ -1,5 +1,5 @@
 /**
- * @workflow-graph/react — React component for workflow DAG visualization
+ * @auser/workflow-graph-react — React component for workflow DAG visualization
  */
 
 import React, {
@@ -14,7 +14,7 @@ import {
   type Workflow,
   type GraphOptions,
   type ThemeConfig,
-} from '@workflow-graph/web';
+} from '@auser/workflow-graph-web';
 
 export type {
   Workflow,
@@ -28,8 +28,8 @@ export type {
   EdgeStyle,
   Labels,
   OnRenderNode,
-} from '@workflow-graph/web';
-export { darkTheme, lightTheme, highContrastTheme } from '@workflow-graph/web';
+} from '@auser/workflow-graph-web';
+export { darkTheme, lightTheme, highContrastTheme } from '@auser/workflow-graph-web';
 
 export interface WorkflowGraphHandle {
   selectNode(jobId: string): Promise<void>;

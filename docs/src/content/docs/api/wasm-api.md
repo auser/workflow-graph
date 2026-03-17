@@ -3,14 +3,14 @@ title: WASM API
 description: JavaScript API for the WebAssembly workflow graph renderer
 ---
 
-The WASM module provides an interactive canvas-based workflow graph renderer. It's available directly or via the `@workflow-graph/web` NPM package.
+The WASM module provides an interactive canvas-based workflow graph renderer. It's available directly or via the `@auser/workflow-graph-web` NPM package.
 
 ## Setup
 
 ### NPM Package (recommended)
 
 ```typescript
-import { WorkflowGraph, darkTheme } from '@workflow-graph/web';
+import { WorkflowGraph, darkTheme } from '@auser/workflow-graph-web';
 
 const graph = new WorkflowGraph(document.getElementById('container')!, {
   onNodeClick: (jobId) => console.log('clicked', jobId),
@@ -23,8 +23,8 @@ await graph.setWorkflow(workflowData);
 ### React Component
 
 ```tsx
-import { WorkflowGraphComponent, darkTheme } from '@workflow-graph/react';
-import type { WorkflowGraphHandle } from '@workflow-graph/react';
+import { WorkflowGraphComponent, darkTheme } from '@auser/workflow-graph-react';
+import type { WorkflowGraphHandle } from '@auser/workflow-graph-react';
 
 const ref = useRef<WorkflowGraphHandle>(null);
 
@@ -111,7 +111,7 @@ set_theme('canvas-id', JSON.stringify({
 Three built-in presets are available in TypeScript:
 
 ```typescript
-import { darkTheme, lightTheme, highContrastTheme } from '@workflow-graph/web';
+import { darkTheme, lightTheme, highContrastTheme } from '@auser/workflow-graph-web';
 
 // darkTheme — GitHub dark mode colors
 // lightTheme — default (no-op)

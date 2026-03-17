@@ -87,11 +87,11 @@ jobs:
       - name: Build WASM (skip wasm-opt — bundled version is outdated)
         run: wasm-pack build crates/web --target web --no-typescript --release --no-opt
 
-      - name: Build @workflow-graph/web (copy WASM + compile TS)
+      - name: Build @auser/workflow-graph-web (copy WASM + compile TS)
         working-directory: packages/web
         run: npm run build
 
-      - name: Build @workflow-graph/client
+      - name: Build @auser/workflow-graph-client
         working-directory: packages/client
         run: npm run build
 
@@ -99,23 +99,23 @@ jobs:
         working-directory: packages/react
         run: npm install --no-save --legacy-peer-deps @types/react
 
-      - name: Build @workflow-graph/react
+      - name: Build @auser/workflow-graph-react
         working-directory: packages/react
         run: npx tsc
 
-      - name: Publish @workflow-graph/web
+      - name: Publish @auser/workflow-graph-web
         working-directory: packages/web
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @workflow-graph/client
+      - name: Publish @auser/workflow-graph-client
         working-directory: packages/client
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @workflow-graph/react
+      - name: Publish @auser/workflow-graph-react
         working-directory: packages/react
         run: npm publish --provenance --access public
         env:

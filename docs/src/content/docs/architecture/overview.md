@@ -37,9 +37,9 @@ Workers communicate with the server over HTTP. The server can run in **all-in-on
 
 | Package | Purpose |
 |---------|---------|
-| `@workflow-graph/web` | TypeScript wrapper for WASM, auto-inits, manages canvas |
-| `@workflow-graph/react` | React component adapter (`<WorkflowGraphComponent />`) |
-| `@workflow-graph/client` | TypeScript client for the REST API |
+| `@auser/workflow-graph-web` | TypeScript wrapper for WASM, auto-inits, manages canvas |
+| `@auser/workflow-graph-react` | React component adapter (`<WorkflowGraphComponent />`) |
+| `@auser/workflow-graph-client` | TypeScript client for the REST API |
 
 ## Key Design Decisions
 

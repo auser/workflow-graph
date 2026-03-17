@@ -1,5 +1,5 @@
 /**
- * @workflow-graph/client — TypeScript client for the workflow-graph REST API
+ * @auser/workflow-graph-client — TypeScript client for the workflow-graph REST API
  */
 
 export interface Workflow {

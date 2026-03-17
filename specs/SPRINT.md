@@ -214,7 +214,7 @@
 - [x] All 6 crates inherit workspace metadata (`edition.workspace`, `license.workspace`, `repository.workspace`)
 - [x] Per-crate descriptions
 - [x] npm packages: `repository`, `homepage`, `keywords`, `sideEffects`, `exports` fields
-- [x] `@workflow-graph/{web,react,client}` all have proper package metadata
+- [x] `@auser/workflow-graph-{web,react,client}` all have proper package metadata
 
 ---
 
@@ -316,7 +316,7 @@
 - [x] React peer deps tightened: `^18.0.0 || ^19.0.0`
 
 ### TypeScript Strictness ✅
-- [x] Remove all `any` types from `@workflow-graph/web`
+- [x] Remove all `any` types from `@auser/workflow-graph-web`
 - [x] `WasmModule` interface with typed WASM function signatures
 - [x] `ensureWasm()` returns `Promise<WasmModule>` instead of `Promise<any>`
 - [x] All `res.json()` calls cast with `as Promise<T>`

@@ -8,7 +8,7 @@ description: Use workflow-graph as a library in your Axum server, React app, or 
 ### React
 
 ```bash
-npm install @workflow-graph/react @workflow-graph/web
+npm install @auser/workflow-graph-react @auser/workflow-graph-web
 ```
 
 ```tsx
@@ -17,8 +17,8 @@ import {
   WorkflowGraphComponent,
   darkTheme,
   highContrastTheme,
-} from '@workflow-graph/react';
-import type { WorkflowGraphHandle } from '@workflow-graph/react';
+} from '@auser/workflow-graph-react';
+import type { WorkflowGraphHandle } from '@auser/workflow-graph-react';
 
 function App() {
   const ref = useRef<WorkflowGraphHandle>(null);
@@ -86,11 +86,11 @@ The component guards against server-side rendering — it checks `typeof documen
 ### Vanilla TypeScript / JavaScript
 
 ```bash
-npm install @workflow-graph/web
+npm install @auser/workflow-graph-web
 ```
 
 ```typescript
-import { WorkflowGraph, darkTheme, setWasmUrl } from '@workflow-graph/web';
+import { WorkflowGraph, darkTheme, setWasmUrl } from '@auser/workflow-graph-web';
 
 // Optional: host WASM binary on a CDN
 // setWasmUrl('https://cdn.example.com/wasm/workflow_graph_web_bg.wasm');

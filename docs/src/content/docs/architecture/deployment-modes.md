@@ -285,7 +285,7 @@ Supabase Edge Functions run on Deno Deploy at the edge. You can call the workflo
 
 #### Option A: TypeScript Wrapper with Direct Postgres Access
 
-Since Supabase Edge Functions run on Deno and have direct access to the project's Postgres database, you can use the `@workflow-graph/client` TypeScript package or make direct SQL calls.
+Since Supabase Edge Functions run on Deno and have direct access to the project's Postgres database, you can use the `@auser/workflow-graph-client` TypeScript package or make direct SQL calls.
 
 ##### `supabase/functions/workflow-api/index.ts`
 

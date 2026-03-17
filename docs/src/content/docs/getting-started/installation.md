@@ -41,15 +41,15 @@ just watch-all        # Also rebuilds WASM on web crate changes
 If you're integrating via JavaScript/TypeScript, install the packages you need:
 
 ```bash
-npm install @workflow-graph/web      # WASM + Canvas renderer (includes .wasm binary)
-npm install @workflow-graph/react    # React component (peer dep: @workflow-graph/web)
-npm install @workflow-graph/client   # TypeScript REST API client
+npm install @auser/workflow-graph-web      # WASM + Canvas renderer (includes .wasm binary)
+npm install @auser/workflow-graph-react    # React component (peer dep: @auser/workflow-graph-web)
+npm install @auser/workflow-graph-client   # TypeScript REST API client
 ```
 
-The `@workflow-graph/web` package bundles the compiled WASM binary — no separate build step needed. If you need to host the WASM file on a CDN, use `setWasmUrl()`:
+The `@auser/workflow-graph-web` package bundles the compiled WASM binary — no separate build step needed. If you need to host the WASM file on a CDN, use `setWasmUrl()`:
 
 ```typescript
-import { setWasmUrl } from '@workflow-graph/web';
+import { setWasmUrl } from '@auser/workflow-graph-web';
 setWasmUrl('https://cdn.example.com/wasm/workflow_graph_web_bg.wasm');
 ```
 
@@ -57,8 +57,8 @@ setWasmUrl('https://cdn.example.com/wasm/workflow_graph_web_bg.wasm');
 
 | Package | Size | Features |
 |---------|------|----------|
-| `@workflow-graph/web` | ~100KB gzipped | Renderer, theming (dark/light/high-contrast), minimap, i18n, touch support, a11y |
-| `@workflow-graph/react` | ~3KB | React wrapper with ref API, loading skeleton, SSR guard, error boundary |
-| `@workflow-graph/client` | ~2KB | Typed REST client with `WorkflowApiError`, log streaming |
+| `@auser/workflow-graph-web` | ~100KB gzipped | Renderer, theming (dark/light/high-contrast), minimap, i18n, touch support, a11y |
+| `@auser/workflow-graph-react` | ~3KB | React wrapper with ref API, loading skeleton, SSR guard, error boundary |
+| `@auser/workflow-graph-client` | ~2KB | Typed REST client with `WorkflowApiError`, log streaming |
 
 All packages ship with TypeScript declarations (`strict: true`) and ES module output.

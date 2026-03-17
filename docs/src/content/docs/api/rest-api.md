@@ -7,10 +7,10 @@ All endpoints use JSON request/response bodies. The base URL defaults to `http:/
 
 ## TypeScript Client
 
-The `@workflow-graph/client` package provides a typed client with error handling:
+The `@auser/workflow-graph-client` package provides a typed client with error handling:
 
 ```typescript
-import { WorkflowClient, WorkflowApiError } from '@workflow-graph/client';
+import { WorkflowClient, WorkflowApiError } from '@auser/workflow-graph-client';
 
 const client = new WorkflowClient('http://localhost:3000');
 
