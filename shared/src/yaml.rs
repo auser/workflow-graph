@@ -346,7 +346,11 @@ jobs:
         let def = WorkflowDef::from_yaml(yaml).unwrap();
         let result = def.into_workflow("bad-2");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("must have either 'run' or 'steps'"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("must have either 'run' or 'steps'")
+        );
     }
 
     #[test]

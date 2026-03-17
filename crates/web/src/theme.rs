@@ -210,8 +210,7 @@ impl Labels {
                 .replace("{m}", &m.to_string())
                 .replace("{s}", &s.to_string())
         } else {
-            self.duration_seconds
-                .replace("{s}", &secs.to_string())
+            self.duration_seconds.replace("{s}", &secs.to_string())
         }
     }
 }
@@ -232,7 +231,7 @@ pub struct ThemeConfig {
 }
 
 /// Resolved theme with no Option fields — ready for rendering.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ResolvedTheme {
     pub colors: ThemeColors,
     pub fonts: ThemeFonts,
@@ -256,20 +255,6 @@ impl ResolvedTheme {
                 edge_styles: cfg.edge_styles.unwrap_or_default(),
                 minimap: cfg.minimap.unwrap_or(false),
             },
-        }
-    }
-}
-
-impl Default for ResolvedTheme {
-    fn default() -> Self {
-        Self {
-            colors: ThemeColors::default(),
-            fonts: ThemeFonts::default(),
-            layout: ThemeLayout::default(),
-            direction: LayoutDirection::default(),
-            labels: Labels::default(),
-            edge_styles: EdgeStyleMap::new(),
-            minimap: false,
         }
     }
 }

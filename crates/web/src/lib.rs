@@ -270,18 +270,18 @@ impl GraphState {
         let labels = &self.theme.labels;
         let mut announcements = Vec::new();
         for job in &self.workflow.jobs {
-            if let Some(old) = old_statuses.get(&job.id) {
-                if *old != job.status {
-                    let status_label = match job.status {
-                        JobStatus::Queued => &labels.queued,
-                        JobStatus::Running => &labels.running,
-                        JobStatus::Success => &labels.success,
-                        JobStatus::Failure => &labels.failure,
-                        JobStatus::Skipped => &labels.skipped,
-                        JobStatus::Cancelled => &labels.cancelled,
-                    };
-                    announcements.push(format!("{}: {}", job.name, status_label));
-                }
+            if let Some(old) = old_statuses.get(&job.id)
+                && *old != job.status
+            {
+                let status_label = match job.status {
+                    JobStatus::Queued => &labels.queued,
+                    JobStatus::Running => &labels.running,
+                    JobStatus::Success => &labels.success,
+                    JobStatus::Failure => &labels.failure,
+                    JobStatus::Skipped => &labels.skipped,
+                    JobStatus::Cancelled => &labels.cancelled,
+                };
+                announcements.push(format!("{}: {}", job.name, status_label));
             }
         }
         if !announcements.is_empty() {
@@ -329,6 +329,7 @@ pub fn start() -> Result<(), JsValue> {
 /// - `on_node_drag_end` — optional callback: `(jobId: string, x: number, y: number) => void`
 /// - `theme_json` — optional JSON string of `ThemeConfig` for custom colors, fonts, layout, direction
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn render_workflow(
     canvas_id: &str,
     workflow_json: &str,
@@ -416,28 +417,31 @@ pub fn render_workflow(
         let state = state.clone();
         let dpr = window.device_pixel_ratio();
         let query = format!("(resolution: {dpr}dppx)");
-        if let Ok(mql) = window.match_media(&query) {
-            if let Some(mql) = mql {
-                let closure = Closure::<dyn FnMut()>::new(move || {
-                    if let Some(win) = web_sys::window() {
-                        let new_dpr = win.device_pixel_ratio();
-                        if let Ok(mut s) = state.try_borrow_mut() {
-                            if (s.dpr - new_dpr).abs() > 0.01 {
-                                s.dpr = new_dpr;
-                                s.redraw();
-                            }
-                        }
+        if let Ok(mql) = window.match_media(&query)
+            && let Some(mql) = mql
+        {
+            let closure = Closure::<dyn FnMut()>::new(move || {
+                if let Some(win) = web_sys::window() {
+                    let new_dpr = win.device_pixel_ratio();
+                    if let Ok(mut s) = state.try_borrow_mut()
+                        && (s.dpr - new_dpr).abs() > 0.01
+                    {
+                        s.dpr = new_dpr;
+                        s.redraw();
                     }
-                });
-                mql.add_listener_with_opt_callback(Some(closure.as_ref().unchecked_ref()))
-                    .ok();
-                closure.forget(); // Intentional: lives for the lifetime of the page
-            }
+                }
+            });
+            mql.add_listener_with_opt_callback(Some(closure.as_ref().unchecked_ref()))
+                .ok();
+            closure.forget(); // Intentional: lives for the lifetime of the page
         }
     }
 
     let id = canvas_id.to_string();
-    let instance = GraphInstance { state: state.clone(), listeners };
+    let instance = GraphInstance {
+        state: state.clone(),
+        listeners,
+    };
     GRAPHS.with(|g| g.borrow_mut().insert(id.clone(), instance));
     maybe_start_animation(&id, &state);
 
@@ -544,12 +548,13 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
                         let rect = entry.content_rect();
                         let w = rect.width();
                         let h = rect.height();
-                        if w > 0.0 && h > 0.0 {
-                            if let Ok(mut s) = state_clone.try_borrow_mut() {
-                                s.canvas_width = w;
-                                s.canvas_height = h;
-                                s.redraw();
-                            }
+                        if w > 0.0
+                            && h > 0.0
+                            && let Ok(mut s) = state_clone.try_borrow_mut()
+                        {
+                            s.canvas_width = w;
+                            s.canvas_height = h;
+                            s.redraw();
                         }
                     },
                 );
@@ -710,10 +715,7 @@ pub fn destroy(canvas_id: &str) {
             drop(s);
             for listener in &instance.listeners {
                 canvas
-                    .remove_event_listener_with_callback(
-                        listener.event,
-                        &listener.js_fn,
-                    )
+                    .remove_event_listener_with_callback(listener.event, &listener.js_fn)
                     .ok();
             }
             // instance.listeners dropped here — closures freed
@@ -918,17 +920,17 @@ fn attach_event_handlers(
                 } else {
                     // Check edge click before firing canvas click
                     let mut edge_clicked = false;
-                    if let Some(ref cb) = s.on_edge_click {
-                        if let Some(edge_idx) = s.edge_hit_test(mx, my) {
-                            let edge = &s.layout.edges[edge_idx];
-                            cb.call2(
-                                &JsValue::NULL,
-                                &JsValue::from_str(&edge.from_id),
-                                &JsValue::from_str(&edge.to_id),
-                            )
-                            .ok();
-                            edge_clicked = true;
-                        }
+                    if let Some(ref cb) = s.on_edge_click
+                        && let Some(edge_idx) = s.edge_hit_test(mx, my)
+                    {
+                        let edge = &s.layout.edges[edge_idx];
+                        cb.call2(
+                            &JsValue::NULL,
+                            &JsValue::from_str(&edge.from_id),
+                            &JsValue::from_str(&edge.to_id),
+                        )
+                        .ok();
+                        edge_clicked = true;
                     }
 
                     if !edge_clicked {
@@ -1088,8 +1090,8 @@ fn attach_event_handlers(
     // touchstart — mirrors mousedown logic
     {
         let state = state.clone();
-        let closure = Closure::<dyn FnMut(web_sys::TouchEvent)>::new(
-            move |event: web_sys::TouchEvent| {
+        let closure =
+            Closure::<dyn FnMut(web_sys::TouchEvent)>::new(move |event: web_sys::TouchEvent| {
                 event.prevent_default();
                 let Some(touch) = event.touches().get(0) else {
                     return;
@@ -1110,16 +1112,15 @@ fn attach_event_handlers(
                     s.pan_start_pan_x = s.pan_x;
                     s.pan_start_pan_y = s.pan_y;
                 }
-            },
-        );
+            });
         add_listener!("touchstart", closure);
     }
 
     // touchmove — mirrors mousemove logic
     {
         let state = state.clone();
-        let closure = Closure::<dyn FnMut(web_sys::TouchEvent)>::new(
-            move |event: web_sys::TouchEvent| {
+        let closure =
+            Closure::<dyn FnMut(web_sys::TouchEvent)>::new(move |event: web_sys::TouchEvent| {
                 event.prevent_default();
                 let Some(touch) = event.touches().get(0) else {
                     return;
@@ -1143,16 +1144,15 @@ fn attach_event_handlers(
                     s.pan_y = s.pan_start_pan_y + dy;
                     s.redraw();
                 }
-            },
-        );
+            });
         add_listener!("touchmove", closure);
     }
 
     // touchend — mirrors mouseup logic (click detection + drag end)
     {
         let state = state.clone();
-        let closure = Closure::<dyn FnMut(web_sys::TouchEvent)>::new(
-            move |event: web_sys::TouchEvent| {
+        let closure =
+            Closure::<dyn FnMut(web_sys::TouchEvent)>::new(move |event: web_sys::TouchEvent| {
                 event.prevent_default();
                 // Use changedTouches for the finger that was lifted
                 let touch = event.changed_touches().get(0);
@@ -1209,8 +1209,7 @@ fn attach_event_handlers(
                 s.mouse_down_pos = None;
                 s.dragging = None;
                 s.panning = false;
-            },
-        );
+            });
         add_listener!("touchend", closure);
     }
 
@@ -1236,11 +1235,16 @@ fn mouse_pos(event: &MouseEvent, state: &SharedState) -> (f64, f64) {
 }
 
 /// Evaluate a cubic bezier at parameter t ∈ [0,1].
+#[allow(clippy::too_many_arguments)]
 fn bezier_point(
-    x0: f64, y0: f64,
-    x1: f64, y1: f64,
-    x2: f64, y2: f64,
-    x3: f64, y3: f64,
+    x0: f64,
+    y0: f64,
+    x1: f64,
+    y1: f64,
+    x2: f64,
+    y2: f64,
+    x3: f64,
+    y3: f64,
     t: f64,
 ) -> (f64, f64) {
     let mt = 1.0 - t;

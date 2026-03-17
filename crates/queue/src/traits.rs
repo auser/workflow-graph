@@ -67,7 +67,10 @@ impl BackoffStrategy {
         match self {
             BackoffStrategy::None => 0,
             BackoffStrategy::Fixed { delay_secs } => delay_secs * 1000,
-            BackoffStrategy::Exponential { base_secs, max_secs } => {
+            BackoffStrategy::Exponential {
+                base_secs,
+                max_secs,
+            } => {
                 let delay = base_secs.saturating_mul(2u64.saturating_pow(attempt));
                 delay.min(*max_secs) * 1000
             }

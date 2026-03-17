@@ -172,14 +172,7 @@ async fn test_failure_cascading_integration() {
     let final_state = state.read().await;
     let wf = final_state.workflows.get(&wf_id).unwrap();
 
-    let status_of = |id: &str| {
-        wf.jobs
-            .iter()
-            .find(|j| j.id == id)
-            .unwrap()
-            .status
-            .clone()
-    };
+    let status_of = |id: &str| wf.jobs.iter().find(|j| j.id == id).unwrap().status.clone();
 
     assert_eq!(status_of("unit-tests"), JobStatus::Failure);
     assert_eq!(status_of("build"), JobStatus::Skipped);
@@ -240,7 +233,10 @@ async fn test_cancel_workflow_integration() {
         .filter(|j| j.status == JobStatus::Cancelled)
         .count();
     // At least the downstream jobs should be cancelled
-    assert!(cancelled_count >= 5, "Most jobs should be cancelled, got {cancelled_count}");
+    assert!(
+        cancelled_count >= 5,
+        "Most jobs should be cancelled, got {cancelled_count}"
+    );
 
     scheduler_handle.abort();
 }
@@ -288,8 +284,10 @@ async fn test_concurrent_workers_no_double_claim() {
     let mut claimed_count = 0u32;
     let mut claimed_ids: Vec<String> = Vec::new();
     for handle in handles {
-        let result: Option<(workflow_graph_queue::traits::QueuedJob, workflow_graph_queue::traits::Lease)> =
-            handle.await.unwrap();
+        let result: Option<(
+            workflow_graph_queue::traits::QueuedJob,
+            workflow_graph_queue::traits::Lease,
+        )> = handle.await.unwrap();
         if let Some((job, _lease)) = result {
             claimed_count += 1;
             claimed_ids.push(job.job_id.clone());

@@ -129,16 +129,12 @@ pub fn compute_layout(workflow: &Workflow, theme: &ResolvedTheme) -> GraphLayout
             let (x, y) = if is_vertical {
                 // Top-to-bottom: layers go down, siblings go right
                 let x = tl.padding + rank as f64 * (tl.node_width + tl.v_gap);
-                let y = tl.padding
-                    + tl.header_height
-                    + layer as f64 * (tl.node_height + tl.h_gap);
+                let y = tl.padding + tl.header_height + layer as f64 * (tl.node_height + tl.h_gap);
                 (x, y)
             } else {
                 // Left-to-right (default): layers go right, siblings go down
                 let x = tl.padding + layer as f64 * (tl.node_width + tl.h_gap);
-                let y = tl.padding
-                    + tl.header_height
-                    + rank as f64 * (tl.node_height + tl.v_gap);
+                let y = tl.padding + tl.header_height + rank as f64 * (tl.node_height + tl.v_gap);
                 (x, y)
             };
             nodes.push(NodeLayout {

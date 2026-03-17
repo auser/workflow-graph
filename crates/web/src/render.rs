@@ -131,8 +131,7 @@ pub fn render_with_callbacks(
             // Call custom render callback if provided
             let mut skip_default = false;
             if let Some(cb) = callbacks.on_render_node {
-                let job_json =
-                    serde_wasm_bindgen::to_value(job).unwrap_or(JsValue::NULL);
+                let job_json = serde_wasm_bindgen::to_value(job).unwrap_or(JsValue::NULL);
                 if let Ok(result) = cb.apply(
                     &JsValue::NULL,
                     &js_sys::Array::of5(
@@ -157,7 +156,9 @@ pub fn render_with_callbacks(
 
     // Draw minimap overlay (drawn in screen space, after restoring transform)
     if theme.minimap {
-        draw_minimap(ctx, layout, &job_map, dpr, tw, th, zoom, pan_x, pan_y, theme);
+        draw_minimap(
+            ctx, layout, &job_map, dpr, tw, th, zoom, pan_x, pan_y, theme,
+        );
     }
 
     Ok(())
@@ -220,9 +221,7 @@ fn draw_edge(
         let ec = style_override
             .and_then(|s| s.color.as_deref())
             .unwrap_or(colors.edge.as_str());
-        let lw = style_override
-            .and_then(|s| s.width)
-            .unwrap_or(2.0);
+        let lw = style_override.and_then(|s| s.width).unwrap_or(2.0);
         (ec, colors.junction.as_str(), lw)
     };
 
@@ -231,14 +230,14 @@ fn draw_edge(
     ctx.set_line_width(line_width);
 
     // Apply dash pattern if specified
-    if let Some(dash) = style_override.and_then(|s| s.dash.as_ref()) {
-        if !dash.is_empty() {
-            let arr = js_sys::Array::new();
-            for &d in dash {
-                arr.push(&JsValue::from_f64(d));
-            }
-            ctx.set_line_dash(&arr).ok();
+    if let Some(dash) = style_override.and_then(|s| s.dash.as_ref())
+        && !dash.is_empty()
+    {
+        let arr = js_sys::Array::new();
+        for &d in dash {
+            arr.push(&JsValue::from_f64(d));
         }
+        ctx.set_line_dash(&arr).ok();
     }
 
     ctx.move_to(x1, y1);
@@ -259,14 +258,12 @@ fn draw_edge(
     // Junction dot at source
     ctx.begin_path();
     ctx.set_fill_style_str(junction_color);
-    ctx.arc(x1, y1, tl.junction_dot_radius, 0.0, 2.0 * PI)
-        .ok();
+    ctx.arc(x1, y1, tl.junction_dot_radius, 0.0, 2.0 * PI).ok();
     ctx.fill();
 
     // Junction dot at target
     ctx.begin_path();
-    ctx.arc(x2, y2, tl.junction_dot_radius, 0.0, 2.0 * PI)
-        .ok();
+    ctx.arc(x2, y2, tl.junction_dot_radius, 0.0, 2.0 * PI).ok();
     ctx.fill();
 }
 
