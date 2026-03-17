@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@auser/workflow-graph-web": ["../../packages/web/src/index.ts"],
+      "@auser/workflow-graph-react": ["../../packages/react/src/index.tsx"]
+    },
+    "baseUrl": "."
+  },
+  "include": ["src"]
+}
