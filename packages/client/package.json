@@ -1,6 +1,7 @@
 {
   "name": "@auser/workflow-graph-client",
   "version": "0.1.0",
+  "type": "module",
   "description": "TypeScript client for the workflow-graph REST API",
   "main": "dist/index.js",
   "module": "dist/index.js",

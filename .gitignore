@@ -10,3 +10,4 @@ docs/.astro/
 packages/*/dist/
 packages/web/wasm/
 node_modules/
+examples/*/node_modules/

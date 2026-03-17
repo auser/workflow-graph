@@ -19,11 +19,12 @@ Start the server first:
 just dev
 ```
 
-Then in another terminal:
+Then in this directory:
 
 ```bash
-npm install @auser/workflow-graph-client
-npx tsx index.ts
+cd examples/client-polling
+npm install
+npm start
 ```
 
 You'll see a live-updating status display as jobs transition from queued → running → success.

@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@auser/workflow-graph-client": "latest"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
+  },
+  "scripts": {
+    "start": "tsx index.ts"
+  }
+}
