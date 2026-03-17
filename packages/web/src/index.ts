@@ -1,5 +1,5 @@
 /**
- * github-graph — Interactive workflow DAG visualizer
+ * workflow-graph — Interactive workflow DAG visualizer
  *
  * TypeScript wrapper around the WASM module.
  */
@@ -38,7 +38,7 @@ let wasmModule: any = null;
 async function ensureWasm(): Promise<any> {
   if (wasmModule) return wasmModule;
   // Dynamic import of the WASM package
-  wasmModule = await import('../../crates/web/pkg/github_graph_web.js');
+  wasmModule = await import('../../crates/web/pkg/workflow_graph_web.js');
   await wasmModule.default();
   return wasmModule;
 }

@@ -1,4 +1,4 @@
-use github_graph_shared::Workflow;
+use workflow_graph_shared::Workflow;
 use std::collections::HashMap;
 
 use crate::theme;
@@ -51,7 +51,7 @@ pub fn compute_layout(workflow: &Workflow) -> GraphLayout {
 
     fn assign_layer(
         idx: usize,
-        jobs: &[github_graph_shared::Job],
+        jobs: &[workflow_graph_shared::Job],
         id_to_idx: &HashMap<&str, usize>,
         layers: &mut Vec<usize>,
         visited: &mut Vec<bool>,

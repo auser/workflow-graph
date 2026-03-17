@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use github_graph_shared::{JobStatus, Workflow};
+use workflow_graph_shared::{JobStatus, Workflow};
 
 use crate::error::SchedulerError;
 use crate::traits::*;
@@ -357,7 +357,7 @@ mod tests {
             name: "test".into(),
             trigger: "manual".into(),
             jobs: vec![
-                github_graph_shared::Job {
+                workflow_graph_shared::Job {
                     id: "a".into(),
                     name: "Job A".into(),
                     status: JobStatus::Queued,
@@ -370,7 +370,7 @@ mod tests {
                     depends_on: vec![],
                     output: None,
                 },
-                github_graph_shared::Job {
+                workflow_graph_shared::Job {
                     id: "b".into(),
                     name: "Job B".into(),
                     status: JobStatus::Queued,
@@ -383,7 +383,7 @@ mod tests {
                     depends_on: vec!["a".into()],
                     output: None,
                 },
-                github_graph_shared::Job {
+                workflow_graph_shared::Job {
                     id: "c".into(),
                     name: "Job C".into(),
                     status: JobStatus::Queued,

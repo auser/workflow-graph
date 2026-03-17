@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use wasm_bindgen::JsValue;
 use web_sys::CanvasRenderingContext2d;
 
-use github_graph_shared::{JobStatus, Workflow};
+use workflow_graph_shared::{JobStatus, Workflow};
 
 use crate::layout::{GraphLayout, NodeLayout};
 use crate::theme;
@@ -58,7 +58,7 @@ pub fn render(
     // Build node lookup
     let node_map: HashMap<&str, &NodeLayout> =
         layout.nodes.iter().map(|n| (n.job_id.as_str(), n)).collect();
-    let job_map: HashMap<&str, &github_graph_shared::Job> =
+    let job_map: HashMap<&str, &workflow_graph_shared::Job> =
         workflow.jobs.iter().map(|j| (j.id.as_str(), j)).collect();
 
     // Draw edges (behind nodes)
@@ -134,7 +134,7 @@ fn draw_edge(ctx: &CanvasRenderingContext2d, from: &NodeLayout, to: &NodeLayout,
 fn draw_node(
     ctx: &CanvasRenderingContext2d,
     node: &NodeLayout,
-    job: &github_graph_shared::Job,
+    job: &workflow_graph_shared::Job,
     animation_time: f64,
     now_ms: f64,
     is_selected: bool,

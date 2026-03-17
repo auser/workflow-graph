@@ -6,8 +6,8 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde::{Deserialize, Serialize};
 
-use github_graph_shared::Workflow;
-use github_graph_queue::traits::*;
+use workflow_graph_shared::Workflow;
+use workflow_graph_queue::traits::*;
 
 use crate::state::AppState;
 
@@ -17,7 +17,7 @@ use crate::state::AppState;
 pub struct CreateWorkflow {
     pub name: String,
     pub trigger: String,
-    pub jobs: Vec<github_graph_shared::Job>,
+    pub jobs: Vec<workflow_graph_shared::Job>,
 }
 
 pub async fn create_workflow(
@@ -62,9 +62,7 @@ pub async fn run_workflow(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    state
-        .scheduler
-        .start_workflow(&id)
+    crate::workflow_ops::start_workflow(&state.workflow_state, state.queue.as_ref(), &id)
         .await
         .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(StatusCode::ACCEPTED)
@@ -74,9 +72,7 @@ pub async fn cancel_workflow(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    state
-        .scheduler
-        .cancel_workflow(&id)
+    crate::workflow_ops::cancel_workflow(&state.workflow_state, state.queue.as_ref(), &id)
         .await
         .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(StatusCode::ACCEPTED)

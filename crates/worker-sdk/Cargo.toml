@@ -1,11 +1,11 @@
 [package]
-name = "github-graph-worker-sdk"
+name = "workflow-graph-worker-sdk"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-github-graph-shared = { path = "../../shared" }
-github-graph-queue = { path = "../queue" }
+workflow-graph-shared = { path = "../../shared" }
+workflow-graph-queue = { path = "../queue" }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }

@@ -2,7 +2,7 @@ pub mod executor;
 
 use std::time::Duration;
 
-use github_graph_queue::traits::*;
+use workflow_graph_queue::traits::*;
 use serde::{Deserialize, Serialize};
 
 /// Configuration for a worker instance.

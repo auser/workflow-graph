@@ -1,4 +1,4 @@
-# Web Component Library — Make github-graph a drop-in UI library
+# Web Component Library — Make workflow-graph a drop-in UI library
 
 ## Context
 The WASM crate currently works but isn't usable as a library by external consumers. It has hardcoded theming, limited events, no zoom/pan, no selection state, no npm packaging, and no framework adapters. This plan covers everything needed to make it a production-grade web component.
@@ -55,7 +55,7 @@ Exported WASM functions:
 - Arrow keys to navigate the DAG structure
 
 ### 7. NPM Package
-- Publish as `@github-graph/web` (or `github-graph`)
+- Publish as `@workflow-graph/web` (or `workflow-graph`)
 - TypeScript type definitions generated from WASM bindings
 - Wrapper class:
   ```typescript
@@ -76,7 +76,7 @@ Exported WASM functions:
   - Vanilla JS: `new WorkflowGraph(document.getElementById('container'))`
 
 ### 8. Client SDK
-- `@github-graph/client` npm package
+- `@workflow-graph/client` npm package
 - TypeScript client for the REST API:
   ```typescript
   class WorkflowClient {

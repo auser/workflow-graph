@@ -1,11 +1,11 @@
 /**
- * @github-graph/react — React component for workflow DAG visualization
+ * @workflow-graph/react — React component for workflow DAG visualization
  */
 
 import React, { useEffect, useRef, useCallback } from 'react';
-import { WorkflowGraph, type Workflow, type GraphOptions } from '@github-graph/web';
+import { WorkflowGraph, type Workflow, type GraphOptions } from '@workflow-graph/web';
 
-export type { Workflow, Job, GraphOptions } from '@github-graph/web';
+export type { Workflow, Job, GraphOptions } from '@workflow-graph/web';
 
 export interface WorkflowGraphProps extends GraphOptions {
   workflow: Workflow;

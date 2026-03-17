@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use github_graph_queue::memory::*;
-use github_graph_queue::scheduler::SharedState;
-use github_graph_queue::DagScheduler;
+use workflow_graph_queue::memory::*;
+use workflow_graph_queue::scheduler::SharedState;
 
 /// Application state shared across all request handlers.
 ///
-/// For now uses concrete in-memory types. When adding Postgres/Redis backends,
-/// either make this generic or use a trait-object wrapper crate.
+/// Fully stateless — no scheduler reference. The scheduler runs
+/// as a separate service (or embedded in all-in-one mode).
 #[derive(Clone)]
 pub struct AppState {
     pub workflow_state: SharedState,
@@ -15,5 +14,4 @@ pub struct AppState {
     pub artifacts: Arc<InMemoryArtifactStore>,
     pub logs: Arc<InMemoryLogSink>,
     pub workers: Arc<InMemoryWorkerRegistry>,
-    pub scheduler: Arc<DagScheduler<InMemoryJobQueue, InMemoryArtifactStore>>,
 }

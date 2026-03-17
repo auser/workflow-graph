@@ -28,7 +28,7 @@ The initial queue backend is **pg-boss style (Postgres)**, with an in-memory imp
 ```
 Cargo.toml                          # add: queue, worker-sdk
 crates/
-  queue/                            # NEW: github-graph-queue
+  queue/                            # NEW: workflow-graph-queue
     src/
       lib.rs                        # re-exports
       traits.rs                     # JobQueue, ArtifactStore, LogSink, WorkerRegistry
@@ -40,7 +40,7 @@ crates/
         artifacts.rs                # InMemoryArtifactStore
         logs.rs                     # InMemoryLogSink
         workers.rs                  # InMemoryWorkerRegistry
-  worker-sdk/                       # NEW: github-graph-worker-sdk
+  worker-sdk/                       # NEW: workflow-graph-worker-sdk
     src/
       lib.rs                        # Worker struct, config, poll loop
       executor.rs                   # Shell command executor (moved from server)
@@ -229,11 +229,11 @@ Consumers need to fetch logs for a specific job — both historical and live str
 This project is a **library** that consumers integrate into their own apps, not a standalone application.
 
 **Crate purposes:**
-- `github-graph-shared` — types crate, used by all consumers (Rust, WASM, workers)
-- `github-graph-queue` — queue/scheduler library. Consumers instantiate traits with their preferred backend (in-memory, Postgres, Redis). No runtime opinions.
-- `github-graph-web` — WASM library. Consumers call `render_workflow(canvas_id, json, on_click)` from their own frontend.
-- `github-graph-worker-sdk` — worker library + optional standalone binary. Consumers can embed the worker loop in their own service or run it standalone.
-- `github-graph-server` — **example/reference server**. Shows how to wire everything together with Axum. Consumers can either:
+- `workflow-graph-shared` — types crate, used by all consumers (Rust, WASM, workers)
+- `workflow-graph-queue` — queue/scheduler library. Consumers instantiate traits with their preferred backend (in-memory, Postgres, Redis). No runtime opinions.
+- `workflow-graph-web` — WASM library. Consumers call `render_workflow(canvas_id, json, on_click)` from their own frontend.
+- `workflow-graph-worker-sdk` — worker library + optional standalone binary. Consumers can embed the worker loop in their own service or run it standalone.
+- `workflow-graph-server` — **example/reference server**. Shows how to wire everything together with Axum. Consumers can either:
   1. Use this server directly (simple setup)
   2. Copy the wiring into their own Axum/Actix/etc. app
   3. Use just the queue/scheduler library with their own HTTP layer
@@ -241,8 +241,8 @@ This project is a **library** that consumers integrate into their own apps, not 
 **Simple server setup for consumers:**
 ```rust
 // In their own main.rs:
-use github_graph_queue::memory::*;
-use github_graph_server::create_router;
+use workflow_graph_queue::memory::*;
+use workflow_graph_server::create_router;
 
 #[tokio::main]
 async fn main() {
@@ -266,7 +266,7 @@ The server crate exposes a `create_router()` function that takes trait objects a
 
 ## Verification
 1. `cargo test --workspace` — all unit tests pass
-2. Start server + worker: `just serve` in one terminal, `cargo run -p github-graph-worker-sdk` in another
+2. Start server + worker: `just serve` in one terminal, `cargo run -p workflow-graph-worker-sdk` in another
 3. Open frontend, click "Run workflow" — jobs execute via the worker, not the server
 4. Kill the worker mid-job — lease expires, job re-queued (if retries > 0)
 5. Cancel a running workflow — worker aborts, downstream skipped

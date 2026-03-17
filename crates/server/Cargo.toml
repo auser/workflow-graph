@@ -1,11 +1,11 @@
 [package]
-name = "github-graph-server"
+name = "workflow-graph-server"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-github-graph-shared = { path = "../../shared" }
-github-graph-queue = { path = "../queue" }
+workflow-graph-shared = { path = "../../shared" }
+workflow-graph-queue = { path = "../queue" }
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["sync"] }

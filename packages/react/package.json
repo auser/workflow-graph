@@ -1,12 +1,12 @@
 {
-  "name": "@github-graph/react",
+  "name": "@workflow-graph/react",
   "version": "0.1.0",
   "description": "React component for workflow DAG visualization",
   "main": "src/index.tsx",
   "types": "src/index.tsx",
   "peerDependencies": {
     "react": ">=18",
-    "@github-graph/web": ">=0.1.0"
+    "@workflow-graph/web": ">=0.1.0"
   },
   "files": ["src/", "README.md"],
   "license": "MIT"

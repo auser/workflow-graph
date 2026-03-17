@@ -351,72 +351,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "github-graph-queue"
-version = "0.1.0"
-dependencies = [
- "github-graph-shared",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "github-graph-server"
-version = "0.1.0"
-dependencies = [
- "axum",
- "axum-extra",
- "github-graph-queue",
- "github-graph-shared",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tower-http",
- "uuid",
-]
-
-[[package]]
-name = "github-graph-shared"
-version = "0.1.0"
-dependencies = [
- "indexmap",
- "serde",
- "serde_json",
- "serde_yaml",
-]
-
-[[package]]
-name = "github-graph-web"
-version = "0.1.0"
-dependencies = [
- "github-graph-shared",
- "js-sys",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "github-graph-worker-sdk"
-version = "0.1.0"
-dependencies = [
- "github-graph-queue",
- "github-graph-shared",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util",
- "uuid",
-]
-
-[[package]]
 name = "h2"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1980,6 +1914,81 @@ dependencies = [
  "serde_json",
  "unicode-xid",
  "wasmparser",
+]
+
+[[package]]
+name = "workflow-graph-queue"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "uuid",
+ "workflow-graph-shared",
+]
+
+[[package]]
+name = "workflow-graph-scheduler"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "workflow-graph-queue",
+ "workflow-graph-shared",
+]
+
+[[package]]
+name = "workflow-graph-server"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-extra",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tower-http",
+ "uuid",
+ "workflow-graph-queue",
+ "workflow-graph-shared",
+]
+
+[[package]]
+name = "workflow-graph-shared"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+]
+
+[[package]]
+name = "workflow-graph-web"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "workflow-graph-shared",
+]
+
+[[package]]
+name = "workflow-graph-worker-sdk"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "uuid",
+ "workflow-graph-queue",
+ "workflow-graph-shared",
 ]
 
 [[package]]

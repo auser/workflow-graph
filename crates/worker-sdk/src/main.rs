@@ -1,4 +1,4 @@
-use github_graph_worker_sdk::{Worker, WorkerConfig};
+use workflow_graph_worker_sdk::{Worker, WorkerConfig};
 
 #[tokio::main]
 async fn main() {

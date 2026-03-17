@@ -1,5 +1,6 @@
 mod api;
 mod state;
+mod workflow_ops;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -11,15 +12,17 @@ use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 
-use github_graph_queue::memory::*;
-use github_graph_queue::scheduler::WorkflowState;
-use github_graph_queue::{DagScheduler, JobQueue};
-use github_graph_shared::yaml::WorkflowDef;
+use workflow_graph_queue::memory::*;
+use workflow_graph_queue::scheduler::WorkflowState;
+use workflow_graph_queue::{DagScheduler, JobQueue};
+use workflow_graph_shared::yaml::WorkflowDef;
 
 use state::AppState;
 
 #[tokio::main]
 async fn main() {
+    let api_only = std::env::var("API_ONLY").is_ok_and(|v| v == "1" || v == "true");
+
     let workflow_state = Arc::new(RwLock::new(WorkflowState::new()));
 
     // Load workflow files
@@ -27,7 +30,7 @@ async fn main() {
     let loaded = load_workflows_from_dir(&workflows_dir);
     if loaded.is_empty() {
         eprintln!("No workflow files found in '{workflows_dir}', using built-in sample");
-        let sample = github_graph_shared::Workflow::sample();
+        let sample = workflow_graph_shared::Workflow::sample();
         workflow_state
             .write()
             .await
@@ -47,29 +50,33 @@ async fn main() {
     let logs = Arc::new(InMemoryLogSink::new());
     let workers = Arc::new(InMemoryWorkerRegistry::new());
 
-    // Create scheduler
-    let scheduler = Arc::new(DagScheduler::new(
-        queue.clone(),
-        artifacts.clone(),
-        workflow_state.clone(),
-    ));
+    if !api_only {
+        // All-in-one mode: spawn scheduler + lease reaper in-process
+        let scheduler = Arc::new(DagScheduler::new(
+            queue.clone(),
+            artifacts.clone(),
+            workflow_state.clone(),
+        ));
 
-    // Spawn scheduler event loop
-    let scheduler_handle = scheduler.clone();
-    tokio::spawn(async move {
-        scheduler_handle.run().await;
-    });
+        let scheduler_handle = scheduler.clone();
+        tokio::spawn(async move {
+            scheduler_handle.run().await;
+        });
 
-    // Spawn lease reaper (checks for expired leases every 5 seconds)
-    let reaper_queue = queue.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(5)).await;
-            if let Err(e) = reaper_queue.reap_expired_leases().await {
-                eprintln!("Lease reaper error: {e}");
+        let reaper_queue = queue.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                if let Err(e) = reaper_queue.reap_expired_leases().await {
+                    eprintln!("Lease reaper error: {e}");
+                }
             }
-        }
-    });
+        });
+
+        println!("Running in all-in-one mode (API + scheduler)");
+    } else {
+        println!("Running in API-only mode (no scheduler — suitable for edge deployment)");
+    }
 
     let app_state = AppState {
         workflow_state,
@@ -77,7 +84,6 @@ async fn main() {
         artifacts,
         logs,
         workers,
-        scheduler,
     };
 
     let app = create_router(app_state);
@@ -128,7 +134,7 @@ pub fn create_router(state: AppState) -> Router {
         .layer(CorsLayer::permissive())
 }
 
-fn load_workflows_from_dir(dir: &str) -> Vec<github_graph_shared::Workflow> {
+fn load_workflows_from_dir(dir: &str) -> Vec<workflow_graph_shared::Workflow> {
     let path = Path::new(dir);
     if !path.is_dir() {
         return vec![];

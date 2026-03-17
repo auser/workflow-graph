@@ -151,3 +151,15 @@
 - [x] Worker SDK usage guide (env vars, standalone binary)
 - [x] REST API reference (all endpoints in README table)
 - [x] Architecture decision records (in specs/plans/)
+
+---
+
+## Edge Deployment Split (Plan 003) ✅
+> Split server into stateless API + standalone scheduler for edge/serverless deployment
+
+- [x] Extract `start_workflow()` / `cancel_workflow()` into `workflow_ops.rs`
+- [x] Remove `scheduler` field from `AppState`
+- [x] Wire `api.rs` handlers to call `workflow_ops` directly
+- [x] Create `crates/scheduler/` standalone scheduler binary
+- [x] Add `crates/scheduler` to workspace
+- [x] Server two-mode support: all-in-one (default) vs `API_ONLY=1` (edge)

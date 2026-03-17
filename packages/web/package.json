@@ -1,5 +1,5 @@
 {
-  "name": "@github-graph/web",
+  "name": "@workflow-graph/web",
   "version": "0.1.0",
   "description": "Interactive workflow DAG visualizer (WASM + Canvas)",
   "main": "src/index.ts",

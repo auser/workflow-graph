@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, KeyboardEvent, MouseEvent, WheelEvent};
 
-use github_graph_shared::{JobStatus, Workflow};
+use workflow_graph_shared::{JobStatus, Workflow};
 use layout::GraphLayout;
 
 const CLICK_THRESHOLD: f64 = 5.0;

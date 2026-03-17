@@ -1,5 +1,5 @@
 [package]
-name = "github-graph-web"
+name = "workflow-graph-web"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-github-graph-shared = { path = "../../shared" }
+workflow-graph-shared = { path = "../../shared" }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"

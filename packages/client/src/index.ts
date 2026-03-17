@@ -1,5 +1,5 @@
 /**
- * @github-graph/client — TypeScript client for the github-graph REST API
+ * @workflow-graph/client — TypeScript client for the workflow-graph REST API
  */
 
 export interface Workflow {
@@ -39,7 +39,7 @@ export interface WorkerInfo {
 }
 
 /**
- * Client for the github-graph REST API.
+ * Client for the workflow-graph REST API.
  *
  * @example
  * ```typescript

@@ -5,7 +5,7 @@ import init, {
     deselect_all,
     reset_layout,
     zoom_to_fit,
-} from './crates/web/pkg/github_graph_web.js';
+} from './crates/web/pkg/workflow_graph_web.js';
 
 const API_BASE = window.location.origin;
 let currentWorkflowId = null;
