@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-03-17
+
+### Bug Fixes
+
+- Resolve CI failures in Publish and Deploy Docs workflows([401c5d4](https://github.com/auser/workflow-graph/commit/401c5d4ae7f23288d859915be12f394809298dc0))
+- Reduce Dependabot noise with grouped PRs and lower limits([fc9e541](https://github.com/auser/workflow-graph/commit/fc9e541248b518d6b8baea0803d28d24b3b0c311))
+
+### Miscellaneous
+
+- Bump workspace version to 0.2.1([b493c0b](https://github.com/auser/workflow-graph/commit/b493c0b366cf933f35d02e4f88671be8e031bb8f))
 ## [0.2.0] - 2026-03-17
 
 ### Features
@@ -23,6 +33,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog for v0.2.0([a96d2cf](https://github.com/auser/workflow-graph/commit/a96d2cf19aa6302d1fd4929514146720d23d10ae))
 - Bump workspace version to 0.2.0([a2b47d8](https://github.com/auser/workflow-graph/commit/a2b47d87089864645a4c72ab924162ec07b689f7))
 ## [0.1.1] - 2026-03-17
 
