@@ -95,13 +95,13 @@ jobs:
         working-directory: packages/client
         run: npm run build
 
-      - name: Install React build dependencies
+      - name: Install React type dependencies
         working-directory: packages/react
-        run: npm install --no-save --legacy-peer-deps @types/react typescript @workflow-graph/web@file:../web
+        run: npm install --no-save --legacy-peer-deps @types/react
 
       - name: Build @workflow-graph/react
         working-directory: packages/react
-        run: npm run build
+        run: npx tsc
 
       - name: Publish @workflow-graph/web
         working-directory: packages/web
