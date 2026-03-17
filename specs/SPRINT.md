@@ -5,23 +5,24 @@
 
 ---
 
-## Phase 1: Queue Crate — Traits + In-Memory
+## Phase 1: Queue Crate — Traits + In-Memory ✅
 > `crates/queue/` — pure library, no HTTP dependency
 
-- [ ] Create `crates/queue/` crate with Cargo.toml
-- [ ] Define `JobQueue` trait (enqueue, claim, renew, complete, fail, cancel, reap, subscribe)
-- [ ] Define `ArtifactStore` trait (put_outputs, get_outputs, get_upstream_outputs)
-- [ ] Define `LogSink` trait (append, get_all, subscribe)
-- [ ] Define `WorkerRegistry` trait (register, heartbeat, deregister, list, mark_busy/idle)
-- [ ] Define shared types: `Lease`, `QueuedJob`, `RetryPolicy`, `BackoffStrategy`, `LogChunk`, `WorkerInfo`, `JobEvent`
-- [ ] Define error types
-- [ ] Implement `InMemoryJobQueue`
-- [ ] Implement `InMemoryArtifactStore`
-- [ ] Implement `InMemoryLogSink`
-- [ ] Implement `InMemoryWorkerRegistry`
-- [ ] Unit tests for queue claim/complete/fail/reap/cancel
-- [ ] Unit tests for artifact store
-- [ ] Unit tests for log sink subscribe/append
+- [x] Create `crates/queue/` crate with Cargo.toml
+- [x] Define `JobQueue` trait (enqueue, claim, renew, complete, fail, cancel, reap, subscribe)
+- [x] Define `ArtifactStore` trait (put_outputs, get_outputs, get_upstream_outputs)
+- [x] Define `LogSink` trait (append, get_all, subscribe)
+- [x] Define `WorkerRegistry` trait (register, heartbeat, deregister, list, mark_busy/idle)
+- [x] Define shared types: `Lease`, `QueuedJob`, `RetryPolicy`, `BackoffStrategy`, `LogChunk`, `WorkerInfo`, `JobEvent`
+- [x] Define error types
+- [x] Implement `InMemoryJobQueue`
+- [x] Implement `InMemoryArtifactStore`
+- [x] Implement `InMemoryLogSink`
+- [x] Implement `InMemoryWorkerRegistry`
+- [x] Unit tests for queue claim/complete/fail/reap/cancel (6 tests)
+- [x] Unit tests for artifact store (3 tests)
+- [x] Unit tests for log sink subscribe/append (3 tests)
+- [x] Unit tests for worker registry (3 tests)
 
 > **pg-boss mapping:** Our `JobQueue` trait maps 1:1 to pg-boss operations.
 > pg-boss handles atomic claiming via `SELECT ... FOR UPDATE SKIP LOCKED` —
@@ -137,3 +138,17 @@
 - [ ] Hidden DOM overlay with focusable node elements
 - [ ] Tab/arrow key navigation
 - [ ] Enter/Space to select
+
+---
+
+## Documentation
+- [ ] Write detailed README.md with project overview, architecture diagram, and feature list
+- [ ] Quick start guide (install, build, run)
+- [ ] Library usage guide (Rust, WASM/JS, React)
+- [ ] Workflow YAML/JSON schema reference with examples
+- [ ] Queue trait implementation guide (how to write a Redis/Postgres backend)
+- [ ] Worker SDK usage guide (standalone binary + embedded)
+- [ ] REST API reference (all endpoints, request/response examples)
+- [ ] Configuration reference (GraphConfig options, theme customization)
+- [ ] Architecture decision records (why Canvas, why traits, why HTTP polling)
+- [ ] Contributing guide
