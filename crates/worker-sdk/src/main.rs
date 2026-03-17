@@ -11,6 +11,8 @@ async fn main() {
         .map(|s| s.trim().to_string())
         .collect();
 
+    println!("Staring on {} ...", &server_url);
+
     let config = WorkerConfig {
         server_url,
         labels,

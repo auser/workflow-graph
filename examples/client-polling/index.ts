@@ -11,7 +11,8 @@
 import { WorkflowClient, WorkflowApiError } from '@auser/workflow-graph-client';
 export {}; // ensure this is treated as a module
 
-const SERVER = process.env.SERVER_URL ?? 'http://localhost:3000';
+const PORT = process.env.PORT ?? `3000`;
+const SERVER = process.env.SERVER_URL ?? `http://localhost:${PORT}`;
 const client = new WorkflowClient(SERVER);
 
 async function main() {
