@@ -97,9 +97,7 @@ jobs:
 
       - name: Install React build dependencies
         working-directory: packages/react
-        run: |
-          npm install --save-dev @types/react typescript
-          npm install --save-dev @workflow-graph/web@file:../web
+        run: npm install --no-save --legacy-peer-deps @types/react typescript @workflow-graph/web@file:../web
 
       - name: Build @workflow-graph/react
         working-directory: packages/react
