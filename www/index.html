@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Graph</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: #f6f8fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px;
+            min-height: 100vh;
+        }
+        h1 {
+            font-size: 20px;
+            color: #1f2328;
+            margin-bottom: 16px;
+        }
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        button {
+            padding: 6px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            border: 1px solid #d0d7de;
+            background: #f6f8fa;
+            color: #1f2328;
+            cursor: pointer;
+        }
+        button:hover { background: #eaeef2; }
+        button.primary {
+            background: #1a7f37;
+            color: white;
+            border-color: #1a7f37;
+        }
+        button.primary:hover { background: #178632; }
+        #graph-container {
+            background: white;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 0;
+            overflow: auto;
+        }
+        canvas { display: block; }
+        .status-bar {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #656d76;
+        }
+        #log-panel {
+            margin-top: 16px;
+            width: 100%;
+            max-width: 1140px;
+            background: #1f2328;
+            color: #e6edf3;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        #log-panel.visible { display: block; }
+        #log-panel .log-header {
+            color: #7d8590;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Workflow Visualization</h1>
+    <div class="controls">
+        <button id="sample-btn">Load Sample</button>
+        <button class="primary" id="run-btn">Run workflow</button>
+    </div>
+    <div id="graph-container">
+        <canvas id="graph" role="img" aria-label="Workflow DAG visualization" tabindex="0"></canvas>
+    </div>
+    <div class="status-bar" id="status">Ready</div>
+    <div id="log-panel">
+        <div class="log-header" id="log-header"></div>
+        <div id="log-content"></div>
+    </div>
+
+    <script type="module" src="index.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+name: CI
+on: push
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    run: echo 'Running unit tests' && sleep 2
+    retries: 1
+
+  lint:
+    name: Lint
+    run: echo 'Running linter' && sleep 1
+
+  typecheck:
+    name: Typecheck
+    run: echo 'Running typecheck' && sleep 2
+
+  build:
+    name: Build
+    needs: [unit-tests, lint, typecheck]
+    run: echo 'Building project' && sleep 3
+    labels: [linux]
+
+  deploy-db:
+    name: Deploy DB Migrations
+    needs: [build]
+    run: echo 'Deploying DB migrations' && sleep 1
+    labels: [linux, aws]
+
+  e2e-tests:
+    name: E2E Tests
+    needs: [build]
+    run: echo 'Running E2E tests' && sleep 5
+    retries: 2
+
+  deploy-preview:
+    name: Deploy Preview
+    needs: [build]
+    run: echo 'Deploying preview' && sleep 1
+
+  deploy-web:
+    name: Deploy Web
+    needs: [deploy-db]
+    run: echo 'Deploying to production' && sleep 3
+    labels: [linux, aws]

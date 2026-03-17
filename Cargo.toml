@@ -1,0 +1,3 @@
+[workspace]
+members = ["shared", "crates/web", "crates/server", "crates/queue", "crates/worker-sdk", "crates/scheduler"]
+resolver = "3"
