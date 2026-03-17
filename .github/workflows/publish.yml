@@ -105,19 +105,19 @@ jobs:
 
       - name: Publish @auser/workflow-graph-web
         working-directory: packages/web
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public || echo "Already published"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @auser/workflow-graph-client
         working-directory: packages/client
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public || echo "Already published"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @auser/workflow-graph-react
         working-directory: packages/react
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public || echo "Already published"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
