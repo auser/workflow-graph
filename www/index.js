@@ -14,9 +14,31 @@ let initialized = false;
 
 // ─── Event callbacks ─────────────────────────────────────────────────────────
 
-function onNodeClick(jobId) {
+async function onNodeClick(jobId) {
     console.log('Node clicked:', jobId);
     document.getElementById('status').textContent = `Clicked: ${jobId}`;
+
+    // Show log panel with job logs
+    const logPanel = document.getElementById('log-panel');
+    const logHeader = document.getElementById('log-header');
+    const logContent = document.getElementById('log-content');
+    logHeader.textContent = `Logs: ${jobId}`;
+    logContent.textContent = 'Loading...';
+    logPanel.classList.add('visible');
+
+    try {
+        const res = await fetch(`${API_BASE}/api/workflows/${currentWorkflowId}/jobs/${jobId}/logs`);
+        if (res.ok) {
+            const chunks = await res.json();
+            logContent.textContent = chunks.length > 0
+                ? chunks.map(c => c.data).join('')
+                : '(no logs yet)';
+        } else {
+            logContent.textContent = '(no logs available)';
+        }
+    } catch (e) {
+        logContent.textContent = `Error: ${e.message}`;
+    }
 }
 
 function onNodeHover(jobId) {
@@ -28,6 +50,7 @@ function onNodeHover(jobId) {
 
 function onCanvasClick() {
     console.log('Canvas clicked (empty space)');
+    document.getElementById('log-panel').classList.remove('visible');
 }
 
 function onSelectionChange(selectedIds) {

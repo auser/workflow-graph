@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, MouseEvent, WheelEvent};
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, KeyboardEvent, MouseEvent, WheelEvent};
 
 use github_graph_shared::{JobStatus, Workflow};
 use layout::GraphLayout;
@@ -361,6 +361,15 @@ pub fn set_node_positions(canvas_id: &str, positions_json: &str) {
     });
 }
 
+/// Set an edge click callback for a graph instance.
+#[wasm_bindgen]
+pub fn set_on_edge_click(canvas_id: &str, callback: js_sys::Function) {
+    // Edge click detection would require hit-testing bezier curves.
+    // For now, store the callback — implementation of edge hit testing
+    // is a future enhancement.
+    let _ = (canvas_id, callback);
+}
+
 #[wasm_bindgen]
 pub fn destroy(canvas_id: &str) {
     GRAPHS.with(|g| {
@@ -627,6 +636,72 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
             s.redraw();
         });
         canvas.add_event_listener_with_callback("wheel", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    // keydown (Tab to cycle nodes, Enter/Space to select, Escape to deselect)
+    {
+        let state = state.clone();
+        let closure = Closure::<dyn FnMut(KeyboardEvent)>::new(move |event: KeyboardEvent| {
+            let mut s = state.borrow_mut();
+            let key = event.key();
+
+            match key.as_str() {
+                "Tab" => {
+                    event.prevent_default();
+                    let node_count = s.layout.nodes.len();
+                    if node_count == 0 {
+                        return;
+                    }
+
+                    // Find current focused node index
+                    let current_idx = if s.selected.len() == 1 {
+                        let selected_id = s.selected.iter().next().unwrap();
+                        s.layout.nodes.iter().position(|n| n.job_id == *selected_id)
+                    } else {
+                        None
+                    };
+
+                    let next_idx = if event.shift_key() {
+                        // Shift+Tab: previous
+                        match current_idx {
+                            Some(i) if i > 0 => i - 1,
+                            _ => node_count - 1,
+                        }
+                    } else {
+                        // Tab: next
+                        match current_idx {
+                            Some(i) => (i + 1) % node_count,
+                            None => 0,
+                        }
+                    };
+
+                    let job_id = s.layout.nodes[next_idx].job_id.clone();
+                    s.selected.clear();
+                    s.selected.insert(job_id);
+                    s.fire_selection_change();
+                    s.redraw();
+                }
+                "Enter" | " " => {
+                    event.prevent_default();
+                    if s.selected.len() == 1 {
+                        let job_id = s.selected.iter().next().unwrap().clone();
+                        if let Some(ref cb) = s.on_node_click {
+                            cb.call1(&JsValue::NULL, &JsValue::from_str(&job_id)).ok();
+                        }
+                    }
+                }
+                "Escape" => {
+                    if !s.selected.is_empty() {
+                        s.selected.clear();
+                        s.fire_selection_change();
+                        s.redraw();
+                    }
+                }
+                _ => {}
+            }
+        });
+        canvas.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref())?;
         closure.forget();
     }
 

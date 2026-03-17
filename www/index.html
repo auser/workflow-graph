@@ -55,6 +55,29 @@
             font-size: 13px;
             color: #656d76;
         }
+        #log-panel {
+            margin-top: 16px;
+            width: 100%;
+            max-width: 1140px;
+            background: #1f2328;
+            color: #e6edf3;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        #log-panel.visible { display: block; }
+        #log-panel .log-header {
+            color: #7d8590;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -64,9 +87,13 @@
         <button class="primary" id="run-btn">Run workflow</button>
     </div>
     <div id="graph-container">
-        <canvas id="graph"></canvas>
+        <canvas id="graph" role="img" aria-label="Workflow DAG visualization" tabindex="0"></canvas>
     </div>
     <div class="status-bar" id="status">Ready</div>
+    <div id="log-panel">
+        <div class="log-header" id="log-header"></div>
+        <div id="log-content"></div>
+    </div>
 
     <script type="module" src="index.js"></script>
 </body>

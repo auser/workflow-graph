@@ -267,4 +267,34 @@ pub async fn get_job_logs(
     }
 }
 
-// SSE log streaming will be added in Phase 6
+/// SSE log stream: replays existing chunks then streams live.
+pub async fn stream_job_logs(
+    State(state): State<AppState>,
+    Path((wf_id, job_id)): Path<(String, String)>,
+) -> axum::response::Sse<impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>> {
+    use axum::response::sse::Event;
+    use tokio_stream::StreamExt;
+    use tokio_stream::wrappers::BroadcastStream;
+
+    // Get existing chunks for catch-up
+    let existing = state.logs.get_all(&wf_id, &job_id).await.unwrap_or_default();
+
+    // Subscribe to live chunks
+    let rx = state.logs.subscribe(&wf_id, &job_id);
+    let live_stream = BroadcastStream::new(rx).filter_map(|result| {
+        result.ok().map(|chunk| {
+            Ok(Event::default()
+                .event("log")
+                .data(serde_json::to_string(&chunk).unwrap_or_default()))
+        })
+    });
+
+    // Replay existing, then stream live
+    let replay = tokio_stream::iter(existing.into_iter().map(|chunk| {
+        Ok(Event::default()
+            .event("log")
+            .data(serde_json::to_string(&chunk).unwrap_or_default()))
+    }));
+
+    axum::response::Sse::new(replay.chain(live_stream))
+}

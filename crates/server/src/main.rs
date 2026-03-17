@@ -118,6 +118,7 @@ pub fn create_router(state: AppState) -> Router {
         // Job queries
         .route("/api/jobs/{wf_id}/{job_id}/cancelled", get(api::check_cancelled))
         .route("/api/workflows/{wf_id}/jobs/{job_id}/logs", get(api::get_job_logs))
+        .route("/api/workflows/{wf_id}/jobs/{job_id}/logs/stream", get(api::stream_job_logs))
         .with_state(state);
 
     // Static file serving

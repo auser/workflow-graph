@@ -1,0 +1,10 @@
+{
+  "name": "@github-graph/web",
+  "version": "0.1.0",
+  "description": "Interactive workflow DAG visualizer (WASM + Canvas)",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": ["src/", "README.md"],
+  "keywords": ["workflow", "dag", "graph", "wasm", "canvas", "github-actions"],
+  "license": "MIT"
+}
