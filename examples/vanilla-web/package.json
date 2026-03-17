@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@auser/workflow-graph-web": "file:../../packages/web"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
