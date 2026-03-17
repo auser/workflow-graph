@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-03-17
+
+### Features
+
+- Production-ready customizable component([6f2fc75](https://github.com/auser/workflow-graph/commit/6f2fc75867184678fabbc4a52411e44409f217b0))
+- Integrate real WASM library into landing page demo([98fc3bf](https://github.com/auser/workflow-graph/commit/98fc3bf3ef6ab95337630013c558c730a366b143))
+- Add drag-and-drop nodes, YAML view, and fix layout clipping([d239b29](https://github.com/auser/workflow-graph/commit/d239b2967430abd6c9b50b5e9ef46dd8821d02bf))
+- Rebuild landing page demo to match full ci.yml workflow([e374312](https://github.com/auser/workflow-graph/commit/e3743129eea8b1ba1caf602d30b03db31d320103))
+
+### Bug Fixes
+
+- Resolve clippy warnings and add AGENTS.md([945ec31](https://github.com/auser/workflow-graph/commit/945ec31c8cf594f5cac1260d4f6f0b9b6a01ecc5))
+- Ensure trailing slash on BASE_URL for WASM path([bd4cf67](https://github.com/auser/workflow-graph/commit/bd4cf67402fb572b6c9e38b7a40666da265191c4))
+- Remove YAML tab toggle from demo([d5ee2d4](https://github.com/auser/workflow-graph/commit/d5ee2d451cd5ccf684d2f47025f342862a93a5be))
+- Remove arrow markers from edge connections in demo([1aeb0f8](https://github.com/auser/workflow-graph/commit/1aeb0f8f40d985a3c5821a6f9ba97a618dfec179))
+- Use global scoped styles for demo and opt into Node.js 24([b3c07f5](https://github.com/auser/workflow-graph/commit/b3c07f59965bf4880d0c99793ed4b697b7a2b9fc))
+- Override Starlight global styles on demo labels and buttons([1cb01fa](https://github.com/auser/workflow-graph/commit/1cb01faa87fda5bf13b186f2a17919c456b83577))
+- Include Cargo.lock update in release version bump([119c427](https://github.com/auser/workflow-graph/commit/119c427a274cb0af425fa913eb4969600b761692))
+
+### Miscellaneous
+
+- Bump workspace version to 0.2.0([a2b47d8](https://github.com/auser/workflow-graph/commit/a2b47d87089864645a4c72ab924162ec07b689f7))
 ## [0.1.1] - 2026-03-17
 
 ### Bug Fixes
@@ -14,6 +36,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog for v0.1.1([a8d0cb8](https://github.com/auser/workflow-graph/commit/a8d0cb865e7278d4d9f2385432477457e1b24cc1))
 - Bump workspace version to 0.1.1([076b5d9](https://github.com/auser/workflow-graph/commit/076b5d9d337cdfe85af1d85a18ff01fd391fb9f0))
 ## [0.1.0] - 2026-03-17
 
