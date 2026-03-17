@@ -34,12 +34,9 @@ pub async fn start_workflow(
             .get_mut(workflow_id)
             .ok_or_else(|| SchedulerError::WorkflowNotFound(workflow_id.to_string()))?;
 
-        // Don't restart if workflow is already running
-        let has_active = wf
-            .jobs
-            .iter()
-            .any(|j| j.status == JobStatus::Running || j.status == JobStatus::Queued);
-        if has_active {
+        // Don't restart if any job is currently running
+        let has_running = wf.jobs.iter().any(|j| j.status == JobStatus::Running);
+        if has_running {
             return Ok(());
         }
 
