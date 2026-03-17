@@ -7,9 +7,9 @@
     "preview": "astro preview --port 4000"
   },
   "dependencies": {
-    "@astrojs/sitemap": "3.3.0",
-    "@astrojs/starlight": "0.30.5",
-    "astro": "5.3.0",
-    "sharp": "^0.33"
+    "@astrojs/sitemap": "3.7.1",
+    "@astrojs/starlight": "0.38.1",
+    "astro": "6.0.5",
+    "sharp": "^0.34"
   }
 }
