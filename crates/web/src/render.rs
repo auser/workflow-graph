@@ -216,31 +216,31 @@ fn draw_status_icon(
             draw_octicon(ctx, x, y, r, OCTICON_CIRCLE, theme::COLOR_QUEUED);
         }
         JobStatus::Running => {
-            // GitHub style: amber ring track + orbiting dot + center dot
-            let track_r = r - 1.5;
-            let dot_r = 2.0;
+            // Glowing arc ring spinner
+            let track_r = r - 2.0;
+            let line_w = 2.5;
 
-            // Light amber track (full circle)
+            // Dim track ring
             ctx.begin_path();
-            ctx.set_stroke_style_str("#e8d5a3");
-            ctx.set_line_width(1.5);
+            ctx.set_stroke_style_str("rgba(191,135,0,0.2)");
+            ctx.set_line_width(line_w);
             ctx.arc(x, y, track_r, 0.0, 2.0 * PI).ok();
             ctx.stroke();
 
-            // Center filled amber dot
+            // Glowing arc
+            let sweep = PI * 0.75;
+            let angle = animation_time * 4.0;
             ctx.begin_path();
-            ctx.set_fill_style_str(theme::COLOR_RUNNING);
-            ctx.arc(x, y, 2.5, 0.0, 2.0 * PI).ok();
-            ctx.fill();
-
-            // Orbiting dot that travels around the track
-            let orbit_angle = animation_time * 4.0;
-            let dot_x = x + track_r * orbit_angle.cos();
-            let dot_y = y + track_r * orbit_angle.sin();
-            ctx.begin_path();
-            ctx.set_fill_style_str(theme::COLOR_RUNNING);
-            ctx.arc(dot_x, dot_y, dot_r, 0.0, 2.0 * PI).ok();
-            ctx.fill();
+            ctx.set_stroke_style_str(theme::COLOR_RUNNING);
+            ctx.set_line_width(line_w);
+            ctx.set_line_cap("round");
+            ctx.set_shadow_blur(6.0);
+            ctx.set_shadow_color(theme::COLOR_RUNNING);
+            ctx.arc(x, y, track_r, angle, angle + sweep).ok();
+            ctx.stroke();
+            ctx.set_shadow_blur(0.0);
+            ctx.set_shadow_color("transparent");
+            ctx.set_line_cap("butt");
         }
         JobStatus::Success => {
             // Green check-circle-fill — exact GitHub octicon

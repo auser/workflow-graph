@@ -5,6 +5,11 @@ let currentWorkflowId = null;
 let pollInterval = null;
 let initialized = false;
 
+function onNodeClick(jobId) {
+    console.log('Node clicked:', jobId);
+    document.getElementById('status').textContent = `Clicked: ${jobId}`;
+}
+
 async function initialize() {
     await init();
 
@@ -15,7 +20,7 @@ async function initialize() {
     if (workflows.length > 0) {
         currentWorkflowId = workflows[0].id;
         const json = JSON.stringify(workflows[0]);
-        render_workflow('graph', json);
+        render_workflow('graph', json, onNodeClick);
         initialized = true;
         updateStatus(workflows[0]);
         startPolling();
@@ -50,7 +55,7 @@ async function loadSample() {
         const workflow = await res.json();
         currentWorkflowId = workflow.id;
         const json = JSON.stringify(workflow);
-        render_workflow('graph', json);
+        render_workflow('graph', json, onNodeClick);
         initialized = true;
         updateStatus(workflow);
     }

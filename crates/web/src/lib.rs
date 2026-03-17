@@ -13,6 +13,8 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, MouseEve
 use github_graph_shared::{JobStatus, Workflow};
 use layout::GraphLayout;
 
+const CLICK_THRESHOLD: f64 = 5.0;
+
 /// Persistent state for an interactive graph instance.
 struct GraphState {
     workflow: Workflow,
@@ -27,8 +29,11 @@ struct GraphState {
     drag_offset_y: f64,
     hovered: Option<usize>,
     highlighted_edges: Vec<usize>,
-    /// Whether the animation frame loop is currently active.
     animating: bool,
+    /// JS callback invoked when a node is clicked (not dragged).
+    on_node_click: Option<js_sys::Function>,
+    /// Mouse position at mousedown, used to distinguish click from drag.
+    mouse_down_pos: Option<(f64, f64)>,
 }
 
 impl GraphState {
@@ -124,7 +129,11 @@ pub fn start() -> Result<(), JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn render_workflow(canvas_id: &str, workflow_json: &str) -> Result<(), JsValue> {
+pub fn render_workflow(
+    canvas_id: &str,
+    workflow_json: &str,
+    on_node_click: Option<js_sys::Function>,
+) -> Result<(), JsValue> {
     let workflow: Workflow = serde_json::from_str(workflow_json)
         .map_err(|e| JsValue::from_str(&format!("JSON parse error: {e}")))?;
 
@@ -158,6 +167,8 @@ pub fn render_workflow(canvas_id: &str, workflow_json: &str) -> Result<(), JsVal
         hovered: None,
         highlighted_edges: vec![],
         animating: false,
+        on_node_click,
+        mouse_down_pos: None,
     }));
 
     state.borrow().redraw();
@@ -207,7 +218,7 @@ pub fn update_workflow_data(canvas_id: &str, workflow_json: &str) -> Result<(), 
             Ok(())
         } else {
             drop(graphs);
-            render_workflow(canvas_id, workflow_json)
+            render_workflow(canvas_id, workflow_json, None)
         }
     })
 }
@@ -275,6 +286,8 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
             let mut s = state.borrow_mut();
+            // Always record mousedown position for click detection
+            s.mouse_down_pos = Some((mx, my));
             if let Some(idx) = s.hit_test(mx, my) {
                 s.dragging = Some(idx);
                 s.drag_offset_x = mx - s.layout.nodes[idx].x;
@@ -324,8 +337,28 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
     // mouseup
     {
         let state = state.clone();
-        let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |_event: MouseEvent| {
+        let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
+            let (mx, my) = mouse_pos(&event, &state);
             let mut s = state.borrow_mut();
+
+            // Detect click: mousedown + mouseup with minimal movement
+            let is_click = s.mouse_down_pos
+                .map(|(dx, dy)| {
+                    let dist = ((mx - dx).powi(2) + (my - dy).powi(2)).sqrt();
+                    dist < CLICK_THRESHOLD
+                })
+                .unwrap_or(false);
+
+            if is_click {
+                if let Some(idx) = s.hit_test(mx, my) {
+                    let job_id = s.layout.nodes[idx].job_id.clone();
+                    if let Some(ref cb) = s.on_node_click {
+                        cb.call1(&JsValue::NULL, &JsValue::from_str(&job_id)).ok();
+                    }
+                }
+            }
+
+            s.mouse_down_pos = None;
             if s.dragging.is_some() {
                 s.dragging = None;
                 let html: &HtmlElement = s.canvas.unchecked_ref();
@@ -342,6 +375,7 @@ fn attach_mouse_handlers(canvas: &HtmlCanvasElement, state: &SharedState) -> Res
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |_event: MouseEvent| {
             let mut s = state.borrow_mut();
             s.dragging = None;
+            s.mouse_down_pos = None;
             let had_hover = s.hovered.is_some();
             s.hovered = None;
             s.highlighted_edges.clear();
