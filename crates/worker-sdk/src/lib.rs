@@ -2,8 +2,8 @@ pub mod executor;
 
 use std::time::Duration;
 
-use workflow_graph_queue::traits::*;
 use serde::{Deserialize, Serialize};
+use workflow_graph_queue::traits::*;
 
 /// Configuration for a worker instance.
 #[derive(Clone, Debug)]
@@ -149,21 +149,17 @@ impl Worker {
 
         // Spawn heartbeat task
         let hb_client = self.client.clone();
-        let hb_url = format!(
-            "{}/api/jobs/{}/heartbeat",
-            self.config.server_url, lease_id
-        );
+        let hb_url = format!("{}/api/jobs/{}/heartbeat", self.config.server_url, lease_id);
         let hb_interval = self.config.heartbeat_interval;
         let hb_handle = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(hb_interval).await;
                 let res = hb_client.post(&hb_url).send().await;
-                if let Ok(resp) = res {
-                    if resp.status() == reqwest::StatusCode::CONFLICT {
+                if let Ok(resp) = res
+                    && resp.status() == reqwest::StatusCode::CONFLICT {
                         eprintln!("Lease expired, aborting heartbeat");
                         break;
                     }
-                }
             }
         });
 
@@ -179,14 +175,12 @@ impl Worker {
         let cancel_handle = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(cancel_interval).await;
-                if let Ok(resp) = cancel_client.get(&cancel_url).send().await {
-                    if let Ok(cancelled) = resp.json::<bool>().await {
-                        if cancelled {
+                if let Ok(resp) = cancel_client.get(&cancel_url).send().await
+                    && let Ok(cancelled) = resp.json::<bool>().await
+                        && cancelled {
                             cancel_token_clone.cancel();
                             break;
                         }
-                    }
-                }
             }
         });
 
@@ -194,10 +188,7 @@ impl Worker {
         let result = executor::execute_job_streaming(
             &job.command,
             &self.client,
-            &format!(
-                "{}/api/jobs/{}/logs",
-                self.config.server_url, lease_id
-            ),
+            &format!("{}/api/jobs/{}/logs", self.config.server_url, lease_id),
             &workflow_id,
             &job_id,
             self.config.log_batch_interval,
@@ -212,10 +203,7 @@ impl Worker {
         // Report result
         match result {
             Ok(output) => {
-                let url = format!(
-                    "{}/api/jobs/{}/complete",
-                    self.config.server_url, lease_id
-                );
+                let url = format!("{}/api/jobs/{}/complete", self.config.server_url, lease_id);
                 self.client
                     .post(&url)
                     .json(&CompleteRequest {
@@ -227,10 +215,7 @@ impl Worker {
                 println!("Job {} completed successfully", job.job_id);
             }
             Err(e) => {
-                let url = format!(
-                    "{}/api/jobs/{}/fail",
-                    self.config.server_url, lease_id
-                );
+                let url = format!("{}/api/jobs/{}/fail", self.config.server_url, lease_id);
                 self.client
                     .post(&url)
                     .json(&FailRequest {

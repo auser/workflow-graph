@@ -31,11 +31,7 @@ impl Default for InMemoryWorkerRegistry {
 }
 
 impl WorkerRegistry for InMemoryWorkerRegistry {
-    async fn register(
-        &self,
-        worker_id: &str,
-        labels: &[String],
-    ) -> Result<(), RegistryError> {
+    async fn register(&self, worker_id: &str, labels: &[String]) -> Result<(), RegistryError> {
         let now = Self::now_ms();
         self.workers.lock().await.insert(
             worker_id.to_string(),
@@ -69,11 +65,7 @@ impl WorkerRegistry for InMemoryWorkerRegistry {
         Ok(self.workers.lock().await.values().cloned().collect())
     }
 
-    async fn mark_busy(
-        &self,
-        worker_id: &str,
-        job_id: &str,
-    ) -> Result<(), RegistryError> {
+    async fn mark_busy(&self, worker_id: &str, job_id: &str) -> Result<(), RegistryError> {
         let mut workers = self.workers.lock().await;
         let worker = workers
             .get_mut(worker_id)

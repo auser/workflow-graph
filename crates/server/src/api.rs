@@ -6,8 +6,8 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde::{Deserialize, Serialize};
 
-use workflow_graph_shared::Workflow;
 use workflow_graph_queue::traits::*;
+use workflow_graph_shared::Workflow;
 
 use crate::state::AppState;
 
@@ -78,9 +78,7 @@ pub async fn cancel_workflow(
     Ok(StatusCode::ACCEPTED)
 }
 
-pub async fn load_sample(
-    State(state): State<AppState>,
-) -> (StatusCode, Json<Workflow>) {
+pub async fn load_sample(State(state): State<AppState>) -> (StatusCode, Json<Workflow>) {
     let sample = Workflow::sample();
     let id = sample.id.clone();
     state
@@ -267,13 +265,19 @@ pub async fn get_job_logs(
 pub async fn stream_job_logs(
     State(state): State<AppState>,
     Path((wf_id, job_id)): Path<(String, String)>,
-) -> axum::response::Sse<impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>> {
+) -> axum::response::Sse<
+    impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>,
+> {
     use axum::response::sse::Event;
     use tokio_stream::StreamExt;
     use tokio_stream::wrappers::BroadcastStream;
 
     // Get existing chunks for catch-up
-    let existing = state.logs.get_all(&wf_id, &job_id).await.unwrap_or_default();
+    let existing = state
+        .logs
+        .get_all(&wf_id, &job_id)
+        .await
+        .unwrap_or_default();
 
     // Subscribe to live chunks
     let rx = state.logs.subscribe(&wf_id, &job_id);

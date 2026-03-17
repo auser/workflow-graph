@@ -146,10 +146,7 @@ pub enum WorkerStatus {
 /// - `cancel()`  → `boss.cancel(jobId)`
 pub trait JobQueue: Send + Sync + 'static {
     /// Enqueue a job for execution. Called by the scheduler when dependencies are met.
-    fn enqueue(
-        &self,
-        job: QueuedJob,
-    ) -> impl Future<Output = Result<(), QueueError>> + Send;
+    fn enqueue(&self, job: QueuedJob) -> impl Future<Output = Result<(), QueueError>> + Send;
 
     /// Atomically claim the next available job matching the worker's labels.
     /// Returns `None` if no matching job is available.
@@ -204,9 +201,8 @@ pub trait JobQueue: Send + Sync + 'static {
 
     /// Collect expired leases and emit LeaseExpired events.
     /// Called periodically by the server's monitor task.
-    fn reap_expired_leases(
-        &self,
-    ) -> impl Future<Output = Result<Vec<JobEvent>, QueueError>> + Send;
+    fn reap_expired_leases(&self)
+    -> impl Future<Output = Result<Vec<JobEvent>, QueueError>> + Send;
 
     /// Subscribe to job events for event-driven processing.
     fn subscribe(&self) -> broadcast::Receiver<JobEvent>;
@@ -250,10 +246,7 @@ pub trait ArtifactStore: Send + Sync + 'static {
 /// Implementations: InMemoryLogSink, FileLogSink, S3LogSink.
 pub trait LogSink: Send + Sync + 'static {
     /// Append a log chunk from a worker.
-    fn append(
-        &self,
-        chunk: LogChunk,
-    ) -> impl Future<Output = Result<(), LogError>> + Send;
+    fn append(&self, chunk: LogChunk) -> impl Future<Output = Result<(), LogError>> + Send;
 
     /// Get all log chunks for a job (for catch-up on SSE connect).
     fn get_all(
@@ -280,21 +273,14 @@ pub trait WorkerRegistry: Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), RegistryError>> + Send;
 
     /// Record a heartbeat from a worker.
-    fn heartbeat(
-        &self,
-        worker_id: &str,
-    ) -> impl Future<Output = Result<(), RegistryError>> + Send;
+    fn heartbeat(&self, worker_id: &str) -> impl Future<Output = Result<(), RegistryError>> + Send;
 
     /// Remove a worker from the registry.
-    fn deregister(
-        &self,
-        worker_id: &str,
-    ) -> impl Future<Output = Result<(), RegistryError>> + Send;
+    fn deregister(&self, worker_id: &str)
+    -> impl Future<Output = Result<(), RegistryError>> + Send;
 
     /// List all registered workers.
-    fn list_workers(
-        &self,
-    ) -> impl Future<Output = Result<Vec<WorkerInfo>, RegistryError>> + Send;
+    fn list_workers(&self) -> impl Future<Output = Result<Vec<WorkerInfo>, RegistryError>> + Send;
 
     /// Mark a worker as busy with a specific job.
     fn mark_busy(
@@ -304,8 +290,5 @@ pub trait WorkerRegistry: Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), RegistryError>> + Send;
 
     /// Mark a worker as idle (finished or released a job).
-    fn mark_idle(
-        &self,
-        worker_id: &str,
-    ) -> impl Future<Output = Result<(), RegistryError>> + Send;
+    fn mark_idle(&self, worker_id: &str) -> impl Future<Output = Result<(), RegistryError>> + Send;
 }

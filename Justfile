@@ -79,51 +79,41 @@ changelog version="":
         git cliff --tag "{{version}}"
     fi
 
-# Automated release: bump version, generate changelog, tag, and push
-release-auto version:
+# Cut a release with automatic version bump (based on conventional commits)
+release-auto:
     #!/usr/bin/env bash
     set -euo pipefail
-    VERSION="{{version}}"
-    # Strip leading 'v' for semver if present
-    SEMVER="${VERSION#v}"
-    TAG="v${SEMVER}"
-
-    # Validate semver format
-    if ! echo "$SEMVER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
-        echo "Error: version must be semver (e.g., 0.2.0 or v0.2.0)"
-        exit 1
+    echo "==> Preparing automatic release"
+    # 1. Quality gates — auto-fix fmt and clippy, then test
+    cargo fmt --all
+    cargo clippy --fix --allow-dirty --workspace --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo nextest run --workspace
+    # 2. Determine next version from conventional commits
+    NEXT_VERSION=$(git-cliff --bumped-version | sed 's/^v//')
+    echo "==> Auto-detected next version: $NEXT_VERSION"
+    # 3. Bump all workspace versions
+    just bump-versions "$NEXT_VERSION"
+    # 4. Commit the version bump + any fmt/clippy fixes + updated Cargo.lock
+    if ! git diff --quiet; then
+        git add -u
+        git commit -m "chore: bump workspace version to $NEXT_VERSION"
     fi
-
-    # Ensure working tree is clean
-    if [ -n "$(git status --porcelain)" ]; then
-        echo "Error: working tree is not clean. Commit or stash changes first."
-        exit 1
+    # 5. Generate changelog entry from conventional commits (via git-cliff)
+    if ! grep -q "^## \[$NEXT_VERSION\]" CHANGELOG.md; then
+        git-cliff --tag "v$NEXT_VERSION" --unreleased --prepend CHANGELOG.md
+        git add CHANGELOG.md
+        git commit -m "chore: add changelog entry for v$NEXT_VERSION"
     fi
-
-    # Ensure we're on main
-    BRANCH=$(git branch --show-current)
-    if [ "$BRANCH" != "main" ]; then
-        echo "Error: must be on main branch (currently on $BRANCH)"
-        exit 1
+    # 6. Verify changelog & crate versions match
+    scripts/verify-release-version.sh --version "$NEXT_VERSION"
+    # 7. Push branch commits, tag, and push tag (triggers .github/workflows/release.yml)
+    git push
+    if ! git tag -l "v$NEXT_VERSION" | grep -q .; then
+        git tag "v$NEXT_VERSION"
     fi
-
-    echo "Releasing $TAG..."
-
-    # Update versions in all workspace Cargo.toml files
-    for toml in shared/Cargo.toml crates/*/Cargo.toml; do
-        sed -i '' "s/^version = \".*\"/version = \"${SEMVER}\"/" "$toml"
-    done
-
-    # Generate changelog
-    git cliff --tag "$TAG" --output CHANGELOG.md
-
-    # Commit, tag, push
-    git add -A
-    git commit -m "chore: release ${TAG}"
-    git tag -a "$TAG" -m "Release ${TAG}"
-    git push origin main "$TAG"
-
-    echo "Released $TAG"
+    git push origin "v$NEXT_VERSION"
+    echo "==> Tag v$NEXT_VERSION pushed. Release workflow will build and publish."
 
 # Start docs dev server
 docs-dev:

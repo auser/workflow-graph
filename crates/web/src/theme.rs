@@ -9,7 +9,8 @@ pub const JUNCTION_DOT_RADIUS: f64 = 3.5;
 pub const STATUS_ICON_RADIUS: f64 = 8.0;
 pub const STATUS_ICON_MARGIN: f64 = 12.0;
 
-pub const FONT_FAMILY: &str = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
+pub const FONT_FAMILY: &str =
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
 pub const FONT_SIZE_NAME: f64 = 13.0;
 pub const FONT_SIZE_DURATION: f64 = 11.0;
 pub const FONT_SIZE_HEADER: f64 = 14.0;

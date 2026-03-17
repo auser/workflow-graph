@@ -6,9 +6,9 @@
 
 use std::collections::HashMap;
 
+use workflow_graph_queue::error::SchedulerError;
 use workflow_graph_queue::scheduler::SharedState;
 use workflow_graph_queue::traits::*;
-use workflow_graph_queue::error::SchedulerError;
 use workflow_graph_shared::JobStatus;
 
 fn now_ms() -> u64 {
@@ -45,7 +45,14 @@ pub async fn start_workflow(
         // Find root jobs (no dependencies)
         wf.jobs
             .iter()
-            .map(|j| (j.id.clone(), j.command.clone(), j.required_labels.clone(), j.max_retries))
+            .map(|j| {
+                (
+                    j.id.clone(),
+                    j.command.clone(),
+                    j.required_labels.clone(),
+                    j.max_retries,
+                )
+            })
             .filter(|(id, _, _, _)| {
                 wf.jobs
                     .iter()

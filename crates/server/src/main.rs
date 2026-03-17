@@ -6,8 +6,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::routing::{get, post};
 use axum::Router;
+use axum::routing::{get, post};
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
@@ -106,7 +106,10 @@ async fn main() {
 pub fn create_router(state: AppState) -> Router {
     let api = Router::new()
         // Workflow management
-        .route("/api/workflows", get(api::list_workflows).post(api::create_workflow))
+        .route(
+            "/api/workflows",
+            get(api::list_workflows).post(api::create_workflow),
+        )
         .route("/api/workflows/sample", post(api::load_sample))
         .route("/api/workflows/{id}/status", get(api::get_workflow_status))
         .route("/api/workflows/{id}/run", post(api::run_workflow))
@@ -122,9 +125,18 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/jobs/{lease_id}/fail", post(api::fail_job))
         .route("/api/jobs/{lease_id}/logs", post(api::push_logs))
         // Job queries
-        .route("/api/jobs/{wf_id}/{job_id}/cancelled", get(api::check_cancelled))
-        .route("/api/workflows/{wf_id}/jobs/{job_id}/logs", get(api::get_job_logs))
-        .route("/api/workflows/{wf_id}/jobs/{job_id}/logs/stream", get(api::stream_job_logs))
+        .route(
+            "/api/jobs/{wf_id}/{job_id}/cancelled",
+            get(api::check_cancelled),
+        )
+        .route(
+            "/api/workflows/{wf_id}/jobs/{job_id}/logs",
+            get(api::get_job_logs),
+        )
+        .route(
+            "/api/workflows/{wf_id}/jobs/{job_id}/logs/stream",
+            get(api::stream_job_logs),
+        )
         .with_state(state);
 
     // Static file serving
@@ -147,10 +159,7 @@ fn load_workflows_from_dir(dir: &str) -> Vec<workflow_graph_shared::Workflow> {
 
     for entry in entries.flatten() {
         let file_path = entry.path();
-        let filename = file_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let filename = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         if !(filename.ends_with(".yml")
             || filename.ends_with(".yaml")

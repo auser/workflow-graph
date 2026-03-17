@@ -97,11 +97,7 @@ impl Workflow {
                     status: JobStatus::Queued,
                     command: "echo 'Building project' && sleep 3".into(),
                     duration_secs: None,
-                    depends_on: vec![
-                        "unit-tests".into(),
-                        "lint".into(),
-                        "typecheck".into(),
-                    ],
+                    depends_on: vec!["unit-tests".into(), "lint".into(), "typecheck".into()],
                     started_at: None,
                     output: None,
                     required_labels: vec![],

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Duration;
 
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 
 use crate::error::QueueError;
 use crate::traits::*;
@@ -9,7 +9,7 @@ use crate::traits::*;
 struct Inner {
     pending: VecDeque<QueuedJob>,
     active: HashMap<String, (Lease, QueuedJob)>, // keyed by lease_id
-    cancelled: HashSet<(String, String)>,         // (workflow_id, job_id)
+    cancelled: HashSet<(String, String)>,        // (workflow_id, job_id)
 }
 
 pub struct InMemoryJobQueue {
@@ -99,11 +99,7 @@ impl JobQueue for InMemoryJobQueue {
         Ok(Some((job, lease)))
     }
 
-    async fn renew_lease(
-        &self,
-        lease_id: &str,
-        extend_by: Duration,
-    ) -> Result<(), QueueError> {
+    async fn renew_lease(&self, lease_id: &str, extend_by: Duration) -> Result<(), QueueError> {
         let mut inner = self.inner.lock().await;
         let (lease, _) = inner
             .active
@@ -136,20 +132,14 @@ impl JobQueue for InMemoryJobQueue {
         Ok(())
     }
 
-    async fn fail(
-        &self,
-        lease_id: &str,
-        error: String,
-        retryable: bool,
-    ) -> Result<(), QueueError> {
+    async fn fail(&self, lease_id: &str, error: String, retryable: bool) -> Result<(), QueueError> {
         let mut inner = self.inner.lock().await;
         let (_, job) = inner
             .active
             .remove(lease_id)
             .ok_or_else(|| QueueError::LeaseNotFound(lease_id.to_string()))?;
 
-        let should_retry =
-            retryable && job.attempt < job.retry_policy.max_retries;
+        let should_retry = retryable && job.attempt < job.retry_policy.max_retries;
 
         if should_retry {
             // Re-enqueue with incremented attempt
@@ -170,11 +160,7 @@ impl JobQueue for InMemoryJobQueue {
         Ok(())
     }
 
-    async fn cancel(
-        &self,
-        workflow_id: &str,
-        job_id: &str,
-    ) -> Result<(), QueueError> {
+    async fn cancel(&self, workflow_id: &str, job_id: &str) -> Result<(), QueueError> {
         let mut inner = self.inner.lock().await;
 
         // Remove from pending if present
@@ -237,11 +223,7 @@ impl JobQueue for InMemoryJobQueue {
         Ok(())
     }
 
-    async fn is_cancelled(
-        &self,
-        workflow_id: &str,
-        job_id: &str,
-    ) -> Result<bool, QueueError> {
+    async fn is_cancelled(&self, workflow_id: &str, job_id: &str) -> Result<bool, QueueError> {
         let inner = self.inner.lock().await;
         Ok(inner
             .cancelled
@@ -393,7 +375,10 @@ mod tests {
         outputs.insert("result".into(), "success".into());
         queue.complete(&lease.lease_id, outputs).await.unwrap();
 
-        if let Ok(JobEvent::Completed { job_id, outputs, .. }) = rx.recv().await {
+        if let Ok(JobEvent::Completed {
+            job_id, outputs, ..
+        }) = rx.recv().await
+        {
             assert_eq!(job_id, "j1");
             assert_eq!(outputs.get("result").unwrap(), "success");
         } else {

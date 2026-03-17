@@ -170,10 +170,7 @@ impl WorkflowDef {
         let mut jobs = Vec::with_capacity(self.jobs.len());
 
         for (job_id, job_def) in &self.jobs {
-            let name = job_def
-                .name
-                .clone()
-                .unwrap_or_else(|| job_id.clone());
+            let name = job_def.name.clone().unwrap_or_else(|| job_id.clone());
 
             let command = build_command(job_def, &self.env)?;
             let depends_on = job_def.needs.to_vec();
@@ -251,9 +248,7 @@ fn build_command(job: &JobDef, global_env: &IndexMap<String, String>) -> Result<
     } else if let Some(run) = &job.run {
         vec![run.trim().to_string()]
     } else {
-        return Err(format!(
-            "Job must have either 'run' or 'steps'"
-        ));
+        return Err("Job must have either 'run' or 'steps'".to_string());
     };
 
     let mut full = env_exports;

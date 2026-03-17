@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use std::sync::Mutex as StdMutex;
 
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 
 use crate::error::LogError;
 use crate::traits::{LogChunk, LogSink};
@@ -63,11 +63,7 @@ impl LogSink for InMemoryLogSink {
         Ok(())
     }
 
-    async fn get_all(
-        &self,
-        workflow_id: &str,
-        job_id: &str,
-    ) -> Result<Vec<LogChunk>, LogError> {
+    async fn get_all(&self, workflow_id: &str, job_id: &str) -> Result<Vec<LogChunk>, LogError> {
         let store = self.store.lock().await;
         let key = (workflow_id.to_string(), job_id.to_string());
         Ok(store.get(&key).cloned().unwrap_or_default())

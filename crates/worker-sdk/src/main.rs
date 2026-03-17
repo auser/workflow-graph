@@ -2,8 +2,7 @@ use workflow_graph_worker_sdk::{Worker, WorkerConfig};
 
 #[tokio::main]
 async fn main() {
-    let server_url = std::env::var("SERVER_URL")
-        .unwrap_or_else(|_| "http://localhost:3000".into());
+    let server_url = std::env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:3000".into());
 
     let labels: Vec<String> = std::env::var("WORKER_LABELS")
         .unwrap_or_default()

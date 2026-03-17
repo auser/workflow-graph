@@ -179,12 +179,11 @@ impl<Q: JobQueue, A: ArtifactStore> DagScheduler<Q, A> {
 
     async fn on_job_started(&self, workflow_id: &str, job_id: &str) {
         let mut state = self.state.write().await;
-        if let Some(wf) = state.workflows.get_mut(workflow_id) {
-            if let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
+        if let Some(wf) = state.workflows.get_mut(workflow_id)
+            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
                 job.status = JobStatus::Running;
                 job.started_at = Some(now_ms() as f64);
             }
-        }
     }
 
     async fn on_job_completed(
@@ -258,13 +257,7 @@ impl<Q: JobQueue, A: ArtifactStore> DagScheduler<Q, A> {
         Ok(())
     }
 
-    async fn on_job_failed(
-        &self,
-        workflow_id: &str,
-        job_id: &str,
-        error: &str,
-        retryable: bool,
-    ) {
+    async fn on_job_failed(&self, workflow_id: &str, job_id: &str, error: &str, retryable: bool) {
         let mut state = self.state.write().await;
         let Some(wf) = state.workflows.get_mut(workflow_id) else {
             return;
@@ -301,24 +294,22 @@ impl<Q: JobQueue, A: ArtifactStore> DagScheduler<Q, A> {
         // The queue already handled re-enqueueing if retries remain.
         // We just need to update the state if the job was permanently failed.
         let mut state = self.state.write().await;
-        if let Some(wf) = state.workflows.get_mut(workflow_id) {
-            if let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
+        if let Some(wf) = state.workflows.get_mut(workflow_id)
+            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
                 // If the queue re-enqueued it, mark as queued; otherwise mark as failure
                 // We can't easily know here, so mark as Queued — the next Started event
                 // will update it correctly.
                 job.status = JobStatus::Queued;
                 job.started_at = None;
             }
-        }
     }
 
     async fn on_job_cancelled(&self, workflow_id: &str, job_id: &str) {
         let mut state = self.state.write().await;
-        if let Some(wf) = state.workflows.get_mut(workflow_id) {
-            if let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
+        if let Some(wf) = state.workflows.get_mut(workflow_id)
+            && let Some(job) = wf.jobs.iter_mut().find(|j| j.id == job_id) {
                 job.status = JobStatus::Cancelled;
             }
-        }
     }
 }
 
@@ -439,11 +430,13 @@ mod tests {
         assert_eq!(job.job_id, "a");
 
         // No more jobs available
-        assert!(queue
-            .claim("w1", &[], std::time::Duration::from_secs(30))
-            .await
-            .unwrap()
-            .is_none());
+        assert!(
+            queue
+                .claim("w1", &[], std::time::Duration::from_secs(30))
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use workflow_graph_queue::traits::{LogChunk, LogStream};
 use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+use workflow_graph_queue::traits::{LogChunk, LogStream};
 
 /// Result of a successful job execution.
 pub struct JobOutput {
