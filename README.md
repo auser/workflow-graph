@@ -1,4 +1,4 @@
-# github-graph
+# workflow-graph
 
 A GitHub Actions-style workflow DAG visualizer and job execution engine, built with Rust + WebAssembly.
 
@@ -29,34 +29,47 @@ Render interactive workflow graphs in the browser with pixel-perfect GitHub Octi
 - **Artifact outputs** — jobs publish key-value outputs, downstream jobs read them
 
 ### Library Design
-- **5 crates** — shared types, queue engine, WASM frontend, worker SDK, reference server
+- **6 crates** — shared types, queue engine, WASM frontend, worker SDK, reference server, standalone scheduler
 - **Trait-based backends** — `JobQueue`, `ArtifactStore`, `LogSink`, `WorkerRegistry`
 - **YAML/JSON workflows** — GitHub Actions-inspired definition format
 - **Embeddable** — use `create_router()` to embed the API in your own Axum server
+- **Edge-deployable** — API server is stateless; run scheduler separately or in-process
 
 ## Architecture
 
 ```
-┌──────────┐  poll   ┌──────────┐  events  ┌─────────────┐
-│  Worker   │◄───────►│  Server  │◄────────►│ DagScheduler│
-│  (SDK)    │  HTTP   │  (Axum)  │          │             │
-└──────────┘         └──────────┘          └──────┬──────┘
-                          │                        │
-                     ┌────┴────┐              ┌────┴────┐
-                     │ LogSink │              │JobQueue │
-                     │Artifacts│              │(trait)  │
-                     └─────────┘              └─────────┘
+                     All-in-one (dev)          Split (edge/prod)
+                     ────────────────          ─────────────────
+┌──────────┐  poll   ┌──────────────┐         ┌───────────┐  ┌───────────┐
+│  Worker   │◄──────►│   Server     │         │ API Server│  │ Scheduler │
+│  (SDK)    │  HTTP  │ API+Scheduler│         │ (stateless│  │ (separate │
+└──────────┘        └──────┬───────┘         │  process) │  │  process) │
+                           │                  └─────┬─────┘  └─────┬─────┘
+                      ┌────┴────┐                   │              │
+                      │JobQueue │◄──────────────────┴──────────────┘
+                      │LogSink  │
+                      │Artifacts│
+                      └─────────┘
 ```
+
+## Guides
+
+| Guide | Description |
+|-------|-------------|
+| [Writing Workers](docs/guide-workers.md) | Standalone binary, embedded SDK, custom executors, HTTP protocol reference |
+| [Postgres Backend](docs/guide-postgres.md) | Full trait implementations using sqlx with pg-boss-style atomic claiming |
+| [Redis Backend](docs/guide-redis.md) | Full trait implementations with Lua scripts and Pub/Sub |
 
 ## Crate Structure
 
 | Crate | Purpose |
 |-------|---------|
-| `github-graph-shared` | Core types: `Job`, `Workflow`, `JobStatus`, YAML parser |
-| `github-graph-queue` | Queue traits + in-memory implementations, DagScheduler |
-| `github-graph-web` | WASM Canvas renderer with interactive graph |
-| `github-graph-worker-sdk` | Worker binary + embeddable library |
-| `github-graph-server` | Reference Axum server wiring everything together |
+| `workflow-graph-shared` | Core types: `Job`, `Workflow`, `JobStatus`, YAML parser |
+| `workflow-graph-queue` | Queue traits + in-memory implementations, DagScheduler |
+| `workflow-graph-web` | WASM Canvas renderer with interactive graph |
+| `workflow-graph-worker-sdk` | Worker binary + embeddable library |
+| `workflow-graph-server` | Reference Axum server (stateless API, embeddable) |
+| `workflow-graph-scheduler` | Standalone scheduler binary for split deployments |
 
 ## Quick Start
 
@@ -88,9 +101,9 @@ Open `http://localhost:3000/index.html` and click **Run workflow**.
 ### Run a Worker (separate terminal)
 
 ```bash
-cargo run -p github-graph-worker-sdk
+cargo run -p workflow-graph-worker-sdk
 # Or with custom server URL and labels:
-SERVER_URL=http://localhost:3000 WORKER_LABELS=docker,linux cargo run -p github-graph-worker-sdk
+SERVER_URL=http://localhost:3000 WORKER_LABELS=docker,linux cargo run -p workflow-graph-worker-sdk
 ```
 
 ## Workflow Definition (YAML)
@@ -142,7 +155,7 @@ import init, {
   get_node_positions,
   set_node_positions,
   destroy,
-} from 'github-graph-web';
+} from 'workflow-graph-web';
 
 await init();
 
@@ -191,12 +204,38 @@ zoom_to_fit('canvas-id');
 | `GET` | `/api/jobs/{wf_id}/{job_id}/cancelled` | Check cancellation |
 | `GET` | `/api/workflows/{wf_id}/jobs/{job_id}/logs` | Get job logs |
 
+## Deployment Modes
+
+The server supports two modes, controlled by the `API_ONLY` environment variable:
+
+### All-in-one (default)
+
+Runs the API server, DAG scheduler, and lease reaper in a single process. Best for development and simple deployments.
+
+```bash
+cargo run -p workflow-graph-server
+```
+
+### Split (edge/serverless)
+
+Runs the API server without the scheduler — suitable for edge platforms (Vercel Workers, Cloudflare Workers, Supabase Edge Functions) where functions are request-scoped.
+
+```bash
+# Terminal 1: API server (stateless, edge-deployable)
+API_ONLY=1 cargo run -p workflow-graph-server
+
+# Terminal 2: Standalone scheduler (long-running)
+cargo run -p workflow-graph-scheduler
+```
+
+The scheduler supports `REAP_INTERVAL_SECS` to configure the lease reaper interval (default: 5s).
+
 ## Implementing a Custom Queue Backend
 
 All backends are trait-based. Implement these traits for your preferred storage:
 
 ```rust
-use github_graph_queue::traits::*;
+use workflow_graph_queue::traits::*;
 
 struct MyRedisQueue { /* ... */ }
 
@@ -222,25 +261,28 @@ impl JobQueue for MyRedisQueue {
 ## Embedding in Your Server
 
 ```rust
-use github_graph_queue::memory::*;
-use github_graph_queue::{DagScheduler, SharedState, WorkflowState};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use workflow_graph_queue::memory::*;
+use workflow_graph_queue::{DagScheduler, WorkflowState};
+use workflow_graph_server::state::AppState;
 
 #[tokio::main]
 async fn main() {
-    let state = SharedState::new(WorkflowState::new());
+    let state = Arc::new(RwLock::new(WorkflowState::new()));
     let queue = Arc::new(InMemoryJobQueue::new());
     let artifacts = Arc::new(InMemoryArtifactStore::new());
     let logs = Arc::new(InMemoryLogSink::new());
     let workers = Arc::new(InMemoryWorkerRegistry::new());
-    let scheduler = Arc::new(DagScheduler::new(queue.clone(), artifacts.clone(), state.clone()));
 
-    // Spawn scheduler
+    // Spawn scheduler (optional — omit for API-only / edge mode)
+    let scheduler = Arc::new(DagScheduler::new(queue.clone(), artifacts.clone(), state.clone()));
     tokio::spawn(scheduler.clone().run());
 
-    // Build your router with the API
-    let app = github_graph_server::create_router(AppState {
+    // Build your router with the stateless API
+    let app = workflow_graph_server::create_router(AppState {
         workflow_state: state,
-        queue, artifacts, logs, workers, scheduler,
+        queue, artifacts, logs, workers,
     });
 
     axum::serve(listener, app).await.unwrap();
@@ -252,7 +294,7 @@ async fn main() {
 ```bash
 just test              # Run all tests (22 tests)
 just check             # Type-check workspace
-cargo test -p github-graph-queue   # Queue + scheduler tests only
+cargo test -p workflow-graph-queue   # Queue + scheduler tests only
 ```
 
 ## License
