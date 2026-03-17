@@ -4,7 +4,9 @@ A GitHub Actions-style workflow DAG visualizer and job execution engine, built w
 
 Render interactive workflow graphs in the browser with pixel-perfect GitHub Octicon icons, drag-and-drop nodes, pan & zoom, path highlighting, and real-time job status updates. Execute workflows via a pluggable queue system with external workers.
 
-![Workflow Graph](https://img.shields.io/badge/status-alpha-orange)
+[![crates.io](https://img.shields.io/crates/v/workflow-graph-shared)](https://crates.io/crates/workflow-graph-shared)
+[![npm](https://img.shields.io/npm/v/@auser/workflow-graph-web)](https://www.npmjs.com/package/@auser/workflow-graph-web)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Features
 

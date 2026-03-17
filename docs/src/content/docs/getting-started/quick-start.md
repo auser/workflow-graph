@@ -46,10 +46,31 @@ curl -s -X POST http://localhost:3000/api/workflows/ci-1/run
 curl -s http://localhost:3000/api/workflows/ci-1/status | python3 -m json.tool
 ```
 
+## Use via NPM
+
+If you're building a web app, install the published packages:
+
+```bash
+npm install @auser/workflow-graph-web    # Vanilla JS/TS
+npm install @auser/workflow-graph-react  # React component
+```
+
+```typescript
+import { WorkflowGraph, darkTheme } from '@auser/workflow-graph-web';
+
+const graph = new WorkflowGraph(document.getElementById('container')!, {
+  theme: darkTheme,
+  autoResize: true,
+});
+await graph.setWorkflow(workflowData);
+```
+
+See the [WASM API reference](/workflow-graph/api/wasm-api/) for the full API, and the [embedding guide](/workflow-graph/guides/embedding/) for React examples.
+
 ## Run Tests
 
 ```bash
-just test              # Run all tests (22 tests)
+just test              # Run all tests (38 tests)
 just check             # Type-check workspace
 cargo test -p workflow-graph-queue   # Queue + scheduler tests only
 ```
