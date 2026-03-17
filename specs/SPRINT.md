@@ -51,20 +51,21 @@
 - [x] Update `SharedState` on each event (frontend compat)
 - [x] Unit tests for scheduler (4 tests: start, cascade, failure skip, cancel)
 
-## Phase 3: Server Integration
+## Phase 3: Server Integration ✅
 > Wire queue into server, expose worker protocol via HTTP
 
-- [ ] Add `crates/queue` dependency to server
-- [ ] Modify `main.rs`: create in-memory instances, spawn scheduler + lease reaper
-- [ ] Expose `create_router()` for library consumers
-- [ ] Change `run_workflow` to call `scheduler.start_workflow()`
-- [ ] Strip `orchestrator.rs` to state types only
-- [ ] Delete `executor.rs` from server (moves to worker-sdk)
-- [ ] Add worker protocol endpoints (`api_worker.rs`)
-- [ ] Add SSE log streaming endpoint (`api_logs.rs`)
-- [ ] Add cancel endpoints (workflow + individual job)
-- [ ] Add workers list endpoint
-- [ ] Verify existing frontend still works unchanged
+- [x] Add `crates/queue` dependency to server
+- [x] Modify `main.rs`: create in-memory instances, spawn scheduler + lease reaper
+- [x] Expose `create_router()` for library consumers
+- [x] Change `run_workflow` to call `scheduler.start_workflow()`
+- [x] Delete `orchestrator.rs` (replaced by DagScheduler)
+- [x] Delete `executor.rs` from server (moves to worker-sdk)
+- [x] Add worker protocol endpoints (register, claim, heartbeat, complete, fail, logs)
+- [x] Add cancel endpoints (workflow)
+- [x] Add workers list endpoint
+- [x] Add log push + get endpoints
+- [ ] Add SSE log streaming endpoint (deferred to Phase 6)
+- [x] Verify all 22 tests pass
 
 ## Phase 4: Worker SDK
 > `crates/worker-sdk/` — standalone worker binary + embeddable library

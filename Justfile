@@ -1,6 +1,16 @@
 # Default port (server will auto-find next available if taken)
 port := "3000"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Justfile — socialsite monorepo task runner
+# Usage: just <recipe>   (install: brew install just)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Default: list all recipes
+default:
+    @just --list
+
+
 # Build WASM frontend
 build-wasm:
     wasm-pack build crates/web --target web --no-typescript

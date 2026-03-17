@@ -182,7 +182,6 @@ const OCTICON_CHECK_CIRCLE_FILL: &str = "M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.7
 const OCTICON_X_CIRCLE_FILL: &str = "M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z";
 const OCTICON_SKIP_FILL: &str = "M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm11.333-2.167a.825.825 0 0 0-1.166-1.166l-5.5 5.5a.825.825 0 0 0 1.166 1.166Z";
 const OCTICON_CIRCLE: &str = "M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z";
-const OCTICON_DOT_FILL: &str = "M8 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z";
 
 /// Draw an Octicon SVG path scaled and positioned at (cx, cy) with the given radius.
 /// The path data is for a 16x16 viewBox, so we scale by (2*radius)/16 and translate.
@@ -216,31 +215,46 @@ fn draw_status_icon(
             draw_octicon(ctx, x, y, r, OCTICON_CIRCLE, theme::COLOR_QUEUED);
         }
         JobStatus::Running => {
-            // Glowing arc ring spinner
-            let track_r = r - 2.0;
+            // Glowing arc ring spinner — gradient fade tail
+            let track_r = r - 1.0;
             let line_w = 2.5;
 
             // Dim track ring
             ctx.begin_path();
-            ctx.set_stroke_style_str("rgba(191,135,0,0.2)");
+            ctx.set_stroke_style_str("rgba(191,135,0,0.15)");
             ctx.set_line_width(line_w);
             ctx.arc(x, y, track_r, 0.0, 2.0 * PI).ok();
             ctx.stroke();
 
-            // Glowing arc
-            let sweep = PI * 0.75;
-            let angle = animation_time * 4.0;
+            // Gradient arc: draw segments from tail (faint) to head (bright)
+            let total_sweep = PI * 1.2;
+            let head_angle = animation_time * 4.0;
+            let segments = 20;
+            let seg_sweep = total_sweep / segments as f64;
+            ctx.save();
+            ctx.set_line_cap("butt");
+            ctx.set_line_width(line_w);
+            for i in 0..segments {
+                let t = i as f64 / segments as f64;
+                let alpha = t * t; // quadratic ease-in: faint tail, bright head
+                let seg_start = head_angle - total_sweep + (i as f64) * seg_sweep;
+                ctx.begin_path();
+                let color = format!("rgba(191,135,0,{:.2})", alpha);
+                ctx.set_stroke_style_str(&color);
+                // Slight overlap to avoid gaps
+                ctx.arc(x, y, track_r, seg_start, seg_start + seg_sweep + 0.02).ok();
+                ctx.stroke();
+            }
+
+            // Bright head cap
             ctx.begin_path();
             ctx.set_stroke_style_str(theme::COLOR_RUNNING);
             ctx.set_line_width(line_w);
             ctx.set_line_cap("round");
-            ctx.set_shadow_blur(6.0);
-            ctx.set_shadow_color(theme::COLOR_RUNNING);
-            ctx.arc(x, y, track_r, angle, angle + sweep).ok();
+            ctx.arc(x, y, track_r, head_angle - seg_sweep, head_angle).ok();
             ctx.stroke();
-            ctx.set_shadow_blur(0.0);
-            ctx.set_shadow_color("transparent");
-            ctx.set_line_cap("butt");
+
+            ctx.restore();
         }
         JobStatus::Success => {
             // Green check-circle-fill — exact GitHub octicon

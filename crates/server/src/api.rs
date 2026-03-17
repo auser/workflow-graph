@@ -1,11 +1,17 @@
+use std::collections::HashMap;
+use std::time::Duration;
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use github_graph_shared::Workflow;
+use github_graph_queue::traits::*;
 
-use crate::orchestrator::{self, SharedState};
+use crate::state::AppState;
+
+// ─── Workflow Management ─────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
 pub struct CreateWorkflow {
@@ -15,7 +21,7 @@ pub struct CreateWorkflow {
 }
 
 pub async fn create_workflow(
-    State(state): State<SharedState>,
+    State(state): State<AppState>,
     Json(payload): Json<CreateWorkflow>,
 ) -> (StatusCode, Json<Workflow>) {
     let id = uuid::Uuid::new_v4().to_string();
@@ -26,15 +32,25 @@ pub async fn create_workflow(
         jobs: payload.jobs,
     };
 
-    state.write().await.workflows.insert(id, workflow.clone());
+    state
+        .workflow_state
+        .write()
+        .await
+        .workflows
+        .insert(id, workflow.clone());
     (StatusCode::CREATED, Json(workflow))
 }
 
+pub async fn list_workflows(State(state): State<AppState>) -> Json<Vec<Workflow>> {
+    let s = state.workflow_state.read().await;
+    Json(s.workflows.values().cloned().collect())
+}
+
 pub async fn get_workflow_status(
-    State(state): State<SharedState>,
+    State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Workflow>, StatusCode> {
-    let s = state.read().await;
+    let s = state.workflow_state.read().await;
     s.workflows
         .get(&id)
         .cloned()
@@ -43,82 +59,212 @@ pub async fn get_workflow_status(
 }
 
 pub async fn run_workflow(
-    State(state): State<SharedState>,
+    State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    {
-        let s = state.read().await;
-        if !s.workflows.contains_key(&id) {
-            return Err(StatusCode::NOT_FOUND);
-        }
-    }
-    orchestrator::run_workflow(state, id);
+    state
+        .scheduler
+        .start_workflow(&id)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(StatusCode::ACCEPTED)
 }
 
-pub async fn rerun_job(
-    State(state): State<SharedState>,
-    Path((wf_id, job_id)): Path<(String, String)>,
+pub async fn cancel_workflow(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    {
-        let s = state.read().await;
-        let wf = s.workflows.get(&wf_id).ok_or(StatusCode::NOT_FOUND)?;
-        if !wf.jobs.iter().any(|j| j.id == job_id) {
-            return Err(StatusCode::NOT_FOUND);
-        }
-    }
-
-    // Reset this job and all downstream, then re-run
-    {
-        let mut s = state.write().await;
-        let wf = s.workflows.get_mut(&wf_id).unwrap();
-        let downstream = find_downstream_inclusive(wf, &job_id);
-        for j in &mut wf.jobs {
-            if downstream.contains(&j.id) {
-                j.status = github_graph_shared::JobStatus::Queued;
-                j.duration_secs = None;
-                j.output = None;
-            }
-        }
-    }
-
-    // Start execution from this job
-    let state_clone = state.clone();
-    tokio::spawn(async move {
-        orchestrator::run_workflow(state_clone, wf_id);
-    });
-
+    state
+        .scheduler
+        .cancel_workflow(&id)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(StatusCode::ACCEPTED)
 }
 
 pub async fn load_sample(
-    State(state): State<SharedState>,
+    State(state): State<AppState>,
 ) -> (StatusCode, Json<Workflow>) {
     let sample = Workflow::sample();
     let id = sample.id.clone();
-    state.write().await.workflows.insert(id, sample.clone());
+    state
+        .workflow_state
+        .write()
+        .await
+        .workflows
+        .insert(id, sample.clone());
     (StatusCode::CREATED, Json(sample))
 }
 
-pub async fn list_workflows(
-    State(state): State<SharedState>,
-) -> Json<Vec<Workflow>> {
-    let s = state.read().await;
-    Json(s.workflows.values().cloned().collect())
+// ─── Worker Protocol ─────────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct RegisterWorker {
+    pub worker_id: String,
+    pub labels: Vec<String>,
 }
 
-fn find_downstream_inclusive(wf: &Workflow, job_id: &str) -> Vec<String> {
-    let mut result = vec![job_id.to_string()];
-    let mut stack = vec![job_id.to_string()];
+pub async fn register_worker(
+    State(state): State<AppState>,
+    Json(payload): Json<RegisterWorker>,
+) -> StatusCode {
+    state
+        .workers
+        .register(&payload.worker_id, &payload.labels)
+        .await
+        .ok();
+    StatusCode::OK
+}
 
-    while let Some(current) = stack.pop() {
-        for job in &wf.jobs {
-            if job.depends_on.contains(&current) && !result.contains(&job.id) {
-                result.push(job.id.clone());
-                stack.push(job.id.clone());
-            }
-        }
+pub async fn worker_heartbeat(
+    State(state): State<AppState>,
+    Path(worker_id): Path<String>,
+) -> StatusCode {
+    match state.workers.heartbeat(&worker_id).await {
+        Ok(()) => StatusCode::OK,
+        Err(_) => StatusCode::NOT_FOUND,
     }
-
-    result
 }
+
+pub async fn list_workers(State(state): State<AppState>) -> Json<Vec<WorkerInfo>> {
+    Json(state.workers.list_workers().await.unwrap_or_default())
+}
+
+// ─── Job Claiming & Execution ────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct ClaimRequest {
+    pub worker_id: String,
+    pub labels: Vec<String>,
+    #[serde(default = "default_lease_ttl")]
+    pub lease_ttl_secs: u64,
+}
+
+fn default_lease_ttl() -> u64 {
+    30
+}
+
+#[derive(Serialize)]
+pub struct ClaimResponse {
+    pub job: QueuedJob,
+    pub lease: Lease,
+}
+
+pub async fn claim_job(
+    State(state): State<AppState>,
+    Json(payload): Json<ClaimRequest>,
+) -> Result<Json<Option<ClaimResponse>>, StatusCode> {
+    let ttl = Duration::from_secs(payload.lease_ttl_secs);
+    match state
+        .queue
+        .claim(&payload.worker_id, &payload.labels, ttl)
+        .await
+    {
+        Ok(Some((job, lease))) => {
+            state
+                .workers
+                .mark_busy(&payload.worker_id, &job.job_id)
+                .await
+                .ok();
+            Ok(Json(Some(ClaimResponse { job, lease })))
+        }
+        Ok(None) => Ok(Json(None)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+pub async fn job_heartbeat(
+    State(state): State<AppState>,
+    Path(lease_id): Path<String>,
+) -> StatusCode {
+    match state
+        .queue
+        .renew_lease(&lease_id, Duration::from_secs(30))
+        .await
+    {
+        Ok(()) => StatusCode::OK,
+        Err(_) => StatusCode::CONFLICT, // lease expired
+    }
+}
+
+#[derive(Deserialize)]
+pub struct CompleteRequest {
+    #[serde(default)]
+    pub outputs: HashMap<String, String>,
+}
+
+pub async fn complete_job(
+    State(state): State<AppState>,
+    Path(lease_id): Path<String>,
+    Json(payload): Json<CompleteRequest>,
+) -> StatusCode {
+    match state.queue.complete(&lease_id, payload.outputs).await {
+        Ok(()) => StatusCode::OK,
+        Err(_) => StatusCode::CONFLICT,
+    }
+}
+
+#[derive(Deserialize)]
+pub struct FailRequest {
+    pub error: String,
+    #[serde(default)]
+    pub retryable: bool,
+}
+
+pub async fn fail_job(
+    State(state): State<AppState>,
+    Path(lease_id): Path<String>,
+    Json(payload): Json<FailRequest>,
+) -> StatusCode {
+    match state
+        .queue
+        .fail(&lease_id, payload.error, payload.retryable)
+        .await
+    {
+        Ok(()) => StatusCode::OK,
+        Err(_) => StatusCode::CONFLICT,
+    }
+}
+
+pub async fn check_cancelled(
+    State(state): State<AppState>,
+    Path((wf_id, job_id)): Path<(String, String)>,
+) -> Json<bool> {
+    Json(
+        state
+            .queue
+            .is_cancelled(&wf_id, &job_id)
+            .await
+            .unwrap_or(false),
+    )
+}
+
+// ─── Log Streaming ───────────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct PushLogsRequest {
+    pub chunks: Vec<LogChunk>,
+}
+
+pub async fn push_logs(
+    State(state): State<AppState>,
+    Path(_lease_id): Path<String>,
+    Json(payload): Json<PushLogsRequest>,
+) -> StatusCode {
+    for chunk in payload.chunks {
+        state.logs.append(chunk).await.ok();
+    }
+    StatusCode::OK
+}
+
+pub async fn get_job_logs(
+    State(state): State<AppState>,
+    Path((wf_id, job_id)): Path<(String, String)>,
+) -> Result<Json<Vec<LogChunk>>, StatusCode> {
+    match state.logs.get_all(&wf_id, &job_id).await {
+        Ok(chunks) => Ok(Json(chunks)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+// SSE log streaming will be added in Phase 6
