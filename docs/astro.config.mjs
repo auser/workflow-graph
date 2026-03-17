@@ -56,6 +56,7 @@ export default defineConfig({
               label: 'Workflow Definitions',
               slug: 'guides/workflow-definitions',
             },
+            { label: 'Creating Workers', slug: 'guides/creating-workers' },
             { label: 'Embedding', slug: 'guides/embedding' },
             { label: 'Custom Queue Backend', slug: 'guides/custom-queue' },
             { label: 'Postgres / pg-boss', slug: 'guides/postgres-backend' },
