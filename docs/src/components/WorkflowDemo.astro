@@ -147,7 +147,7 @@ jobs:
   </div>
 </div>
 
-<style>
+<style is:global>
   .demo-wrapper {
     background: #0d1117;
     border: 1px solid #30363d;
@@ -158,7 +158,7 @@ jobs:
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 
-  .demo-header {
+  .demo-wrapper .demo-header {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -167,22 +167,22 @@ jobs:
     border-bottom: 1px solid #30363d;
   }
 
-  .demo-dots { display: flex; gap: 6px; }
-  .dot { width: 12px; height: 12px; border-radius: 50%; }
-  .dot.red { background: #ff5f57; }
-  .dot.yellow { background: #febc2e; }
-  .dot.green { background: #28c840; }
+  .demo-wrapper .demo-dots { display: flex; gap: 6px; }
+  .demo-wrapper .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .demo-wrapper .dot.red { background: #ff5f57; }
+  .demo-wrapper .dot.yellow { background: #febc2e; }
+  .demo-wrapper .dot.green { background: #28c840; }
 
-  .demo-title {
+  .demo-wrapper .demo-title {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
     font-size: 13px;
     color: #8b949e;
     flex: 1;
   }
 
-  .demo-controls { display: flex; align-items: center; gap: 10px; }
+  .demo-wrapper .demo-controls { display: flex; align-items: center; gap: 10px; }
 
-  .demo-status {
+  .demo-wrapper .demo-status {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
     font-size: 12px;
     color: #8b949e;
@@ -190,55 +190,55 @@ jobs:
   }
 
   /* Tabs */
-  .demo-tabs {
+  .demo-wrapper .demo-tabs {
     display: flex;
     background: #21262d;
     border-radius: 6px;
     padding: 2px;
   }
 
-  .tab-btn {
+  .demo-wrapper .tab-btn {
     all: unset;
     display: inline-block;
     border-radius: 4px;
-    color: #8b949e !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
+    color: #8b949e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
-    padding: 3px 10px !important;
+    padding: 3px 10px;
     line-height: 1.4;
     transition: background 0.15s, color 0.15s;
     box-sizing: border-box;
   }
 
-  .tab-btn:hover { color: #c9d1d9 !important; }
-  .tab-btn.active { background: #30363d !important; color: #c9d1d9 !important; }
+  .demo-wrapper .tab-btn:hover { color: #c9d1d9; }
+  .demo-wrapper .tab-btn.active { background: #30363d; color: #c9d1d9; }
 
-  .demo-btn {
+  .demo-wrapper .demo-btn {
     all: unset;
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #238636 !important;
-    border: 1px solid #2ea043 !important;
-    border-radius: 6px !important;
-    color: #fff !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    background: #238636;
+    border: 1px solid #2ea043;
+    border-radius: 6px;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    padding: 4px 12px !important;
+    padding: 4px 12px;
     line-height: 1.4;
     box-sizing: border-box;
     transition: background 0.15s;
   }
 
-  .demo-btn:hover { background: #2ea043 !important; }
-  .demo-btn:disabled { background: #21262d !important; border-color: #30363d !important; color: #484f58 !important; cursor: default; }
+  .demo-wrapper .demo-btn:hover { background: #2ea043; }
+  .demo-wrapper .demo-btn:disabled { background: #21262d; border-color: #30363d; color: #484f58; cursor: default; }
 
   /* Status bar */
-  .demo-statusbar {
+  .demo-wrapper .demo-statusbar {
     display: flex;
     gap: 16px;
     padding: 8px 16px;
@@ -248,18 +248,18 @@ jobs:
     font-size: 12px;
   }
 
-  .status-chip { display: flex; align-items: center; gap: 5px; color: #8b949e; }
-  .chip-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-  .status-chip.queued .chip-dot { background: #484f58; }
-  .status-chip.running .chip-dot { background: #d29922; }
-  .status-chip.success .chip-dot { background: #238636; }
-  .status-chip.failure .chip-dot { background: #da3633; }
+  .demo-wrapper .status-chip { display: flex; align-items: center; gap: 5px; color: #8b949e; }
+  .demo-wrapper .chip-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .demo-wrapper .status-chip.queued .chip-dot { background: #484f58; }
+  .demo-wrapper .status-chip.running .chip-dot { background: #d29922; }
+  .demo-wrapper .status-chip.success .chip-dot { background: #238636; }
+  .demo-wrapper .status-chip.failure .chip-dot { background: #da3633; }
 
   /* Views */
-  .demo-view { min-height: 340px; }
-  .demo-view.hidden { display: none; }
+  .demo-wrapper .demo-view { min-height: 340px; }
+  .demo-wrapper .demo-view.hidden { display: none; }
 
-  #workflow-demo {
+  .demo-wrapper #workflow-demo {
     display: block;
     width: 100%;
     padding: 12px;
@@ -267,7 +267,7 @@ jobs:
   }
 
   /* YAML view */
-  .yaml-source {
+  .demo-wrapper .yaml-source {
     margin: 0;
     padding: 20px 24px;
     background: #0d1117;
@@ -280,59 +280,57 @@ jobs:
     overflow-y: auto;
   }
 
-  /* Force all SVG text in demo to use explicit fill, not inherited color */
-  #workflow-demo text {
+  /* SVG text defaults */
+  .demo-wrapper #workflow-demo text {
     fill: #c9d1d9;
     stroke: none;
   }
 
   /* Node styles */
-  .node-bg {
+  .demo-wrapper .node-bg {
     fill: #161b22;
     stroke: #30363d;
     stroke-width: 1.5;
     transition: stroke 0.3s, fill 0.3s;
   }
 
-  .node:hover .node-bg { stroke: #58a6ff; fill: #1c2129; }
-  .node { cursor: grab; }
-  .node.dragging { cursor: grabbing; }
+  .demo-wrapper .node:hover .node-bg { stroke: #58a6ff; fill: #1c2129; }
+  .demo-wrapper .node { cursor: grab; }
+  .demo-wrapper .node.dragging { cursor: grabbing; }
 
-  .node-label {
-    fill: #c9d1d9 !important;
-    color: #c9d1d9 !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+  .demo-wrapper .node-label {
+    fill: #c9d1d9;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
     pointer-events: none;
   }
 
-  .node-meta {
-    fill: #6e7681 !important;
-    color: #6e7681 !important;
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace !important;
-    font-size: 9px !important;
+  .demo-wrapper .node-meta {
+    fill: #6e7681;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 9px;
     pointer-events: none;
   }
 
   /* Status-driven node border */
-  .node[data-status="running"] .node-bg { stroke: #d29922; }
-  .node[data-status="success"] .node-bg { stroke: #238636; }
-  .node[data-status="failure"] .node-bg { stroke: #da3633; }
+  .demo-wrapper .node[data-status="running"] .node-bg { stroke: #d29922; }
+  .demo-wrapper .node[data-status="success"] .node-bg { stroke: #238636; }
+  .demo-wrapper .node[data-status="failure"] .node-bg { stroke: #da3633; }
 
   /* Edge styles */
-  .edge { transition: stroke 0.15s, stroke-width 0.15s; }
-  .edge.highlighted { stroke: #58a6ff !important; stroke-width: 2.5; marker-end: url(#arrow-hl); }
-  .edge.active { stroke: #3fb950 !important; stroke-width: 2.5; marker-end: url(#arrow-active); }
+  .demo-wrapper .edge { transition: stroke 0.15s, stroke-width 0.15s; }
+  .demo-wrapper .edge.highlighted { stroke: #58a6ff !important; stroke-width: 2.5; marker-end: url(#arrow-hl); }
+  .demo-wrapper .edge.active { stroke: #3fb950 !important; stroke-width: 2.5; marker-end: url(#arrow-active); }
 
   /* Log panel */
-  .demo-logpanel { display: none; background: #161b22; border-top: 1px solid #30363d; max-height: 140px; overflow: hidden; }
-  .demo-logpanel.visible { display: block; }
-  .log-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #21262d; }
-  .log-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif; font-size: 12px; font-weight: 600; color: #c9d1d9; }
-  .log-close { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; }
-  .log-close:hover { color: #c9d1d9; }
-  .log-content { padding: 10px 16px; margin: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.6; color: #8b949e; overflow-y: auto; max-height: 90px; }
+  .demo-wrapper .demo-logpanel { display: none; background: #161b22; border-top: 1px solid #30363d; max-height: 140px; overflow: hidden; }
+  .demo-wrapper .demo-logpanel.visible { display: block; }
+  .demo-wrapper .log-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #21262d; }
+  .demo-wrapper .log-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif; font-size: 12px; font-weight: 600; color: #c9d1d9; }
+  .demo-wrapper .log-close { all: unset; color: #8b949e; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; }
+  .demo-wrapper .log-close:hover { color: #c9d1d9; }
+  .demo-wrapper .log-content { padding: 10px 16px; margin: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.6; color: #8b949e; overflow-y: auto; max-height: 90px; }
 </style>
 
 <script>
