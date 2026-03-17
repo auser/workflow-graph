@@ -1,0 +1,63 @@
+---
+title: workflow-graph
+description: A GitHub Actions-style workflow DAG visualizer and job execution engine
+template: splash
+hero:
+  tagline: Render interactive workflow graphs in the browser with pixel-perfect GitHub icons. Execute workflows via a pluggable queue system with external workers. Built with Rust + WebAssembly.
+  actions:
+    - text: Get Started
+      link: /workflow-graph/getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/auser/workflow-graph
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Key Features
+
+<CardGrid stagger>
+  <Card title="Interactive DAG Visualization" icon="pencil">
+    Canvas-based renderer with drag-and-drop nodes, pan & zoom, path highlighting, and animated status icons — all via WebAssembly.
+  </Card>
+  <Card title="Pluggable Queue System" icon="setting">
+    Trait-based backends: in-memory for dev, Postgres/pg-boss or Redis for production. Implement your own with four traits.
+  </Card>
+  <Card title="External Workers" icon="rocket">
+    Workers poll for jobs via HTTP. Use the Rust SDK, run the standalone binary, or build workers in any language.
+  </Card>
+  <Card title="Embeddable Library" icon="puzzle">
+    Drop into your own Axum server with `create_router()`. Use the WASM renderer in any frontend. Deploy the API to the edge.
+  </Card>
+</CardGrid>
+
+## Quick Example
+
+Define workflows in YAML:
+
+```yaml
+name: CI Pipeline
+on: push
+
+jobs:
+  test:
+    name: Unit Tests
+    run: cargo test
+  lint:
+    name: Lint
+    run: cargo clippy
+  build:
+    name: Build
+    needs: [test, lint]
+    run: cargo build --release
+  deploy:
+    name: Deploy
+    needs: [build]
+    labels: [linux, aws]
+    run: ./scripts/deploy.sh
+```
+
+Then render them interactively in the browser, execute jobs with external workers, and stream logs in real time.

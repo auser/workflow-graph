@@ -17,22 +17,22 @@ build-wasm:
 
 # Build server
 build-server:
-    cargo build -p github-graph-server
+    cargo build -p workflow-graph-server
 
 # Build everything
 build: build-wasm build-server
 
 # Run the server (auto-finds available port if taken)
 serve:
-    PORT={{port}} cargo run -p github-graph-server
+    PORT={{port}} cargo run -p workflow-graph-server
 
 # Run server in release mode
 serve-release: build-wasm
-    PORT={{port}} cargo run -p github-graph-server --release
+    PORT={{port}} cargo run -p workflow-graph-server --release
 
 # Watch server for changes and auto-restart
 watch:
-    PORT={{port}} cargo watch -x 'run -p github-graph-server' -w crates/server/src -w shared/src -w workflows
+    PORT={{port}} cargo watch -x 'run -p workflow-graph-server' -w crates/server/src -w shared/src -w workflows
 
 # Watch everything: rebuild WASM on web changes, restart server on server changes
 watch-all:
@@ -69,3 +69,15 @@ status port="3000":
 # List all workflows
 list port="3000":
     curl -s http://localhost:{{port}}/api/workflows | python3 -m json.tool
+
+# Start docs dev server
+docs-dev:
+    cd docs && npm run dev
+
+# Build docs
+docs-build:
+    cd docs && npm run build
+
+# Preview built docs locally
+docs-preview:
+    cd docs && npm run preview

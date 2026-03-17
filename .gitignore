@@ -1,4 +1,6 @@
 /target
 crates/web/pkg
+docs/node_modules
+docs/dist
 .claude/
 .playwright-mcp/
