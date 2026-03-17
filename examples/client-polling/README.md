@@ -12,19 +12,42 @@ Demonstrates `@auser/workflow-graph-client` for server-side workflow management.
 
 ## Run
 
-Start the server first (on a free port):
+You need three terminals:
+
+**Terminal 1 — Server:**
 
 ```bash
 # In the workflow-graph repo root
 PORT=4000 just dev
 ```
 
-Then in this directory:
+**Terminal 2 — Worker:**
+
+```bash
+# In the workflow-graph repo root
+SERVER_URL=http://localhost:4000 cargo run -p workflow-graph-worker-sdk
+```
+
+**Terminal 3 — Client:**
 
 ```bash
 cd examples/client-polling
 npm install
-SERVER_URL=http://localhost:4000 npm start
+npm start
 ```
 
 You'll see a live-updating status display as jobs transition from queued → running → success.
+
+## Configuration
+
+Override the server URL:
+
+```bash
+SERVER_URL=http://localhost:5000 npm start
+```
+
+Or set the port (defaults to 4000):
+
+```bash
+PORT=5000 npm start
+```
