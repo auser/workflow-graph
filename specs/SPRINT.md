@@ -80,17 +80,18 @@
 - [x] Add `main.rs` standalone worker binary (configurable via env vars)
 - [ ] Integration test: server + worker end-to-end (deferred)
 
-## Phase 5: Enhanced YAML Schema
-- [ ] Add `labels` field to `JobDef` (optional)
-- [ ] Add `retries` field to `JobDef` (optional, default 0)
-- [ ] Propagate through `into_workflow()` to shared types
-- [ ] Add `required_labels`, `retry_policy`, `attempt` to `Job` struct
-- [ ] Update sample `workflows/ci.yml` with examples
+## Phase 5: Enhanced YAML Schema ✅
+- [x] Add `labels` field to `JobDef` (optional)
+- [x] Add `retries` field to `JobDef` (optional, default 0)
+- [x] Propagate through `into_workflow()` to shared types
+- [x] Add `required_labels`, `max_retries`, `attempt` to `Job` struct
+- [x] Update sample `workflows/ci.yml` with examples
 
-## Phase 6: Log Collection API
-- [ ] `GET /api/workflows/{wf_id}/jobs/{job_id}/logs` — historical JSON
-- [ ] `GET /api/workflows/{wf_id}/jobs/{job_id}/logs/stream` — SSE live stream
-- [ ] Wire node click → log fetch in demo frontend
+## Phase 6: Log Collection API ✅ (partial)
+- [x] `GET /api/workflows/{wf_id}/jobs/{job_id}/logs` — historical JSON
+- [x] `POST /api/jobs/{lease_id}/logs` — worker pushes log chunks
+- [ ] `GET /api/workflows/{wf_id}/jobs/{job_id}/logs/stream` — SSE live stream (future)
+- [ ] Wire node click → log fetch in demo frontend (future)
 
 ---
 

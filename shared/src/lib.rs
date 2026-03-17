@@ -25,6 +25,15 @@ pub struct Job {
     pub started_at: Option<f64>,
     pub depends_on: Vec<String>,
     pub output: Option<String>,
+    /// Worker labels required to execute this job.
+    #[serde(default)]
+    pub required_labels: Vec<String>,
+    /// Maximum number of retries on failure.
+    #[serde(default)]
+    pub max_retries: u32,
+    /// Current attempt number (0-indexed).
+    #[serde(default)]
+    pub attempt: u32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -52,6 +61,9 @@ impl Workflow {
                     depends_on: vec![],
                     started_at: None,
                     output: None,
+                    required_labels: vec![],
+                    max_retries: 0,
+                    attempt: 0,
                 },
                 Job {
                     id: "lint".into(),
@@ -62,6 +74,9 @@ impl Workflow {
                     depends_on: vec![],
                     started_at: None,
                     output: None,
+                    required_labels: vec![],
+                    max_retries: 0,
+                    attempt: 0,
                 },
                 Job {
                     id: "typecheck".into(),
@@ -72,6 +87,9 @@ impl Workflow {
                     depends_on: vec![],
                     started_at: None,
                     output: None,
+                    required_labels: vec![],
+                    max_retries: 0,
+                    attempt: 0,
                 },
                 Job {
                     id: "build".into(),
@@ -86,6 +104,9 @@ impl Workflow {
                     ],
                     started_at: None,
                     output: None,
+                    required_labels: vec![],
+                    max_retries: 0,
+                    attempt: 0,
                 },
                 Job {
                     id: "deploy-db".into(),
@@ -96,6 +117,9 @@ impl Workflow {
                     depends_on: vec!["build".into()],
                     started_at: None,
                     output: None,
+                    required_labels: vec![],
+                    max_retries: 0,
+                    attempt: 0,
                 },
                 Job {
                     id: "e2e-tests".into(),
@@ -106,6 +130,9 @@ impl Workflow {
                     depends_on: vec!["build".into()],
                     started_at: None,
                     output: None,
+                    required_labels: vec![],
+                    max_retries: 0,
+                    attempt: 0,
                 },
                 Job {
                     id: "deploy-preview".into(),
@@ -116,6 +143,9 @@ impl Workflow {
                     depends_on: vec!["build".into()],
                     started_at: None,
                     output: None,
+                    required_labels: vec![],
+                    max_retries: 0,
+                    attempt: 0,
                 },
                 Job {
                     id: "deploy-web".into(),
@@ -126,6 +156,9 @@ impl Workflow {
                     depends_on: vec!["deploy-db".into()],
                     started_at: None,
                     output: None,
+                    required_labels: vec![],
+                    max_retries: 0,
+                    attempt: 0,
                 },
             ],
         }

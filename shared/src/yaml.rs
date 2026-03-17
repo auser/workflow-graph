@@ -89,6 +89,12 @@ pub struct JobDef {
     /// Condition for running this job (expression string).
     #[serde(rename = "if")]
     pub condition: Option<String>,
+    /// Worker labels required to execute this job.
+    #[serde(default)]
+    pub labels: Vec<String>,
+    /// Maximum number of retries on failure (default 0).
+    #[serde(default)]
+    pub retries: u32,
 }
 
 /// Dependencies can be a single string or a list.
@@ -190,6 +196,9 @@ impl WorkflowDef {
                 started_at: None,
                 depends_on,
                 output: None,
+                required_labels: job_def.labels.clone(),
+                max_retries: job_def.retries,
+                attempt: 0,
             });
         }
 
