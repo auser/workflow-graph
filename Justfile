@@ -1,5 +1,6 @@
 # Default port (server will auto-find next available if taken)
-port := "3000"
+# Override with: PORT=4000 just dev
+port := env("PORT", "3000")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Justfile — socialsite monorepo task runner
