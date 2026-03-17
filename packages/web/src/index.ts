@@ -188,11 +188,11 @@ export function setWasmUrl(url: string | URL): void {
 
 async function ensureWasm(): Promise<WasmModule> {
   if (wasmModule) return wasmModule;
-  // Import the JS glue code — bundled alongside the package in wasm/
-  const mod = await import('../wasm/workflow_graph_web.js');
-  // Initialize with custom URL or let wasm-pack resolve via import.meta.url
+  // Dynamic import of the WASM glue code bundled in wasm/
+  // @ts-expect-error — external wasm-pack artifact, not a TS module
+  const mod: WasmModule = await import('../wasm/workflow_graph_web.js');
   await mod.default(customWasmUrl);
-  wasmModule = mod as WasmModule;
+  wasmModule = mod;
   return wasmModule;
 }
 
