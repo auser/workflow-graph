@@ -65,7 +65,7 @@ const graph = new WorkflowGraph(document.getElementById('container')!, {
 await graph.setWorkflow(workflowData);
 ```
 
-See the [WASM API reference](/workflow-graph/api/wasm-api/) for the full API, and the [embedding guide](/workflow-graph/guides/embedding/) for React examples.
+See the [WASM API reference](/workflow-graph/api/wasm-api/) for the full API, the [embedding guide](/workflow-graph/guides/embedding/) for React examples, and the [examples directory](https://github.com/auser/workflow-graph/tree/main/examples) for complete working apps.
 
 ## Run Tests
 

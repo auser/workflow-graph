@@ -5,6 +5,10 @@ description: JavaScript API for the WebAssembly workflow graph renderer
 
 The WASM module provides an interactive canvas-based workflow graph renderer. It's available directly or via the `@auser/workflow-graph-web` NPM package.
 
+:::tip[Examples]
+See the [examples directory](https://github.com/auser/workflow-graph/tree/main/examples) for complete working apps using each package.
+:::
+
 ## Setup
 
 ### NPM Package (recommended)

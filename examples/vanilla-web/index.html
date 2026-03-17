@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>workflow-graph — Vanilla JS Example</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      padding: 24px;
+    }
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    .controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    button {
+      padding: 6px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #161b22;
+      color: #e6edf3;
+      cursor: pointer;
+    }
+    button:hover { background: #21262d; }
+    button.active { border-color: #58a6ff; color: #58a6ff; }
+    #container {
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <h1>workflow-graph — Vanilla JS</h1>
+  <div class="controls">
+    <button onclick="setTheme('dark')">Dark Theme</button>
+    <button onclick="setTheme('light')">Light Theme</button>
+    <button onclick="setTheme('highContrast')">High Contrast</button>
+    <button onclick="toggleMinimap()">Toggle Minimap</button>
+    <button onclick="toggleDirection()">Toggle Direction</button>
+    <button onclick="graph.zoomToFit()">Zoom to Fit</button>
+    <button onclick="graph.resetLayout()">Reset Layout</button>
+  </div>
+  <div id="container"></div>
+
+  <script type="module">
+    import {
+      WorkflowGraph,
+      darkTheme,
+      lightTheme,
+      highContrastTheme,
+    } from '@auser/workflow-graph-web';
+
+    // Sample workflow data
+    const workflow = {
+      id: 'ci-1',
+      name: 'CI Pipeline',
+      trigger: 'on: push',
+      jobs: [
+        { id: 'lint', name: 'Lint', status: 'success', command: '', depends_on: [], duration_secs: 12 },
+        { id: 'test', name: 'Unit Tests', status: 'success', command: '', depends_on: [], duration_secs: 45 },
+        { id: 'typecheck', name: 'Typecheck', status: 'success', command: '', depends_on: [], duration_secs: 8 },
+        { id: 'build', name: 'Build', status: 'running', command: '', depends_on: ['lint', 'test', 'typecheck'], started_at: Date.now() - 15000 },
+        { id: 'e2e', name: 'E2E Tests', status: 'queued', command: '', depends_on: ['build'] },
+        { id: 'deploy-db', name: 'Deploy DB', status: 'queued', command: '', depends_on: ['build'] },
+        { id: 'deploy-web', name: 'Deploy Web', status: 'queued', command: '', depends_on: ['deploy-db'] },
+        { id: 'deploy-preview', name: 'Deploy Preview', status: 'queued', command: '', depends_on: ['build'] },
+      ],
+    };
+
+    let currentTheme = darkTheme;
+    let minimapEnabled = false;
+    let direction = 'LeftToRight';
+
+    const graph = new WorkflowGraph(document.getElementById('container'), {
+      onNodeClick: (jobId) => console.log('Clicked:', jobId),
+      onEdgeClick: (from, to) => console.log('Edge:', from, '->', to),
+      onSelectionChange: (ids) => console.log('Selected:', ids),
+      theme: { ...darkTheme, minimap: false },
+      autoResize: true,
+    });
+
+    await graph.setWorkflow(workflow);
+
+    // Expose to global scope for button handlers
+    window.graph = graph;
+
+    window.setTheme = async (name) => {
+      const themes = { dark: darkTheme, light: lightTheme, highContrast: highContrastTheme };
+      currentTheme = themes[name] || darkTheme;
+      await graph.setTheme({ ...currentTheme, minimap: minimapEnabled, direction });
+    };
+
+    window.toggleMinimap = async () => {
+      minimapEnabled = !minimapEnabled;
+      await graph.setTheme({ ...currentTheme, minimap: minimapEnabled, direction });
+    };
+
+    window.toggleDirection = async () => {
+      direction = direction === 'LeftToRight' ? 'TopToBottom' : 'LeftToRight';
+      await graph.setTheme({ ...currentTheme, minimap: minimapEnabled, direction });
+    };
+  </script>
+</body>
+</html>

@@ -152,6 +152,16 @@ for await (const chunk of client.streamLogs(wfId, jobId)) {
 }
 ```
 
+## Examples
+
+Working examples for each package are in the [`examples/`](examples/) directory:
+
+| Example | Package | Description |
+|---------|---------|-------------|
+| [vanilla-web](examples/vanilla-web/) | `@auser/workflow-graph-web` | Plain HTML + ES modules with theme switching, minimap, direction toggle |
+| [react-app](examples/react-app/) | `@auser/workflow-graph-react` | React app with ref API, theme switching, custom edge styles, error handling |
+| [client-polling](examples/client-polling/) | `@auser/workflow-graph-client` | Node.js script that runs a workflow and polls for status with live output |
+
 ## Theming
 
 Three built-in presets:

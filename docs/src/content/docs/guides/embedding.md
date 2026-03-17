@@ -3,6 +3,13 @@ title: Embedding in Your Application
 description: Use workflow-graph as a library in your Axum server, React app, or vanilla JS project
 ---
 
+:::tip[Examples]
+Working examples for each package are in the [`examples/`](https://github.com/auser/workflow-graph/tree/main/examples) directory:
+- [**vanilla-web**](https://github.com/auser/workflow-graph/tree/main/examples/vanilla-web) — Plain HTML + ES modules
+- [**react-app**](https://github.com/auser/workflow-graph/tree/main/examples/react-app) — React with ref API and theme switching
+- [**client-polling**](https://github.com/auser/workflow-graph/tree/main/examples/client-polling) — Node.js status polling
+:::
+
 ## Frontend: NPM Packages
 
 ### React
