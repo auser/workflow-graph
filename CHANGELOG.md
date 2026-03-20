@@ -2,12 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.1] - 2026-03-17
+## [0.5.0] - 2026-03-20
+
+### Features
+
+- Add metadata field to Job/Edge and WASM-level node CRUD API([a86bbfa](https://github.com/auser/workflow-graph/commit/a86bbfa474b7226b2c4a22016e5f713adf82795a))
+
+### Bug Fixes
+
+- Correct workspace dep pattern in bump-versions recipe([c889c1c](https://github.com/auser/workflow-graph/commit/c889c1c9589a1dc302970ddeb83cbd451ebb87ae))
+- Move test module to end of file to satisfy clippy([ba7a0ad](https://github.com/auser/workflow-graph/commit/ba7a0ada8ba45ebef3e7af39e367da030bd438dc))
+
+### Styling
+
+- Apply clippy auto-fixes([4bd43a0](https://github.com/auser/workflow-graph/commit/4bd43a0fbe3e6b84af1891c1902dd5bce39d3bc4))
+
+### Testing
+
+- Add tests for node CRUD API and update documentation([8124320](https://github.com/auser/workflow-graph/commit/8124320f2918dd0397c0bc31d3956a6f3a2375df))
 
 ### Miscellaneous
 
-- Bump workspace version to 0.4.1([16b2329](https://github.com/auser/workflow-graph/commit/16b2329bc28b813fb6c3b2e8029927516437da56))
+- Bump workspace version to 0.5.0([ad055e3](https://github.com/auser/workflow-graph/commit/ad055e324c5b510ba3bf52740667fdf61aad3915))
 ## [0.4.0] - 2026-03-17
+
+### Bug Fixes
+
+- Tolerate already-published npm packages on re-run([a07be90](https://github.com/auser/workflow-graph/commit/a07be90a32d9d7a895b16c6b70d91c2e7c3ed1ee))
+- Tolerate already-published crates on re-run([11fc86e](https://github.com/auser/workflow-graph/commit/11fc86e6bf5b06aa6857aeaf50ee52be1446f9ba))
+## [0.4.1] - 2026-03-17
 
 ### Features
 
@@ -16,6 +39,7 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- Bump npm package versions to 0.4.0 to match workspace([b515ea8](https://github.com/auser/workflow-graph/commit/b515ea86b061e519f94582a39829c95e95817d50))
 - Serve WASM as static asset and set explicit URL in React example([3345e33](https://github.com/auser/workflow-graph/commit/3345e334f5eef0ff16c16e4acc969f2553dad259))
 - Use Vite aliases to resolve packages from source([e613646](https://github.com/auser/workflow-graph/commit/e61364686be1a73574c5badd87f77deeb627f7b3))
 - Add PORT env var to client-polling and server URL logging to worker([62220b8](https://github.com/auser/workflow-graph/commit/62220b874705ef36615fc11b7ce434b9c3ac1dc4))
@@ -38,6 +62,9 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Add changelog entry for v0.4.1([c780795](https://github.com/auser/workflow-graph/commit/c780795217d0d7340ba51a637a1e9bc0fd133ea9))
+- Bump workspace version to 0.4.1([16b2329](https://github.com/auser/workflow-graph/commit/16b2329bc28b813fb6c3b2e8029927516437da56))
+- Add changelog for v0.4.0([932d217](https://github.com/auser/workflow-graph/commit/932d2174db7557d7c4f8bdbd607cefb2341f2c90))
 - Bump workspace version to 0.4.0([4c91ce2](https://github.com/auser/workflow-graph/commit/4c91ce21a68e7b627e9e4b7fa0a78075f3379042))
 ## [0.3.0] - 2026-03-17
 
