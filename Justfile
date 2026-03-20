@@ -93,8 +93,8 @@ bump-versions VERSION:
     # Root workspace manifest: [workspace.package] version and inline dep versions
     sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' Cargo.toml
     # Update existing workspace dep versions, then add version to any that lack it
-    perl -i -pe 's|(version = )"[^"]+"|${1}"{{VERSION}}"| if /^agentzero-/' Cargo.toml
-    perl -i -pe 's| \}$|, version = "{{VERSION}}" }| if /^agentzero-/ && !/version/' Cargo.toml
+    perl -i -pe 's|(version = )"[^"]+"|${1}"{{VERSION}}"| if /^workflow-graph-/' Cargo.toml
+    perl -i -pe 's| \}$|, version = "{{VERSION}}" }| if /^workflow-graph-/ && !/version/' Cargo.toml
     echo "    Cargo.toml [workspace.package] → {{VERSION}}"
     # Standalone Cargo.toml files (plugins, fixtures) that don't use version.workspace
     rg --files -g 'Cargo.toml' | grep -v '^Cargo\.toml$' | while IFS= read -r f; do
