@@ -23,6 +23,15 @@ export interface Job {
   required_labels?: string[];
   max_retries?: number;
   attempt?: number;
+  /** Arbitrary metadata for custom renderers (e.g., node_type, icon, color). */
+  metadata?: Record<string, unknown>;
+}
+
+/** An edge between two nodes with optional metadata. */
+export interface EdgeInfo {
+  from_id: string;
+  to_id: string;
+  metadata?: Record<string, unknown>;
 }
 
 // ─── Theme types ─────────────────────────────────────────────────────────────
@@ -165,6 +174,13 @@ interface WasmModule {
   set_zoom(canvasId: string, level: number): void;
   get_node_positions(canvasId: string): Record<string, [number, number]>;
   set_node_positions(canvasId: string, json: string): void;
+  add_node(canvasId: string, jobJson: string): void;
+  remove_node(canvasId: string, jobId: string): void;
+  update_node(canvasId: string, jobId: string, partialJson: string): void;
+  add_edge(canvasId: string, fromId: string, toId: string, metadataJson: string | null): void;
+  remove_edge(canvasId: string, fromId: string, toId: string): void;
+  get_nodes(canvasId: string): Job[];
+  get_edges(canvasId: string): EdgeInfo[];
   destroy(canvasId: string): void;
 }
 
@@ -320,6 +336,50 @@ export class WorkflowGraph {
   async setNodePositions(positions: Record<string, [number, number]>): Promise<void> {
     const wasm = await ensureWasm();
     wasm.set_node_positions(this.canvasId, JSON.stringify(positions));
+  }
+
+  // ─── Node CRUD API ─────────────────────────────────────────────────────────
+
+  /** Add a new node to the graph. Triggers re-layout. */
+  async addNode(job: Job): Promise<void> {
+    const wasm = await ensureWasm();
+    wasm.add_node(this.canvasId, JSON.stringify(job));
+  }
+
+  /** Remove a node and all its connected edges. Triggers re-layout. */
+  async removeNode(jobId: string): Promise<void> {
+    const wasm = await ensureWasm();
+    wasm.remove_node(this.canvasId, jobId);
+  }
+
+  /** Update a node's properties via partial JSON merge. */
+  async updateNode(jobId: string, partial: Partial<Job>): Promise<void> {
+    const wasm = await ensureWasm();
+    wasm.update_node(this.canvasId, jobId, JSON.stringify(partial));
+  }
+
+  /** Add an edge between two nodes. */
+  async addEdge(fromId: string, toId: string, metadata?: Record<string, unknown>): Promise<void> {
+    const wasm = await ensureWasm();
+    wasm.add_edge(this.canvasId, fromId, toId, metadata ? JSON.stringify(metadata) : null);
+  }
+
+  /** Remove an edge between two nodes. */
+  async removeEdge(fromId: string, toId: string): Promise<void> {
+    const wasm = await ensureWasm();
+    wasm.remove_edge(this.canvasId, fromId, toId);
+  }
+
+  /** Get all nodes in the graph. */
+  async getNodes(): Promise<Job[]> {
+    const wasm = await ensureWasm();
+    return wasm.get_nodes(this.canvasId);
+  }
+
+  /** Get all edges in the graph. */
+  async getEdges(): Promise<EdgeInfo[]> {
+    const wasm = await ensureWasm();
+    return wasm.get_edges(this.canvasId);
   }
 
   /** Clean up event listeners, resize observer, and remove the canvas. */

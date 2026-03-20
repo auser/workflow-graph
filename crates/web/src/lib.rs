@@ -15,7 +15,7 @@ use web_sys::{
 
 use layout::GraphLayout;
 use theme::ResolvedTheme;
-use workflow_graph_shared::{JobStatus, Workflow};
+use workflow_graph_shared::{Job, JobStatus, Workflow};
 
 const CLICK_THRESHOLD: f64 = 5.0;
 const MIN_ZOOM: f64 = 0.25;
@@ -697,6 +697,251 @@ pub fn set_on_render_node(canvas_id: &str, callback: js_sys::Function) {
     with_state(canvas_id, |s| {
         s.on_render_node = Some(callback);
     });
+}
+
+// ─── Node CRUD API ───────────────────────────────────────────────────────────
+
+/// Add a new node (job) to the graph. Triggers re-layout and re-render.
+#[wasm_bindgen]
+pub fn add_node(canvas_id: &str, job_json: &str) -> Result<(), JsValue> {
+    let job: Job = serde_json::from_str(job_json)
+        .map_err(|e| JsValue::from_str(&format!("Job JSON parse error: {e}")))?;
+
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+            // Prevent duplicate IDs
+            if s.workflow.jobs.iter().any(|j| j.id == job.id) {
+                return Err(JsValue::from_str(&format!(
+                    "Node with id '{}' already exists",
+                    job.id
+                )));
+            }
+            s.workflow.jobs.push(job);
+            let new_layout = layout::compute_layout(&s.workflow, &s.theme);
+            s.canvas_width = new_layout.total_width;
+            s.canvas_height = new_layout.total_height;
+            s.initial_layout = new_layout.clone();
+            s.layout = new_layout;
+            s.redraw();
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
+        }
+    })
+}
+
+/// Remove a node and all its connected edges. Triggers re-layout and re-render.
+#[wasm_bindgen]
+pub fn remove_node(canvas_id: &str, job_id: &str) -> Result<(), JsValue> {
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+            let original_len = s.workflow.jobs.len();
+            s.workflow.jobs.retain(|j| j.id != job_id);
+            if s.workflow.jobs.len() == original_len {
+                return Err(JsValue::from_str(&format!(
+                    "No node with id '{job_id}'"
+                )));
+            }
+            // Remove edges referencing this node
+            for job in &mut s.workflow.jobs {
+                job.depends_on.retain(|dep| dep != job_id);
+            }
+            s.selected.remove(job_id);
+            let new_layout = layout::compute_layout(&s.workflow, &s.theme);
+            s.canvas_width = new_layout.total_width;
+            s.canvas_height = new_layout.total_height;
+            s.initial_layout = new_layout.clone();
+            s.layout = new_layout;
+            s.highlighted_edges.clear();
+            s.redraw();
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
+        }
+    })
+}
+
+/// Update a node's properties (partial update via JSON merge).
+#[wasm_bindgen]
+pub fn update_node(canvas_id: &str, job_id: &str, partial_json: &str) -> Result<(), JsValue> {
+    let partial: serde_json::Value = serde_json::from_str(partial_json)
+        .map_err(|e| JsValue::from_str(&format!("JSON parse error: {e}")))?;
+
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+            let job = s
+                .workflow
+                .jobs
+                .iter_mut()
+                .find(|j| j.id == job_id)
+                .ok_or_else(|| JsValue::from_str(&format!("No node with id '{job_id}'")))?;
+
+            // Merge fields from the partial JSON
+            if let Some(name) = partial.get("name").and_then(|v| v.as_str()) {
+                job.name = name.to_string();
+            }
+            if let Some(status) = partial.get("status").and_then(|v| v.as_str()) {
+                job.status = match status {
+                    "queued" => JobStatus::Queued,
+                    "running" => JobStatus::Running,
+                    "success" => JobStatus::Success,
+                    "failure" => JobStatus::Failure,
+                    "skipped" => JobStatus::Skipped,
+                    "cancelled" => JobStatus::Cancelled,
+                    _ => job.status.clone(),
+                };
+            }
+            if let Some(command) = partial.get("command").and_then(|v| v.as_str()) {
+                job.command = command.to_string();
+            }
+            if let Some(metadata) = partial.get("metadata").and_then(|v| v.as_object()) {
+                for (k, v) in metadata {
+                    job.metadata.insert(k.clone(), v.clone());
+                }
+            }
+
+            s.redraw();
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
+        }
+    })
+}
+
+/// Add an edge between two nodes. Triggers re-layout and re-render.
+#[wasm_bindgen]
+pub fn add_edge(
+    canvas_id: &str,
+    from_id: &str,
+    to_id: &str,
+    metadata_json: Option<String>,
+) -> Result<(), JsValue> {
+    let edge_metadata: std::collections::HashMap<String, serde_json::Value> =
+        match metadata_json {
+            Some(ref json) if !json.is_empty() => serde_json::from_str(json)
+                .map_err(|e| JsValue::from_str(&format!("Metadata JSON parse error: {e}")))?,
+            _ => std::collections::HashMap::new(),
+        };
+
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+            // Validate both nodes exist
+            let from_exists = s.workflow.jobs.iter().any(|j| j.id == from_id);
+            let to_exists = s.workflow.jobs.iter().any(|j| j.id == to_id);
+            if !from_exists {
+                return Err(JsValue::from_str(&format!(
+                    "Source node '{from_id}' not found"
+                )));
+            }
+            if !to_exists {
+                return Err(JsValue::from_str(&format!(
+                    "Target node '{to_id}' not found"
+                )));
+            }
+            // Add dependency (edge is from_id -> to_id, meaning to_id depends on from_id)
+            let to_job = s
+                .workflow
+                .jobs
+                .iter_mut()
+                .find(|j| j.id == to_id)
+                .expect("validated above");
+            if !to_job.depends_on.contains(&from_id.to_string()) {
+                to_job.depends_on.push(from_id.to_string());
+            }
+            // Add to layout edges
+            s.layout.edges.push(layout::Edge {
+                from_id: from_id.to_string(),
+                to_id: to_id.to_string(),
+                metadata: edge_metadata,
+            });
+            s.redraw();
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
+        }
+    })
+}
+
+/// Remove an edge between two nodes. Triggers re-render.
+#[wasm_bindgen]
+pub fn remove_edge(canvas_id: &str, from_id: &str, to_id: &str) -> Result<(), JsValue> {
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+            // Remove dependency
+            if let Some(to_job) = s.workflow.jobs.iter_mut().find(|j| j.id == to_id) {
+                to_job.depends_on.retain(|dep| dep != from_id);
+            }
+            // Remove from layout edges
+            s.layout
+                .edges
+                .retain(|e| !(e.from_id == from_id && e.to_id == to_id));
+            s.highlighted_edges.clear();
+            s.redraw();
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
+        }
+    })
+}
+
+/// Get all nodes as a JSON array of Job objects.
+#[wasm_bindgen]
+pub fn get_nodes(canvas_id: &str) -> JsValue {
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let s = instance.state.borrow();
+            serde_wasm_bindgen::to_value(&s.workflow.jobs).unwrap_or(JsValue::NULL)
+        } else {
+            JsValue::NULL
+        }
+    })
+}
+
+/// Get all edges as a JSON array of `{ from_id, to_id, metadata }` objects.
+#[wasm_bindgen]
+pub fn get_edges(canvas_id: &str) -> JsValue {
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let s = instance.state.borrow();
+            let edges: Vec<serde_json::Value> = s
+                .layout
+                .edges
+                .iter()
+                .map(|e| {
+                    serde_json::json!({
+                        "from_id": e.from_id,
+                        "to_id": e.to_id,
+                        "metadata": e.metadata,
+                    })
+                })
+                .collect();
+            serde_wasm_bindgen::to_value(&edges).unwrap_or(JsValue::NULL)
+        } else {
+            JsValue::NULL
+        }
+    })
 }
 
 #[wasm_bindgen]

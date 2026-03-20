@@ -16,6 +16,8 @@ pub struct NodeLayout {
 pub struct Edge {
     pub from_id: String,
     pub to_id: String,
+    /// Arbitrary metadata for custom edge rendering (e.g., condition labels, edge type).
+    pub metadata: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Clone, Debug)]
@@ -161,6 +163,7 @@ pub fn compute_layout(workflow: &Workflow, theme: &ResolvedTheme) -> GraphLayout
                 edges.push(Edge {
                     from_id: dep_id.clone(),
                     to_id: job.id.clone(),
+                    metadata: HashMap::new(),
                 });
             }
         }

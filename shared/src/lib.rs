@@ -1,5 +1,7 @@
 pub mod yaml;
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,6 +36,9 @@ pub struct Job {
     /// Current attempt number (0-indexed).
     #[serde(default)]
     pub attempt: u32,
+    /// Arbitrary metadata for custom renderers (e.g., node_type, icon, color).
+    #[serde(default)]
+    pub metadata: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -64,6 +69,7 @@ impl Workflow {
                     required_labels: vec![],
                     max_retries: 0,
                     attempt: 0,
+                    metadata: HashMap::new(),
                 },
                 Job {
                     id: "lint".into(),
@@ -77,6 +83,7 @@ impl Workflow {
                     required_labels: vec![],
                     max_retries: 0,
                     attempt: 0,
+                    metadata: HashMap::new(),
                 },
                 Job {
                     id: "typecheck".into(),
@@ -90,6 +97,7 @@ impl Workflow {
                     required_labels: vec![],
                     max_retries: 0,
                     attempt: 0,
+                    metadata: HashMap::new(),
                 },
                 Job {
                     id: "build".into(),
@@ -103,6 +111,7 @@ impl Workflow {
                     required_labels: vec![],
                     max_retries: 0,
                     attempt: 0,
+                    metadata: HashMap::new(),
                 },
                 Job {
                     id: "deploy-db".into(),
@@ -116,6 +125,7 @@ impl Workflow {
                     required_labels: vec![],
                     max_retries: 0,
                     attempt: 0,
+                    metadata: HashMap::new(),
                 },
                 Job {
                     id: "e2e-tests".into(),
@@ -129,6 +139,7 @@ impl Workflow {
                     required_labels: vec![],
                     max_retries: 0,
                     attempt: 0,
+                    metadata: HashMap::new(),
                 },
                 Job {
                     id: "deploy-preview".into(),
@@ -142,6 +153,7 @@ impl Workflow {
                     required_labels: vec![],
                     max_retries: 0,
                     attempt: 0,
+                    metadata: HashMap::new(),
                 },
                 Job {
                     id: "deploy-web".into(),
@@ -155,6 +167,7 @@ impl Workflow {
                     required_labels: vec![],
                     max_retries: 0,
                     attempt: 0,
+                    metadata: HashMap::new(),
                 },
             ],
         }

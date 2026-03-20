@@ -12,6 +12,8 @@ import React, {
 import {
   WorkflowGraph,
   type Workflow,
+  type Job as JobType,
+  type EdgeInfo as EdgeInfoType,
   type GraphOptions,
   type ThemeConfig,
 } from '@auser/workflow-graph-web';
@@ -19,6 +21,7 @@ import {
 export type {
   Workflow,
   Job,
+  EdgeInfo,
   GraphOptions,
   ThemeConfig,
   ThemeColors,
@@ -40,6 +43,13 @@ export interface WorkflowGraphHandle {
   getNodePositions(): Promise<Record<string, [number, number]>>;
   setNodePositions(positions: Record<string, [number, number]>): Promise<void>;
   setTheme(theme: ThemeConfig): Promise<void>;
+  addNode(job: JobType): Promise<void>;
+  removeNode(jobId: string): Promise<void>;
+  updateNode(jobId: string, partial: Partial<JobType>): Promise<void>;
+  addEdge(fromId: string, toId: string, metadata?: Record<string, unknown>): Promise<void>;
+  removeEdge(fromId: string, toId: string): Promise<void>;
+  getNodes(): Promise<JobType[]>;
+  getEdges(): Promise<EdgeInfoType[]>;
   readonly instance: WorkflowGraph | null;
 }
 
@@ -139,6 +149,16 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         setNodePositions: (positions: Record<string, [number, number]>) =>
           graphRef.current?.setNodePositions(positions) ?? Promise.resolve(),
         setTheme: (t: ThemeConfig) => graphRef.current?.setTheme(t) ?? Promise.resolve(),
+        addNode: (job: JobType) => graphRef.current?.addNode(job) ?? Promise.resolve(),
+        removeNode: (jobId: string) => graphRef.current?.removeNode(jobId) ?? Promise.resolve(),
+        updateNode: (jobId: string, partial: Partial<JobType>) =>
+          graphRef.current?.updateNode(jobId, partial) ?? Promise.resolve(),
+        addEdge: (fromId: string, toId: string, metadata?: Record<string, unknown>) =>
+          graphRef.current?.addEdge(fromId, toId, metadata) ?? Promise.resolve(),
+        removeEdge: (fromId: string, toId: string) =>
+          graphRef.current?.removeEdge(fromId, toId) ?? Promise.resolve(),
+        getNodes: () => graphRef.current?.getNodes() ?? Promise.resolve([] as JobType[]),
+        getEdges: () => graphRef.current?.getEdges() ?? Promise.resolve([] as EdgeInfoType[]),
         get instance() {
           return graphRef.current;
         },

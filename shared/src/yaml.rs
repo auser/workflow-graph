@@ -196,6 +196,7 @@ impl WorkflowDef {
                 required_labels: job_def.labels.clone(),
                 max_retries: job_def.retries,
                 attempt: 0,
+                metadata: std::collections::HashMap::new(),
             });
         }
 

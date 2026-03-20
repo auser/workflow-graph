@@ -31,6 +31,7 @@ fn generate_diamond_workflow(total_jobs: usize) -> Workflow {
         required_labels: vec![],
         max_retries: 0,
         attempt: 0,
+        metadata: std::collections::HashMap::new(),
     });
 
     if total_jobs <= 2 {
@@ -60,6 +61,7 @@ fn generate_diamond_workflow(total_jobs: usize) -> Workflow {
             required_labels: vec![],
             max_retries: 0,
             attempt: 0,
+            metadata: std::collections::HashMap::new(),
         });
     }
 
@@ -78,6 +80,7 @@ fn generate_diamond_workflow(total_jobs: usize) -> Workflow {
             required_labels: vec![],
             max_retries: 0,
             attempt: 0,
+            metadata: std::collections::HashMap::new(),
         });
     }
 
@@ -95,6 +98,7 @@ fn generate_diamond_workflow(total_jobs: usize) -> Workflow {
         required_labels: vec![],
         max_retries: 0,
         attempt: 0,
+        metadata: std::collections::HashMap::new(),
     });
 
     Workflow {
