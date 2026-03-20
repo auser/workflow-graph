@@ -234,10 +234,7 @@ mod tests {
 
     #[test]
     fn compute_layout_creates_edges_with_empty_metadata() {
-        let wf = make_workflow(vec![
-            make_job("a", vec![]),
-            make_job("b", vec!["a".into()]),
-        ]);
+        let wf = make_workflow(vec![make_job("a", vec![]), make_job("b", vec!["a".into()])]);
         let theme = ResolvedTheme::default();
         let layout = compute_layout(&wf, &theme);
 
@@ -329,7 +326,7 @@ mod tests {
 
         assert_eq!(layout.nodes.len(), wf.jobs.len());
         // Sample workflow has edges: 3 roots -> build, build -> 3 downstream, deploy-db -> deploy-web
-        assert!(layout.edges.len() > 0);
+        assert!(!layout.edges.is_empty());
         assert!(layout.total_width > 0.0);
         assert!(layout.total_height > 0.0);
 

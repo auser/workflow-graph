@@ -744,9 +744,7 @@ pub fn remove_node(canvas_id: &str, job_id: &str) -> Result<(), JsValue> {
             let original_len = s.workflow.jobs.len();
             s.workflow.jobs.retain(|j| j.id != job_id);
             if s.workflow.jobs.len() == original_len {
-                return Err(JsValue::from_str(&format!(
-                    "No node with id '{job_id}'"
-                )));
+                return Err(JsValue::from_str(&format!("No node with id '{job_id}'")));
             }
             // Remove edges referencing this node
             for job in &mut s.workflow.jobs {
@@ -828,12 +826,11 @@ pub fn add_edge(
     to_id: &str,
     metadata_json: Option<String>,
 ) -> Result<(), JsValue> {
-    let edge_metadata: std::collections::HashMap<String, serde_json::Value> =
-        match metadata_json {
-            Some(ref json) if !json.is_empty() => serde_json::from_str(json)
-                .map_err(|e| JsValue::from_str(&format!("Metadata JSON parse error: {e}")))?,
-            _ => std::collections::HashMap::new(),
-        };
+    let edge_metadata: std::collections::HashMap<String, serde_json::Value> = match metadata_json {
+        Some(ref json) if !json.is_empty() => serde_json::from_str(json)
+            .map_err(|e| JsValue::from_str(&format!("Metadata JSON parse error: {e}")))?,
+        _ => std::collections::HashMap::new(),
+    };
 
     GRAPHS.with(|g| {
         let graphs = g.borrow();
