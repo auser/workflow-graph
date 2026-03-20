@@ -176,3 +176,166 @@ pub fn compute_layout(workflow: &Workflow, theme: &ResolvedTheme) -> GraphLayout
         total_height: max_y + tl.padding,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::ResolvedTheme;
+    use workflow_graph_shared::{Job, JobStatus, Workflow};
+
+    fn make_job(id: &str, depends_on: Vec<String>) -> Job {
+        Job {
+            id: id.into(),
+            name: id.into(),
+            status: JobStatus::Queued,
+            command: "echo test".into(),
+            duration_secs: None,
+            started_at: None,
+            depends_on,
+            output: None,
+            required_labels: vec![],
+            max_retries: 0,
+            attempt: 0,
+            metadata: HashMap::new(),
+        }
+    }
+
+    fn make_workflow(jobs: Vec<Job>) -> Workflow {
+        Workflow {
+            id: "test".into(),
+            name: "Test".into(),
+            trigger: "on: push".into(),
+            jobs,
+        }
+    }
+
+    #[test]
+    fn compute_layout_empty_workflow() {
+        let wf = make_workflow(vec![]);
+        let theme = ResolvedTheme::default();
+        let layout = compute_layout(&wf, &theme);
+
+        assert!(layout.nodes.is_empty());
+        assert!(layout.edges.is_empty());
+        assert_eq!(layout.total_width, 0.0);
+        assert_eq!(layout.total_height, 0.0);
+    }
+
+    #[test]
+    fn compute_layout_single_node() {
+        let wf = make_workflow(vec![make_job("a", vec![])]);
+        let theme = ResolvedTheme::default();
+        let layout = compute_layout(&wf, &theme);
+
+        assert_eq!(layout.nodes.len(), 1);
+        assert_eq!(layout.nodes[0].job_id, "a");
+        assert!(layout.edges.is_empty());
+    }
+
+    #[test]
+    fn compute_layout_creates_edges_with_empty_metadata() {
+        let wf = make_workflow(vec![
+            make_job("a", vec![]),
+            make_job("b", vec!["a".into()]),
+        ]);
+        let theme = ResolvedTheme::default();
+        let layout = compute_layout(&wf, &theme);
+
+        assert_eq!(layout.edges.len(), 1);
+        assert_eq!(layout.edges[0].from_id, "a");
+        assert_eq!(layout.edges[0].to_id, "b");
+        assert!(layout.edges[0].metadata.is_empty());
+    }
+
+    #[test]
+    fn compute_layout_multiple_edges() {
+        let wf = make_workflow(vec![
+            make_job("a", vec![]),
+            make_job("b", vec![]),
+            make_job("c", vec!["a".into(), "b".into()]),
+        ]);
+        let theme = ResolvedTheme::default();
+        let layout = compute_layout(&wf, &theme);
+
+        assert_eq!(layout.nodes.len(), 3);
+        assert_eq!(layout.edges.len(), 2);
+
+        let edge_pairs: Vec<(&str, &str)> = layout
+            .edges
+            .iter()
+            .map(|e| (e.from_id.as_str(), e.to_id.as_str()))
+            .collect();
+        assert!(edge_pairs.contains(&("a", "c")));
+        assert!(edge_pairs.contains(&("b", "c")));
+    }
+
+    #[test]
+    fn compute_layout_diamond_dag() {
+        // a -> b, a -> c, b -> d, c -> d
+        let wf = make_workflow(vec![
+            make_job("a", vec![]),
+            make_job("b", vec!["a".into()]),
+            make_job("c", vec!["a".into()]),
+            make_job("d", vec!["b".into(), "c".into()]),
+        ]);
+        let theme = ResolvedTheme::default();
+        let layout = compute_layout(&wf, &theme);
+
+        assert_eq!(layout.nodes.len(), 4);
+        assert_eq!(layout.edges.len(), 4);
+    }
+
+    #[test]
+    fn compute_layout_assigns_different_layers() {
+        let wf = make_workflow(vec![
+            make_job("a", vec![]),
+            make_job("b", vec!["a".into()]),
+            make_job("c", vec!["b".into()]),
+        ]);
+        let theme = ResolvedTheme::default();
+        let layout = compute_layout(&wf, &theme);
+
+        // In left-to-right layout, nodes in later layers should have larger x values
+        let node_a = layout.nodes.iter().find(|n| n.job_id == "a").unwrap();
+        let node_b = layout.nodes.iter().find(|n| n.job_id == "b").unwrap();
+        let node_c = layout.nodes.iter().find(|n| n.job_id == "c").unwrap();
+
+        assert!(node_a.x < node_b.x, "a should be left of b");
+        assert!(node_b.x < node_c.x, "b should be left of c");
+    }
+
+    #[test]
+    fn edge_struct_holds_metadata() {
+        let mut meta = HashMap::new();
+        meta.insert("label".into(), serde_json::json!("on success"));
+        meta.insert("style".into(), serde_json::json!("dashed"));
+
+        let edge = Edge {
+            from_id: "a".into(),
+            to_id: "b".into(),
+            metadata: meta,
+        };
+
+        assert_eq!(edge.metadata.len(), 2);
+        assert_eq!(edge.metadata["label"], serde_json::json!("on success"));
+        assert_eq!(edge.metadata["style"], serde_json::json!("dashed"));
+    }
+
+    #[test]
+    fn compute_layout_sample_workflow() {
+        let wf = Workflow::sample();
+        let theme = ResolvedTheme::default();
+        let layout = compute_layout(&wf, &theme);
+
+        assert_eq!(layout.nodes.len(), wf.jobs.len());
+        // Sample workflow has edges: 3 roots -> build, build -> 3 downstream, deploy-db -> deploy-web
+        assert!(layout.edges.len() > 0);
+        assert!(layout.total_width > 0.0);
+        assert!(layout.total_height > 0.0);
+
+        // All edges should have empty metadata (from compute_layout)
+        for edge in &layout.edges {
+            assert!(edge.metadata.is_empty());
+        }
+    }
+}

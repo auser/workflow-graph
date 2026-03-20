@@ -20,8 +20,10 @@ Render interactive workflow graphs in the browser with pixel-perfect GitHub Octi
 - **Theming** — light, dark, and high-contrast presets; fully customizable colors, fonts, and dimensions
 - **Layout direction** — left-to-right (default) or top-to-bottom
 - **Minimap** — optional overview overlay for large graphs
+- **Node CRUD API** — add, remove, update nodes and edges at runtime with automatic re-layout
 - **Custom node rendering** — callback to draw custom node content
 - **Edge click & styles** — clickable edges with per-edge color, width, and dash patterns
+- **Node & edge metadata** — arbitrary key-value metadata on nodes and edges for custom renderers
 - **i18n** — configurable status labels and duration formats for any language
 - **Accessibility** — ARIA live region for status announcements, keyboard navigation, high-contrast theme
 - **Auto-resize** — ResizeObserver adapts canvas to container size changes
@@ -47,7 +49,7 @@ Render interactive workflow graphs in the browser with pixel-perfect GitHub Octi
 - **YAML/JSON workflows** — GitHub Actions-inspired definition format
 - **Embeddable** — use `create_router()` to embed the API in your own Axum server
 - **Edge-deployable** — API server is stateless; run scheduler separately or in-process
-- **38 tests** — unit, integration, performance, and YAML parsing
+- **51 tests** — unit, integration, performance, layout, and YAML parsing
 
 ## Architecture
 
@@ -113,6 +115,19 @@ await graph.updateStatus(newWorkflowData);
 
 // Runtime theme switching
 await graph.setTheme({ minimap: true, direction: 'TopToBottom' });
+
+// Node CRUD — add, remove, update nodes and edges at runtime
+await graph.addNode({
+  id: 'new-job', name: 'New Job', status: 'queued',
+  command: 'echo hello', depends_on: ['build'],
+  metadata: { icon: 'rocket' },
+});
+await graph.addEdge('build', 'new-job', { label: 'on success' });
+await graph.updateNode('new-job', { status: 'running' });
+const nodes = await graph.getNodes();
+const edges = await graph.getEdges();
+await graph.removeEdge('build', 'new-job');
+await graph.removeNode('new-job');
 ```
 
 ### React
@@ -138,6 +153,14 @@ const ref = useRef<WorkflowGraphHandle>(null);
 // Imperative control via ref
 ref.current?.zoomToFit();
 ref.current?.setTheme({ minimap: true });
+
+// Node CRUD via ref
+await ref.current?.addNode({ id: 'deploy', name: 'Deploy', status: 'queued', command: './deploy.sh', depends_on: ['build'] });
+await ref.current?.addEdge('build', 'deploy');
+await ref.current?.updateNode('deploy', { status: 'running' });
+const nodes = await ref.current?.getNodes();
+const edges = await ref.current?.getEdges();
+await ref.current?.removeNode('deploy');
 ```
 
 ### REST API Client
@@ -373,7 +396,7 @@ See [PERFORMANCE.md](PERFORMANCE.md) for benchmarks and optimization tips.
 ## Testing
 
 ```bash
-just test              # Run all tests (38 tests)
+just test              # Run all tests (51 tests)
 just check             # Type-check workspace
 cargo test -p workflow-graph-queue                    # Queue + scheduler unit tests
 cargo test --test integration -p workflow-graph-queue # Integration tests

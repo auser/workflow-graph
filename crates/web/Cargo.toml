@@ -7,7 +7,7 @@ repository.workspace = true
 description = "WASM Canvas renderer for interactive workflow DAG visualization"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 workflow-graph-shared.workspace = true

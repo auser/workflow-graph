@@ -73,6 +73,13 @@ import init, {
   set_zoom,
   get_node_positions,
   set_node_positions,
+  add_node,
+  remove_node,
+  update_node,
+  add_edge,
+  remove_edge,
+  get_nodes,
+  get_edges,
   destroy,
 } from 'workflow-graph-web';
 
@@ -258,6 +265,162 @@ Returns a JSON object of all node positions. Use this to persist layout across s
 
 Restore previously saved node positions.
 
+## Node CRUD API
+
+Dynamically add, remove, and update nodes and edges at runtime. All mutations trigger automatic re-layout and re-render.
+
+### `add_node(canvas_id, job_json)`
+
+Add a new node to the graph. The `job_json` string must be a valid JSON-serialized `Job` object. Throws if a node with the same ID already exists.
+
+```typescript
+// Raw WASM
+add_node('canvas-id', JSON.stringify({
+  id: 'new-job',
+  name: 'New Job',
+  status: 'queued',
+  command: 'echo hello',
+  depends_on: ['build'],
+  metadata: { icon: 'rocket', priority: 1 },
+}));
+
+// TypeScript wrapper
+await graph.addNode({
+  id: 'new-job',
+  name: 'New Job',
+  status: 'queued',
+  command: 'echo hello',
+  depends_on: ['build'],
+  metadata: { icon: 'rocket', priority: 1 },
+});
+```
+
+### `remove_node(canvas_id, job_id)`
+
+Remove a node and all its connected edges. Throws if the node doesn't exist.
+
+```typescript
+// Raw WASM
+remove_node('canvas-id', 'new-job');
+
+// TypeScript wrapper
+await graph.removeNode('new-job');
+```
+
+### `update_node(canvas_id, job_id, partial_json)`
+
+Update a node's properties via JSON merge. Only the provided fields are changed — omitted fields keep their current values. Supports updating `name`, `status`, `command`, and `metadata` (metadata is merged, not replaced).
+
+```typescript
+// Raw WASM
+update_node('canvas-id', 'new-job', JSON.stringify({
+  status: 'running',
+  metadata: { started_by: 'user-123' },
+}));
+
+// TypeScript wrapper
+await graph.updateNode('new-job', {
+  status: 'running',
+  metadata: { started_by: 'user-123' },
+});
+```
+
+### `add_edge(canvas_id, from_id, to_id, metadata_json?)`
+
+Add an edge between two existing nodes. The edge represents a dependency: `to_id` depends on `from_id`. Duplicate edges are silently ignored. Throws if either node doesn't exist.
+
+```typescript
+// Raw WASM
+add_edge('canvas-id', 'build', 'deploy', JSON.stringify({ label: 'on success' }));
+
+// TypeScript wrapper
+await graph.addEdge('build', 'deploy', { label: 'on success' });
+```
+
+### `remove_edge(canvas_id, from_id, to_id)`
+
+Remove an edge between two nodes.
+
+```typescript
+// Raw WASM
+remove_edge('canvas-id', 'build', 'deploy');
+
+// TypeScript wrapper
+await graph.removeEdge('build', 'deploy');
+```
+
+### `get_nodes(canvas_id) → Job[]`
+
+Returns all nodes in the graph as an array of `Job` objects.
+
+```typescript
+// Raw WASM
+const nodes = get_nodes('canvas-id');
+
+// TypeScript wrapper
+const nodes = await graph.getNodes();
+```
+
+### `get_edges(canvas_id) → EdgeInfo[]`
+
+Returns all edges as an array of `{ from_id, to_id, metadata }` objects.
+
+```typescript
+// Raw WASM
+const edges = get_edges('canvas-id');
+
+// TypeScript wrapper
+const edges = await graph.getEdges();
+```
+
+### React Ref API
+
+All Node CRUD methods are available on the `WorkflowGraphHandle` ref:
+
+```tsx
+const ref = useRef<WorkflowGraphHandle>(null);
+
+await ref.current?.addNode({ id: 'deploy', name: 'Deploy', status: 'queued', command: './deploy.sh', depends_on: ['build'] });
+await ref.current?.addEdge('build', 'deploy');
+await ref.current?.updateNode('deploy', { status: 'running' });
+const nodes = await ref.current?.getNodes();
+const edges = await ref.current?.getEdges();
+await ref.current?.removeEdge('build', 'deploy');
+await ref.current?.removeNode('deploy');
+```
+
+## Types
+
+### `Job`
+
+```typescript
+interface Job {
+  id: string;
+  name: string;
+  status: 'queued' | 'running' | 'success' | 'failure' | 'skipped' | 'cancelled';
+  command: string;
+  duration_secs?: number;
+  started_at?: number;
+  depends_on: string[];
+  output?: string;
+  required_labels?: string[];
+  max_retries?: number;
+  attempt?: number;
+  /** Arbitrary metadata for custom renderers (e.g., node_type, icon, color). */
+  metadata?: Record<string, unknown>;
+}
+```
+
+### `EdgeInfo`
+
+```typescript
+interface EdgeInfo {
+  from_id: string;
+  to_id: string;
+  metadata?: Record<string, unknown>;
+}
+```
+
 ## Cleanup
 
 ### `destroy(canvas_id)`
@@ -266,6 +429,8 @@ Remove all event listeners, ARIA live region, resize observer, and free resource
 
 ## Interaction Features
 
+- **Node CRUD** — add, remove, update nodes and edges at runtime with automatic re-layout
+- **Node & edge metadata** — attach arbitrary key-value data to nodes and edges for custom renderers
 - **GitHub-accurate icons** — Octicon SVG icons rendered via Canvas Path2D
 - **Status indicators** — queued (hollow circle), running (animated spinning ring), success (green check), failure (red X), skipped (gray slash), cancelled
 - **Animated timers** — running jobs show a live elapsed timer
