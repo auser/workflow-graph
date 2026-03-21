@@ -1297,6 +1297,14 @@ fn attach_event_handlers(
             let Ok(mut s) = state.try_borrow_mut() else { return };
 
             if s.port_dragging.is_some() {
+                // Cancel port drag if mouse button is no longer pressed
+                if event.buttons() == 0 {
+                    s.port_dragging = None;
+                    let html: &HtmlElement = s.canvas.unchecked_ref();
+                    html.style().set_property("cursor", "default").ok();
+                    s.redraw();
+                    return;
+                }
                 let (gx, gy) = s.screen_to_graph(mx, my);
                 if let Some(ref mut pd) = s.port_dragging {
                     pd.current_x = gx;
