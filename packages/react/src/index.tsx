@@ -189,15 +189,21 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
       const graph = new WorkflowGraph(containerRef.current, options);
       graphRef.current = graph;
 
-      graph
-        .setWorkflow(workflow)
-        .then(() => setLoading(false))
-        .catch((err: unknown) => {
-          const e = err instanceof Error ? err : new Error(String(err));
-          setError(e);
-          setLoading(false);
-          onError?.(e);
-        });
+      // Defer initialization to next frame to ensure canvas is in the DOM
+      requestAnimationFrame(() => {
+        graph
+          .setWorkflow(workflow)
+          .then(() => {
+            setLoading(false);
+            setError(null);
+          })
+          .catch((err: unknown) => {
+            const e = err instanceof Error ? err : new Error(String(err));
+            setError(e);
+            setLoading(false);
+            onError?.(e);
+          });
+      });
 
       return () => {
         graph.destroy().catch(() => {});
@@ -227,17 +233,9 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
       }
     }, [theme, onError]);
 
-    if (error) {
-      return (
-        <div className={className} style={style} role="alert">
-          <p>Failed to load workflow graph: {error.message}</p>
-        </div>
-      );
-    }
-
     return (
       <div className={className} style={{ ...style, position: 'relative' }}>
-        {loading && (loadingSkeleton ?? <DefaultSkeleton />)}
+        {(loading || error) && (loadingSkeleton ?? <DefaultSkeleton />)}
         <div
           ref={containerRef}
           style={{
