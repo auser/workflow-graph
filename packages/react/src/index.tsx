@@ -206,16 +206,16 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Update data when workflow changes
+    // Update data when workflow changes (only after initial load completes)
     useEffect(() => {
-      if (graphRef.current && workflow !== workflowRef.current) {
+      if (!loading && graphRef.current && workflow !== workflowRef.current) {
         workflowRef.current = workflow;
         graphRef.current.updateStatus(workflow).catch((err: unknown) => {
           const e = err instanceof Error ? err : new Error(String(err));
           onError?.(e);
         });
       }
-    }, [workflow, onError]);
+    }, [workflow, onError, loading]);
 
     // Update theme when it changes
     useEffect(() => {
@@ -236,9 +236,16 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
     }
 
     return (
-      <div className={className} style={style}>
+      <div className={className} style={{ ...style, position: 'relative' }}>
         {loading && (loadingSkeleton ?? <DefaultSkeleton />)}
-        <div ref={containerRef} style={loading ? { visibility: 'hidden', height: 0 } : undefined} />
+        <div
+          ref={containerRef}
+          style={{
+            width: '100%',
+            height: '100%',
+            ...(loading ? { position: 'absolute', opacity: 0, pointerEvents: 'none' } : {}),
+          }}
+        />
       </div>
     );
   },
