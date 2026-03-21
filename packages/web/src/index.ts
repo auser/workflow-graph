@@ -259,6 +259,7 @@ export class WorkflowGraph {
   private canvas: HTMLCanvasElement;
   private options: GraphOptions;
   private initialized = false;
+  private destroyed = false;
 
   constructor(container: HTMLElement, options: GraphOptions = {}) {
     this.canvasId = `gg-${Math.random().toString(36).slice(2, 9)}`;
@@ -309,6 +310,7 @@ export class WorkflowGraph {
 
   /** Update workflow data without resetting positions or zoom. */
   async updateStatus(workflow: Workflow): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     if (this.initialized) {
       wasm.update_workflow_data(this.canvasId, JSON.stringify(workflow));
@@ -319,6 +321,7 @@ export class WorkflowGraph {
 
   /** Update the theme at runtime. Triggers re-layout if dimensions or direction changed. */
   async setTheme(theme: ThemeConfig): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.set_theme(this.canvasId, JSON.stringify(theme));
     this.options.theme = theme;
@@ -326,6 +329,7 @@ export class WorkflowGraph {
 
   /** Enable or disable auto-resize via ResizeObserver. */
   async setAutoResize(enabled: boolean): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.set_auto_resize(this.canvasId, enabled);
     this.options.autoResize = enabled;
@@ -333,42 +337,49 @@ export class WorkflowGraph {
 
   /** Programmatically select a node. */
   async selectNode(jobId: string): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.select_node(this.canvasId, jobId);
   }
 
   /** Deselect all nodes. */
   async deselectAll(): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.deselect_all(this.canvasId);
   }
 
   /** Reset node positions to auto-layout. */
   async resetLayout(): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.reset_layout(this.canvasId);
   }
 
   /** Zoom to fit the entire graph. */
   async zoomToFit(): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.zoom_to_fit(this.canvasId);
   }
 
   /** Set zoom level (0.25 to 4.0). */
   async setZoom(level: number): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.set_zoom(this.canvasId, level);
   }
 
   /** Get current node positions for persistence. */
   async getNodePositions(): Promise<Record<string, [number, number]>> {
+    if (!this.alive) return {};
     const wasm = await ensureWasm();
     return wasm.get_node_positions(this.canvasId);
   }
 
   /** Restore previously saved node positions. */
   async setNodePositions(positions: Record<string, [number, number]>): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.set_node_positions(this.canvasId, JSON.stringify(positions));
   }
@@ -377,52 +388,70 @@ export class WorkflowGraph {
 
   /** Add a new node to the graph. Optionally specify position (x, y) in graph-space. */
   async addNode(job: Job, x?: number, y?: number): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.add_node(this.canvasId, JSON.stringify(job), x, y);
   }
 
   /** Remove a node and all its connected edges. Triggers re-layout. */
   async removeNode(jobId: string): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.remove_node(this.canvasId, jobId);
   }
 
   /** Update a node's properties via partial JSON merge. */
   async updateNode(jobId: string, partial: Partial<Job>): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.update_node(this.canvasId, jobId, JSON.stringify(partial));
   }
 
   /** Add an edge between two nodes, optionally specifying ports. */
   async addEdge(fromId: string, toId: string, fromPort?: string, toPort?: string, metadata?: Record<string, unknown>): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.add_edge(this.canvasId, fromId, toId, fromPort ?? null, toPort ?? null, metadata ? JSON.stringify(metadata) : null);
   }
 
   /** Remove an edge between two nodes. */
   async removeEdge(fromId: string, toId: string): Promise<void> {
+    if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.remove_edge(this.canvasId, fromId, toId);
   }
 
   /** Get all nodes in the graph. */
   async getNodes(): Promise<Job[]> {
+    if (!this.alive) return [];
     const wasm = await ensureWasm();
     return wasm.get_nodes(this.canvasId);
   }
 
   /** Get all edges in the graph. */
   async getEdges(): Promise<EdgeInfo[]> {
+    if (!this.alive) return [];
     const wasm = await ensureWasm();
     return wasm.get_edges(this.canvasId);
   }
 
   /** Clean up event listeners, resize observer, and remove the canvas. */
   async destroy(): Promise<void> {
-    const wasm = await ensureWasm();
-    wasm.destroy(this.canvasId);
+    this.destroyed = true;
+    // Remove canvas from DOM first to stop ResizeObserver from firing
     this.canvas.remove();
+    try {
+      const wasm = await ensureWasm();
+      wasm.destroy(this.canvasId);
+    } catch {
+      // Ignore — WASM may already be in a bad state
+    }
     this.initialized = false;
+  }
+
+  /** Guard: check if this instance is still alive before calling WASM */
+  private get alive(): boolean {
+    return this.initialized && !this.destroyed;
   }
 }
 
