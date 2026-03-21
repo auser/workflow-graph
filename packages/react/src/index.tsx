@@ -14,6 +14,7 @@ import {
   type Workflow,
   type Job as JobType,
   type EdgeInfo as EdgeInfoType,
+  type GraphState as GraphStateType,
   type GraphOptions,
   type ThemeConfig,
 } from '@auser/workflow-graph-web';
@@ -24,6 +25,7 @@ export type {
   Port,
   PortDirection,
   EdgeInfo,
+  GraphState,
   GraphOptions,
   ThemeConfig,
   ThemeColors,
@@ -52,6 +54,8 @@ export interface WorkflowGraphHandle {
   removeEdge(fromId: string, toId: string): Promise<void>;
   getNodes(): Promise<JobType[]>;
   getEdges(): Promise<EdgeInfoType[]>;
+  getState(): Promise<GraphStateType | null>;
+  loadState(state: GraphStateType): Promise<void>;
   readonly instance: WorkflowGraph | null;
 }
 
@@ -163,6 +167,8 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
           graphRef.current?.removeEdge(fromId, toId) ?? Promise.resolve(),
         getNodes: () => graphRef.current?.getNodes() ?? Promise.resolve([] as JobType[]),
         getEdges: () => graphRef.current?.getEdges() ?? Promise.resolve([] as EdgeInfoType[]),
+        getState: () => graphRef.current?.getState() ?? Promise.resolve(null),
+        loadState: (state: GraphStateType) => graphRef.current?.loadState(state) ?? Promise.resolve(),
         get instance() {
           return graphRef.current;
         },

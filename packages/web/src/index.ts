@@ -157,6 +157,17 @@ export type OnRenderNode = (
   job: Job,
 ) => boolean;
 
+/** Serializable graph state for persistence. */
+export interface GraphState {
+  version: number;
+  workflow: Workflow;
+  positions: Record<string, [number, number]>;
+  edges: EdgeInfo[];
+  zoom: number;
+  pan_x: number;
+  pan_y: number;
+}
+
 export interface GraphOptions {
   onNodeClick?: (jobId: string) => void;
   onNodeHover?: (jobId: string | null) => void;
@@ -210,6 +221,8 @@ interface WasmModule {
   remove_edge(canvasId: string, fromId: string, toId: string): void;
   get_nodes(canvasId: string): Job[];
   get_edges(canvasId: string): EdgeInfo[];
+  get_state(canvasId: string): GraphState;
+  load_state(canvasId: string, stateJson: string): void;
   destroy(canvasId: string): void;
 }
 
@@ -433,6 +446,22 @@ export class WorkflowGraph {
     if (!this.alive) return [];
     const wasm = await ensureWasm();
     return wasm.get_edges(this.canvasId);
+  }
+
+  // ─── State Persistence API ──────────────────────────────────────────────────
+
+  /** Get the full graph state for persistence (JSON-serializable). */
+  async getState(): Promise<GraphState | null> {
+    if (!this.alive) return null;
+    const wasm = await ensureWasm();
+    return wasm.get_state(this.canvasId) as GraphState | null;
+  }
+
+  /** Load a previously saved graph state. Restores nodes, positions, edges, zoom, pan. */
+  async loadState(state: GraphState): Promise<void> {
+    if (!this.alive) return;
+    const wasm = await ensureWasm();
+    wasm.load_state(this.canvasId, JSON.stringify(state));
   }
 
   /** Clean up event listeners, resize observer, and remove the canvas. */

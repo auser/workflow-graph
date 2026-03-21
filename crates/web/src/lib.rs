@@ -1191,6 +1191,125 @@ pub fn get_edges(canvas_id: &str) -> JsValue {
     })
 }
 
+/// Get the full graph state as a JSON string for persistence.
+/// Includes workflow data, node positions, zoom, pan, and selection.
+#[wasm_bindgen]
+pub fn get_state(canvas_id: &str) -> JsValue {
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let s = instance.state.borrow();
+            let positions: std::collections::HashMap<&str, (f64, f64)> = s
+                .layout
+                .nodes
+                .iter()
+                .map(|n| (n.job_id.as_str(), (n.x, n.y)))
+                .collect();
+            let edges: Vec<serde_json::Value> = s
+                .layout
+                .edges
+                .iter()
+                .map(|e| {
+                    serde_json::json!({
+                        "from_id": e.from_id,
+                        "to_id": e.to_id,
+                        "from_port": e.from_port,
+                        "to_port": e.to_port,
+                        "metadata": e.metadata,
+                    })
+                })
+                .collect();
+            let state = serde_json::json!({
+                "version": 1,
+                "workflow": s.workflow,
+                "positions": positions,
+                "edges": edges,
+                "zoom": s.zoom,
+                "pan_x": s.pan_x,
+                "pan_y": s.pan_y,
+            });
+            serde_wasm_bindgen::to_value(&state).unwrap_or(JsValue::NULL)
+        } else {
+            JsValue::NULL
+        }
+    })
+}
+
+/// Load a previously saved graph state from a JSON string.
+/// Restores workflow data, node positions, zoom, and pan.
+#[wasm_bindgen]
+pub fn load_state(canvas_id: &str, state_json: &str) -> Result<(), JsValue> {
+    let state_val: serde_json::Value = serde_json::from_str(state_json)
+        .map_err(|e| JsValue::from_str(&format!("State JSON parse error: {e}")))?;
+
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+
+            // Restore workflow
+            if let Some(workflow_val) = state_val.get("workflow") {
+                if let Ok(workflow) = serde_json::from_value::<Workflow>(workflow_val.clone()) {
+                    s.workflow = workflow;
+                }
+            }
+
+            // Recompute layout from workflow
+            let new_layout = layout::compute_layout(&s.workflow, &s.theme);
+            s.layout = new_layout;
+
+            // Restore positions (overrides computed layout)
+            if let Some(positions) = state_val.get("positions").and_then(|v| v.as_object()) {
+                for node in &mut s.layout.nodes {
+                    if let Some(pos) = positions.get(&node.job_id) {
+                        if let Some(arr) = pos.as_array() {
+                            if arr.len() == 2 {
+                                if let (Some(x), Some(y)) = (arr[0].as_f64(), arr[1].as_f64()) {
+                                    node.x = x;
+                                    node.y = y;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Restore edges with port info
+            if let Some(edges_val) = state_val.get("edges").and_then(|v| v.as_array()) {
+                s.layout.edges.clear();
+                for edge_val in edges_val {
+                    let from_id = edge_val.get("from_id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                    let to_id = edge_val.get("to_id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                    let from_port = edge_val.get("from_port").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                    let to_port = edge_val.get("to_port").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                    let metadata = edge_val.get("metadata")
+                        .and_then(|v| serde_json::from_value(v.clone()).ok())
+                        .unwrap_or_default();
+                    s.layout.edges.push(layout::Edge {
+                        from_id, to_id, from_port, to_port, metadata,
+                    });
+                }
+            }
+
+            // Restore zoom and pan
+            if let Some(zoom) = state_val.get("zoom").and_then(|v| v.as_f64()) {
+                s.zoom = zoom;
+            }
+            if let Some(pan_x) = state_val.get("pan_x").and_then(|v| v.as_f64()) {
+                s.pan_x = pan_x;
+            }
+            if let Some(pan_y) = state_val.get("pan_y").and_then(|v| v.as_f64()) {
+                s.pan_y = pan_y;
+            }
+
+            s.redraw();
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
+        }
+    })
+}
+
 #[wasm_bindgen]
 pub fn destroy(canvas_id: &str) {
     GRAPHS.with(|g| {
