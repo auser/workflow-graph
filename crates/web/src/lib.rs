@@ -1169,13 +1169,15 @@ fn with_state(canvas_id: &str, f: impl FnOnce(&mut GraphState)) {
 }
 
 fn maybe_start_animation(canvas_id: &str, state: &SharedState) {
-    let s = state.borrow();
+    let Ok(s) = state.try_borrow() else { return };
     if !s.has_running_jobs() || s.animating {
         return;
     }
     drop(s);
 
-    state.borrow_mut().animating = true;
+    let Ok(mut s) = state.try_borrow_mut() else { return };
+    s.animating = true;
+    drop(s);
     let state = state.clone();
     let _canvas_id = canvas_id.to_string();
 
@@ -1669,7 +1671,7 @@ fn attach_event_handlers(
         let closure =
             Closure::<dyn FnMut(web_sys::DragEvent)>::new(move |event: web_sys::DragEvent| {
                 event.prevent_default();
-                let s = state.borrow();
+                let Ok(s) = state.try_borrow() else { return };
                 let Some(ref cb) = s.on_drop else {
                     return;
                 };
