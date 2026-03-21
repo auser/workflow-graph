@@ -91,6 +91,10 @@ impl GraphState {
     fn redraw_with_time(&self, animation_time: f64, now_ms: f64) {
         let tw = self.canvas_width;
         let th = self.canvas_height;
+        // Guard against canvas being detached from the DOM (e.g., React unmount)
+        if tw <= 0.0 || th <= 0.0 || self.canvas.parent_element().is_none() {
+            return;
+        }
         self.canvas.set_width((tw * self.dpr) as u32);
         self.canvas.set_height((th * self.dpr) as u32);
         let html_el: &HtmlElement = self.canvas.unchecked_ref();
