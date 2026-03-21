@@ -89,8 +89,24 @@ struct GraphState {
 
 impl GraphState {
     fn redraw_with_time(&self, animation_time: f64, now_ms: f64) {
-        let tw = self.canvas_width;
-        let th = self.canvas_height;
+        // When autoResize is on, always use the parent container size
+        // so nodes can be rendered anywhere without clipping
+        let (tw, th) = if self.auto_resize {
+            if let Some(parent) = self.canvas.parent_element() {
+                let rect = parent.get_bounding_client_rect();
+                let pw = rect.width();
+                let ph = rect.height();
+                if pw > 0.0 && ph > 0.0 {
+                    (pw, ph)
+                } else {
+                    (self.canvas_width, self.canvas_height)
+                }
+            } else {
+                (self.canvas_width, self.canvas_height)
+            }
+        } else {
+            (self.canvas_width, self.canvas_height)
+        };
         // Guard against zero dimensions
         if tw <= 0.0 || th <= 0.0 {
             return;
