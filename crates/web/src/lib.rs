@@ -91,8 +91,8 @@ impl GraphState {
     fn redraw_with_time(&self, animation_time: f64, now_ms: f64) {
         let tw = self.canvas_width;
         let th = self.canvas_height;
-        // Guard against canvas being detached from the DOM (e.g., React unmount)
-        if tw <= 0.0 || th <= 0.0 || self.canvas.parent_element().is_none() {
+        // Guard against zero dimensions
+        if tw <= 0.0 || th <= 0.0 {
             return;
         }
         self.canvas.set_width((tw * self.dpr) as u32);
@@ -686,6 +686,10 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
                 let state_clone = state.clone();
                 let closure = Closure::<dyn FnMut(js_sys::Array, ResizeObserver)>::new(
                     move |entries: js_sys::Array, _observer: ResizeObserver| {
+                        // Guard: if state is already borrowed or canvas is gone, skip
+                        let Ok(mut s) = state_clone.try_borrow_mut() else {
+                            return;
+                        };
                         let entry: ResizeObserverEntry = match entries.get(0).dyn_into() {
                             Ok(e) => e,
                             Err(_) => return,
@@ -693,10 +697,7 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
                         let rect = entry.content_rect();
                         let w = rect.width();
                         let h = rect.height();
-                        if w > 0.0
-                            && h > 0.0
-                            && let Ok(mut s) = state_clone.try_borrow_mut()
-                        {
+                        if w > 0.0 && h > 0.0 {
                             s.canvas_width = w;
                             s.canvas_height = h;
                             s.redraw();
