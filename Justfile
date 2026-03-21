@@ -104,6 +104,9 @@ bump-versions VERSION:
             echo "    $f → {{VERSION}}"
         fi
     done
+    # Always sync the lockfile after version changes
+    cargo update --workspace
+    echo "    Cargo.lock → synced"
 
 # Cut a release with automatic version bump (based on conventional commits)
 release-auto:
@@ -128,9 +131,8 @@ release-auto:
     TAG="v${NEXT_VERSION}"
     echo "==> Auto-detected next version: $NEXT_VERSION (tag: $TAG)"
 
-    # 4. Bump all workspace versions and update lockfile
+    # 4. Bump all workspace versions (includes Cargo.lock sync)
     just bump-versions "$NEXT_VERSION"
-    cargo update --workspace
 
     # 5. Commit version bump + any fmt/clippy fixes
     if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
