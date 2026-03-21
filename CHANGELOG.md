@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2026-03-21
+
+### Bug Fixes
+
+- Group_selected uses first/last node ports, not all children([c649532](https://github.com/auser/workflow-graph/commit/c6495327efdb1e921b70a916c9e9f730e5840849))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.2([0441785](https://github.com/auser/workflow-graph/commit/04417856af2062038abfed3332121ff54f453dd7))
 ## [1.2.1] - 2026-03-21
 
 ### Bug Fixes
