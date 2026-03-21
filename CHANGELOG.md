@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-03-21
+
+### Features
+
+- Production node rendering, persistence fix, NodeDefinition API([013b095](https://github.com/auser/workflow-graph/commit/013b095b7d848e995c2af631f9006e2daf6c4956))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.0([25d6fd3](https://github.com/auser/workflow-graph/commit/25d6fd3fd9d1208af4ccc46157530f1bfc10c633))
 ## [0.5.1] - 2026-03-21
 
 ### Miscellaneous
