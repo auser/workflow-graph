@@ -601,7 +601,7 @@ pub fn update_workflow_data(canvas_id: &str, workflow_json: &str) -> Result<(), 
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let state = &instance.state;
-            let mut s = state.borrow_mut();
+            let Ok(mut s) = state.try_borrow_mut() else { return };
             // Snapshot old statuses for a11y announcements
             let old_statuses: HashMap<String, JobStatus> = s
                 .workflow
@@ -676,7 +676,7 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let state = &instance.state;
-            let mut s = state.borrow_mut();
+            let Ok(mut s) = state.try_borrow_mut() else { return };
             if enabled && !s.auto_resize {
                 let parent = s
                     .canvas
@@ -1161,7 +1161,9 @@ fn with_state(canvas_id: &str, f: impl FnOnce(&mut GraphState)) {
     GRAPHS.with(|g| {
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
-            f(&mut instance.state.borrow_mut());
+            if let Ok(mut s) = instance.state.try_borrow_mut() {
+                f(&mut s);
+            }
         }
     });
 }
@@ -1242,7 +1244,7 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
-            let mut s = state.borrow_mut();
+            let Ok(mut s) = state.try_borrow_mut() else { return };
             s.mouse_down_pos = Some((mx, my));
 
             let (gx, gy) = s.screen_to_graph(mx, my);
@@ -1269,7 +1271,7 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
-            let mut s = state.borrow_mut();
+            let Ok(mut s) = state.try_borrow_mut() else { return };
 
             if let Some(idx) = s.dragging {
                 let (gx, gy) = s.screen_to_graph(mx, my);
@@ -1326,7 +1328,7 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
-            let mut s = state.borrow_mut();
+            let Ok(mut s) = state.try_borrow_mut() else { return };
 
             let is_click = s
                 .mouse_down_pos
@@ -1408,7 +1410,7 @@ fn attach_event_handlers(
     {
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |_event: MouseEvent| {
-            let mut s = state.borrow_mut();
+            let Ok(mut s) = state.try_borrow_mut() else { return };
             s.dragging = None;
             s.panning = false;
             s.mouse_down_pos = None;
@@ -1432,7 +1434,7 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(WheelEvent)>::new(move |event: WheelEvent| {
             event.prevent_default();
-            let mut s = state.borrow_mut();
+            let Ok(mut s) = state.try_borrow_mut() else { return };
 
             let (mx, my) = {
                 let rect = s.canvas.get_bounding_client_rect();
@@ -1459,7 +1461,7 @@ fn attach_event_handlers(
     {
         let state = state.clone();
         let closure = Closure::<dyn FnMut(KeyboardEvent)>::new(move |event: KeyboardEvent| {
-            let mut s = state.borrow_mut();
+            let Ok(mut s) = state.try_borrow_mut() else { return };
             let key = event.key();
 
             match key.as_str() {
@@ -1533,7 +1535,7 @@ fn attach_event_handlers(
                     return;
                 };
                 let (mx, my) = touch_pos(&touch, &state);
-                let mut s = state.borrow_mut();
+                let Ok(mut s) = state.try_borrow_mut() else { return };
                 s.mouse_down_pos = Some((mx, my));
 
                 if let Some(idx) = s.hit_test(mx, my) {
@@ -1562,7 +1564,7 @@ fn attach_event_handlers(
                     return;
                 };
                 let (mx, my) = touch_pos(&touch, &state);
-                let mut s = state.borrow_mut();
+                let Ok(mut s) = state.try_borrow_mut() else { return };
 
                 if let Some(idx) = s.dragging {
                     let (gx, gy) = s.screen_to_graph(mx, my);
@@ -1592,7 +1594,7 @@ fn attach_event_handlers(
                 event.prevent_default();
                 // Use changedTouches for the finger that was lifted
                 let touch = event.changed_touches().get(0);
-                let mut s = state.borrow_mut();
+                let Ok(mut s) = state.try_borrow_mut() else { return };
 
                 if let Some(touch) = touch {
                     let rect = s.canvas.get_bounding_client_rect();
