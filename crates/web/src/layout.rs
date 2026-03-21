@@ -16,9 +16,7 @@ fn compute_node_height(
         Some(d) if !d.fields.is_empty() => {
             // header(28) + name line(24) + fields + ports + padding
             let field_h = d.fields.len() as f64 * 22.0;
-            let port_count = job.ports.len().max(
-                d.inputs.len() + d.outputs.len()
-            );
+            let port_count = job.ports.len().max(d.inputs.len() + d.outputs.len());
             let port_h = port_count as f64 * 20.0;
             let computed = 28.0 + 24.0 + field_h + port_h.max(0.0) + 12.0;
             computed.max(default_height)
@@ -169,7 +167,8 @@ pub fn compute_layout_with_defs(
     let mut max_y: f64 = 0.0;
 
     // Pre-compute per-node heights
-    let node_heights: Vec<f64> = jobs.iter()
+    let node_heights: Vec<f64> = jobs
+        .iter()
         .map(|j| compute_node_height(j, node_defs, tl.node_height))
         .collect();
 
@@ -179,7 +178,8 @@ pub fn compute_layout_with_defs(
     for group in &layer_groups {
         layer_y_offsets.push(cumulative_y);
         // Max height in this layer determines the next layer's offset
-        let max_h = group.iter()
+        let max_h = group
+            .iter()
             .map(|&idx| node_heights[idx])
             .fold(tl.node_height, f64::max);
         cumulative_y += max_h + if is_vertical { tl.h_gap } else { tl.v_gap };

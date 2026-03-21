@@ -153,21 +153,21 @@ impl GraphState {
                 node_definitions: &self.node_definitions,
                 selection_rect: self.selection_rect,
             },
-            self.port_dragging.as_ref().map(|pd| {
-                // Find the port's screen position from the node layout
-                let (start_x, start_y) = self.port_screen_pos(
-                    &pd.from_node_id,
-                    &pd.from_port_id,
-                    pd.from_is_output,
-                );
-                render::PortDragRender {
-                    from_x: start_x,
-                    from_y: start_y,
-                    to_x: pd.current_x,
-                    to_y: pd.current_y,
-                    color: "#58a6ff".to_string(),
-                }
-            }).as_ref(),
+            self.port_dragging
+                .as_ref()
+                .map(|pd| {
+                    // Find the port's screen position from the node layout
+                    let (start_x, start_y) =
+                        self.port_screen_pos(&pd.from_node_id, &pd.from_port_id, pd.from_is_output);
+                    render::PortDragRender {
+                        from_x: start_x,
+                        from_y: start_y,
+                        to_x: pd.current_x,
+                        to_y: pd.current_y,
+                        color: "#58a6ff".to_string(),
+                    }
+                })
+                .as_ref(),
         )
         .ok();
     }
@@ -209,30 +209,30 @@ impl GraphState {
         let port_radius: f64 = 5.0;
 
         if let Some(node) = self.layout.nodes.iter().find(|n| n.job_id == node_id)
-            && let Some(job) = self.workflow.jobs.iter().find(|j| j.id == node_id) {
-                let ports_of_dir: Vec<_> = job
-                    .ports
-                    .iter()
-                    .filter(|p| {
-                        if is_output {
-                            p.direction == PortDirection::Output
-                        } else {
-                            p.direction == PortDirection::Input
-                        }
-                    })
-                    .collect();
-
-                if let Some(idx) = ports_of_dir.iter().position(|p| p.id == port_id) {
-                    let px = if is_output {
-                        node.x + node.width
+            && let Some(job) = self.workflow.jobs.iter().find(|j| j.id == node_id)
+        {
+            let ports_of_dir: Vec<_> = job
+                .ports
+                .iter()
+                .filter(|p| {
+                    if is_output {
+                        p.direction == PortDirection::Output
                     } else {
-                        node.x
-                    };
-                    let py =
-                        node.y + port_y_offset(idx, ports_of_dir.len(), node.height, port_radius);
-                    return (px, py);
-                }
+                        p.direction == PortDirection::Input
+                    }
+                })
+                .collect();
+
+            if let Some(idx) = ports_of_dir.iter().position(|p| p.id == port_id) {
+                let px = if is_output {
+                    node.x + node.width
+                } else {
+                    node.x
+                };
+                let py = node.y + port_y_offset(idx, ports_of_dir.len(), node.height, port_radius);
+                return (px, py);
             }
+        }
         (0.0, 0.0)
     }
 
@@ -258,8 +258,7 @@ impl GraphState {
                 // Input ports on the left edge
                 for (i, port) in input_ports.iter().enumerate() {
                     let px = node.x;
-                    let py =
-                        node.y + port_y_offset(i, input_ports.len(), node.height, port_radius);
+                    let py = node.y + port_y_offset(i, input_ports.len(), node.height, port_radius);
                     if (gx - px).powi(2) + (gy - py).powi(2) < port_hit_radius.powi(2) {
                         return Some((
                             node_idx,
@@ -497,17 +496,15 @@ pub fn render_workflow(
         .map_err(|e| JsValue::from_str(&format!("JSON parse error: {e}")))?;
 
     let theme_config: Option<theme::ThemeConfig> = match theme_json {
-        Some(ref json) if !json.is_empty() => {
-            match serde_json::from_str(json) {
-                Ok(tc) => Some(tc),
-                Err(e) => {
-                    web_sys::console::warn_1(&JsValue::from_str(&format!(
-                        "Theme JSON parse warning (using defaults): {e}"
-                    )));
-                    None
-                }
+        Some(ref json) if !json.is_empty() => match serde_json::from_str(json) {
+            Ok(tc) => Some(tc),
+            Err(e) => {
+                web_sys::console::warn_1(&JsValue::from_str(&format!(
+                    "Theme JSON parse warning (using defaults): {e}"
+                )));
+                None
             }
-        }
+        },
         _ => None,
     };
     let resolved_theme = ResolvedTheme::from_config(theme_config);
@@ -552,10 +549,16 @@ pub fn render_workflow(
             if pw > 0.0 && ph > 0.0 {
                 (pw, ph)
             } else {
-                (graph_layout.total_width.max(600.0), graph_layout.total_height.max(300.0))
+                (
+                    graph_layout.total_width.max(600.0),
+                    graph_layout.total_height.max(300.0),
+                )
             }
         } else {
-            (graph_layout.total_width.max(600.0), graph_layout.total_height.max(300.0))
+            (
+                graph_layout.total_width.max(600.0),
+                graph_layout.total_height.max(300.0),
+            )
         }
     };
 
@@ -654,7 +657,9 @@ pub fn update_workflow_data(canvas_id: &str, workflow_json: &str) -> Result<(), 
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let state = &instance.state;
-            let Ok(mut s) = state.try_borrow_mut() else { return Ok(()) };
+            let Ok(mut s) = state.try_borrow_mut() else {
+                return Ok(());
+            };
             // Snapshot old statuses for a11y announcements
             let old_statuses: HashMap<String, JobStatus> = s
                 .workflow
@@ -716,7 +721,8 @@ pub fn set_theme(canvas_id: &str, theme_json: &str) -> Result<(), JsValue> {
         s.theme = resolved;
 
         if needs_relayout {
-            let new_layout = layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
+            let new_layout =
+                layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
             s.canvas_width = new_layout.total_width;
             s.canvas_height = new_layout.total_height;
             s.initial_layout = new_layout.clone();
@@ -736,7 +742,9 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let state = &instance.state;
-            let Ok(mut s) = state.try_borrow_mut() else { return Ok(()) };
+            let Ok(mut s) = state.try_borrow_mut() else {
+                return Ok(());
+            };
             if enabled && !s.auto_resize {
                 let parent = s
                     .canvas
@@ -950,7 +958,12 @@ pub fn register_node_type(canvas_id: &str, def_json: &str) -> Result<(), JsValue
 /// Add a new node (job) to the graph. Optionally specify position (x, y).
 /// If x/y are not provided (NaN or negative), positions below existing nodes.
 #[wasm_bindgen]
-pub fn add_node(canvas_id: &str, job_json: &str, x: Option<f64>, y: Option<f64>) -> Result<(), JsValue> {
+pub fn add_node(
+    canvas_id: &str,
+    job_json: &str,
+    x: Option<f64>,
+    y: Option<f64>,
+) -> Result<(), JsValue> {
     let job: Job = serde_json::from_str(job_json)
         .map_err(|e| JsValue::from_str(&format!("Job JSON parse error: {e}")))?;
 
@@ -975,7 +988,12 @@ pub fn add_node(canvas_id: &str, job_json: &str, x: Option<f64>, y: Option<f64>)
             let (new_x, new_y) = match (x, y) {
                 (Some(px), Some(py)) if px >= 0.0 && py >= 0.0 => (px, py),
                 _ => {
-                    let max_y = s.layout.nodes.iter().map(|n| n.y + n.height).fold(0.0_f64, f64::max);
+                    let max_y = s
+                        .layout
+                        .nodes
+                        .iter()
+                        .map(|n| n.y + n.height)
+                        .fold(0.0_f64, f64::max);
                     let auto_x = padding;
                     let auto_y = if s.layout.nodes.is_empty() {
                         padding
@@ -1023,7 +1041,8 @@ pub fn remove_node(canvas_id: &str, job_id: &str) -> Result<(), JsValue> {
                 job.depends_on.retain(|dep| dep != job_id);
             }
             s.selected.remove(job_id);
-            let new_layout = layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
+            let new_layout =
+                layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
             s.canvas_width = new_layout.total_width;
             s.canvas_height = new_layout.total_height;
             s.initial_layout = new_layout.clone();
@@ -1231,7 +1250,9 @@ pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> 
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let mut s = instance.state.borrow_mut();
-            if s.destroyed { return Ok(()) }
+            if s.destroyed {
+                return Ok(());
+            }
 
             let selected_ids: Vec<String> = s.selected.iter().cloned().collect();
             if selected_ids.len() < 2 {
@@ -1268,9 +1289,11 @@ pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> 
                                     && !child_ids.contains(e.from_id.as_str())
                             });
                             // Also include ports with no incoming edges (unconnected inputs)
-                            let has_any_edge = s.layout.edges.iter().any(|e| {
-                                e.to_id == child.id && e.to_port == port.id
-                            });
+                            let has_any_edge = s
+                                .layout
+                                .edges
+                                .iter()
+                                .any(|e| e.to_id == child.id && e.to_port == port.id);
                             if has_external_edge || !has_any_edge {
                                 group_input_ports.push(Port {
                                     id: format!("{}.{}", child.id, port.id),
@@ -1287,9 +1310,11 @@ pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> 
                                     && e.from_port == port.id
                                     && !child_ids.contains(e.to_id.as_str())
                             });
-                            let has_any_edge = s.layout.edges.iter().any(|e| {
-                                e.from_id == child.id && e.from_port == port.id
-                            });
+                            let has_any_edge = s
+                                .layout
+                                .edges
+                                .iter()
+                                .any(|e| e.from_id == child.id && e.from_port == port.id);
                             if has_external_edge || !has_any_edge {
                                 group_output_ports.push(Port {
                                     id: format!("{}.{}", child.id, port.id),
@@ -1308,7 +1333,11 @@ pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> 
             let child_positions: Vec<(f64, f64)> = selected_ids
                 .iter()
                 .filter_map(|id| {
-                    s.layout.nodes.iter().find(|n| n.job_id == *id).map(|n| (n.x, n.y))
+                    s.layout
+                        .nodes
+                        .iter()
+                        .find(|n| n.job_id == *id)
+                        .map(|n| (n.x, n.y))
                 })
                 .collect();
             let avg_x = child_positions.iter().map(|(x, _)| x).sum::<f64>()
@@ -1369,7 +1398,9 @@ pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> 
             s.redraw();
             Ok(())
         } else {
-            Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
         }
     })
 }
@@ -1381,7 +1412,9 @@ pub fn ungroup_node(canvas_id: &str, node_id: &str) -> Result<(), JsValue> {
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let mut s = instance.state.borrow_mut();
-            if s.destroyed { return Ok(()) }
+            if s.destroyed {
+                return Ok(());
+            }
 
             // Find the compound node
             let idx = s.workflow.jobs.iter().position(|j| j.id == node_id);
@@ -1395,7 +1428,10 @@ pub fn ungroup_node(canvas_id: &str, node_id: &str) -> Result<(), JsValue> {
             };
 
             // Get group position for placing children
-            let group_pos = s.layout.nodes.iter()
+            let group_pos = s
+                .layout
+                .nodes
+                .iter()
                 .find(|n| n.job_id == node_id)
                 .map(|n| (n.x, n.y))
                 .unwrap_or((30.0, 30.0));
@@ -1426,7 +1462,9 @@ pub fn ungroup_node(canvas_id: &str, node_id: &str) -> Result<(), JsValue> {
             s.redraw();
             Ok(())
         } else {
-            Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
         }
     })
 }
@@ -1438,16 +1476,21 @@ pub fn toggle_collapse(canvas_id: &str, node_id: &str) -> Result<(), JsValue> {
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let mut s = instance.state.borrow_mut();
-            if s.destroyed { return Ok(()) }
+            if s.destroyed {
+                return Ok(());
+            }
 
             if let Some(job) = s.workflow.jobs.iter_mut().find(|j| j.id == node_id)
-                && job.children.is_some() {
-                    job.collapsed = !job.collapsed;
-                    s.redraw();
-                }
+                && job.children.is_some()
+            {
+                job.collapsed = !job.collapsed;
+                s.redraw();
+            }
             Ok(())
         } else {
-            Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
         }
     })
 }
@@ -1510,12 +1553,14 @@ pub fn load_state(canvas_id: &str, state_json: &str) -> Result<(), JsValue> {
 
             // Restore workflow
             if let Some(workflow_val) = state_val.get("workflow")
-                && let Ok(workflow) = serde_json::from_value::<Workflow>(workflow_val.clone()) {
-                    s.workflow = workflow;
-                }
+                && let Ok(workflow) = serde_json::from_value::<Workflow>(workflow_val.clone())
+            {
+                s.workflow = workflow;
+            }
 
             // Recompute layout from workflow
-            let new_layout = layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
+            let new_layout =
+                layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
             s.layout = new_layout;
 
             // Restore positions (overrides computed layout)
@@ -1523,11 +1568,12 @@ pub fn load_state(canvas_id: &str, state_json: &str) -> Result<(), JsValue> {
                 for node in &mut s.layout.nodes {
                     if let Some(pos) = positions.get(&node.job_id)
                         && let Some(arr) = pos.as_array()
-                            && arr.len() == 2
-                                && let (Some(x), Some(y)) = (arr[0].as_f64(), arr[1].as_f64()) {
-                                    node.x = x;
-                                    node.y = y;
-                                }
+                        && arr.len() == 2
+                        && let (Some(x), Some(y)) = (arr[0].as_f64(), arr[1].as_f64())
+                    {
+                        node.x = x;
+                        node.y = y;
+                    }
                 }
             }
 
@@ -1535,15 +1581,36 @@ pub fn load_state(canvas_id: &str, state_json: &str) -> Result<(), JsValue> {
             if let Some(edges_val) = state_val.get("edges").and_then(|v| v.as_array()) {
                 s.layout.edges.clear();
                 for edge_val in edges_val {
-                    let from_id = edge_val.get("from_id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-                    let to_id = edge_val.get("to_id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-                    let from_port = edge_val.get("from_port").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-                    let to_port = edge_val.get("to_port").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-                    let metadata = edge_val.get("metadata")
+                    let from_id = edge_val
+                        .get("from_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let to_id = edge_val
+                        .get("to_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let from_port = edge_val
+                        .get("from_port")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let to_port = edge_val
+                        .get("to_port")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let metadata = edge_val
+                        .get("metadata")
                         .and_then(|v| serde_json::from_value(v.clone()).ok())
                         .unwrap_or_default();
                     s.layout.edges.push(layout::Edge {
-                        from_id, to_id, from_port, to_port, metadata,
+                        from_id,
+                        to_id,
+                        from_port,
+                        to_port,
+                        metadata,
                     });
                 }
             }
@@ -1562,7 +1629,9 @@ pub fn load_state(canvas_id: &str, state_json: &str) -> Result<(), JsValue> {
             s.redraw();
             Ok(())
         } else {
-            Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
+            Err(JsValue::from_str(&format!(
+                "No graph instance '{canvas_id}'"
+            )))
         }
     })
 }
@@ -1603,9 +1672,10 @@ fn with_state(canvas_id: &str, f: impl FnOnce(&mut GraphState)) {
     GRAPHS.with(|g| {
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id)
-            && let Ok(mut s) = instance.state.try_borrow_mut() {
-                f(&mut s);
-            }
+            && let Ok(mut s) = instance.state.try_borrow_mut()
+        {
+            f(&mut s);
+        }
     });
 }
 
@@ -1616,7 +1686,9 @@ fn maybe_start_animation(canvas_id: &str, state: &SharedState) {
     }
     drop(s);
 
-    let Ok(mut s) = state.try_borrow_mut() else { return };
+    let Ok(mut s) = state.try_borrow_mut() else {
+        return;
+    };
     s.animating = true;
     drop(s);
     let state = state.clone();
@@ -1702,8 +1774,12 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
-            let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+            let Ok(mut s) = state.try_borrow_mut() else {
+                return;
+            };
+            if s.destroyed {
+                return;
+            }
             s.mouse_down_pos = Some((mx, my));
 
             let (gx, gy) = s.screen_to_graph(mx, my);
@@ -1713,20 +1789,20 @@ fn attach_event_handlers(
             if has_ports
                 && let Some((node_idx, port_id, is_output, port_type, px, py)) =
                     s.port_hit_test(gx, gy)
-                {
-                    let node_id = s.layout.nodes[node_idx].job_id.clone();
-                    s.port_dragging = Some(PortDragState {
-                        from_node_id: node_id,
-                        from_port_id: port_id,
-                        _from_port_type: port_type,
-                        from_is_output: is_output,
-                        current_x: px,
-                        current_y: py,
-                    });
-                    let html: &HtmlElement = s.canvas.unchecked_ref();
-                    html.style().set_property("cursor", "crosshair").ok();
-                    return;
-                }
+            {
+                let node_id = s.layout.nodes[node_idx].job_id.clone();
+                s.port_dragging = Some(PortDragState {
+                    from_node_id: node_id,
+                    from_port_id: port_id,
+                    _from_port_type: port_type,
+                    from_is_output: is_output,
+                    current_x: px,
+                    current_y: py,
+                });
+                let html: &HtmlElement = s.canvas.unchecked_ref();
+                html.style().set_property("cursor", "crosshair").ok();
+                return;
+            }
 
             if let Some(idx) = s.hit_test(mx, my) {
                 s.dragging = Some(idx);
@@ -1755,8 +1831,12 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
-            let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+            let Ok(mut s) = state.try_borrow_mut() else {
+                return;
+            };
+            if s.destroyed {
+                return;
+            }
 
             if s.port_dragging.is_some() {
                 // Cancel port drag if mouse button is no longer pressed
@@ -1830,26 +1910,46 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
-            let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+            let Ok(mut s) = state.try_borrow_mut() else {
+                return;
+            };
+            if s.destroyed {
+                return;
+            }
 
             // Handle port connection completion
             if let Some(pd) = s.port_dragging.take() {
                 let (gx, gy) = s.screen_to_graph(mx, my);
-                if let Some((_node_idx, target_port_id, target_is_output, _target_port_type, _px, _py)) =
-                    s.port_hit_test(gx, gy)
+                if let Some((
+                    _node_idx,
+                    target_port_id,
+                    target_is_output,
+                    _target_port_type,
+                    _px,
+                    _py,
+                )) = s.port_hit_test(gx, gy)
                 {
                     let target_node_id = s.layout.nodes[_node_idx].job_id.clone();
                     // Must connect output→input on different nodes
                     // Type compatibility is left to the application's onConnect handler
-                    let valid = pd.from_is_output != target_is_output
-                        && target_node_id != pd.from_node_id;
+                    let valid =
+                        pd.from_is_output != target_is_output && target_node_id != pd.from_node_id;
 
                     if valid {
                         let (from_node, from_port, to_node, to_port) = if pd.from_is_output {
-                            (pd.from_node_id, pd.from_port_id, target_node_id, target_port_id)
+                            (
+                                pd.from_node_id,
+                                pd.from_port_id,
+                                target_node_id,
+                                target_port_id,
+                            )
                         } else {
-                            (target_node_id, target_port_id, pd.from_node_id, pd.from_port_id)
+                            (
+                                target_node_id,
+                                target_port_id,
+                                pd.from_node_id,
+                                pd.from_port_id,
+                            )
                         };
 
                         if let Some(ref cb) = s.on_connect {
@@ -1880,7 +1980,10 @@ fn attach_event_handlers(
 
                 // Select all nodes whose center is inside the rectangle
                 // Collect IDs first to avoid borrow conflict
-                let selected_ids: Vec<String> = s.layout.nodes.iter()
+                let selected_ids: Vec<String> = s
+                    .layout
+                    .nodes
+                    .iter()
                     .filter(|node| {
                         let cx = node.x + node.width / 2.0;
                         let cy = node.y + node.height / 2.0;
@@ -1983,8 +2086,12 @@ fn attach_event_handlers(
     {
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |_event: MouseEvent| {
-            let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+            let Ok(mut s) = state.try_borrow_mut() else {
+                return;
+            };
+            if s.destroyed {
+                return;
+            }
             let had_port_drag = s.port_dragging.is_some();
             s.dragging = None;
             s.panning = false;
@@ -2010,8 +2117,12 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(WheelEvent)>::new(move |event: WheelEvent| {
             event.prevent_default();
-            let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+            let Ok(mut s) = state.try_borrow_mut() else {
+                return;
+            };
+            if s.destroyed {
+                return;
+            }
 
             let (mx, my) = {
                 let rect = s.canvas.get_bounding_client_rect();
@@ -2038,8 +2149,12 @@ fn attach_event_handlers(
     {
         let state = state.clone();
         let closure = Closure::<dyn FnMut(KeyboardEvent)>::new(move |event: KeyboardEvent| {
-            let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+            let Ok(mut s) = state.try_borrow_mut() else {
+                return;
+            };
+            if s.destroyed {
+                return;
+            }
             let key = event.key();
 
             match key.as_str() {
@@ -2097,7 +2212,9 @@ fn attach_event_handlers(
                             }
                             // Remove from layout
                             s.layout.nodes.retain(|n| n.job_id != *job_id);
-                            s.layout.edges.retain(|e| e.from_id != *job_id && e.to_id != *job_id);
+                            s.layout
+                                .edges
+                                .retain(|e| e.from_id != *job_id && e.to_id != *job_id);
                         }
                         s.selected.clear();
                         s.highlighted_edges.clear();
@@ -2132,21 +2249,36 @@ fn attach_event_handlers(
                         }
 
                         // Compute group position
-                        let positions: Vec<(f64, f64)> = selected_ids.iter()
-                            .filter_map(|id| s.layout.nodes.iter().find(|n| &n.job_id == id).map(|n| (n.x, n.y)))
+                        let positions: Vec<(f64, f64)> = selected_ids
+                            .iter()
+                            .filter_map(|id| {
+                                s.layout
+                                    .nodes
+                                    .iter()
+                                    .find(|n| &n.job_id == id)
+                                    .map(|n| (n.x, n.y))
+                            })
                             .collect();
-                        let avg_x = positions.iter().map(|p| p.0).sum::<f64>() / positions.len().max(1) as f64;
-                        let avg_y = positions.iter().map(|p| p.1).sum::<f64>() / positions.len().max(1) as f64;
+                        let avg_x = positions.iter().map(|p| p.0).sum::<f64>()
+                            / positions.len().max(1) as f64;
+                        let avg_y = positions.iter().map(|p| p.1).sum::<f64>()
+                            / positions.len().max(1) as f64;
 
                         // Collect external ports
                         let mut ports: Vec<Port> = Vec::new();
                         for child in &children {
                             for port in &child.ports {
                                 let is_external = match port.direction {
-                                    PortDirection::Input => !s.layout.edges.iter().any(|e|
-                                        e.to_id == child.id && e.to_port == port.id && child_ids.contains(&e.from_id)),
-                                    PortDirection::Output => !s.layout.edges.iter().any(|e|
-                                        e.from_id == child.id && e.from_port == port.id && child_ids.contains(&e.to_id)),
+                                    PortDirection::Input => !s.layout.edges.iter().any(|e| {
+                                        e.to_id == child.id
+                                            && e.to_port == port.id
+                                            && child_ids.contains(&e.from_id)
+                                    }),
+                                    PortDirection::Output => !s.layout.edges.iter().any(|e| {
+                                        e.from_id == child.id
+                                            && e.from_port == port.id
+                                            && child_ids.contains(&e.to_id)
+                                    }),
                                 };
                                 if is_external {
                                     ports.push(Port {
@@ -2192,11 +2324,14 @@ fn attach_event_handlers(
                         let nh = s.theme.layout.node_height;
                         s.layout.nodes.push(layout::NodeLayout {
                             job_id: group_id,
-                            x: avg_x, y: avg_y,
-                            width: nw, height: nh,
+                            x: avg_x,
+                            y: avg_y,
+                            width: nw,
+                            height: nh,
                         });
-                        s.layout.edges.retain(|e|
-                            !(child_ids.contains(&e.from_id) && child_ids.contains(&e.to_id)));
+                        s.layout.edges.retain(|e| {
+                            !(child_ids.contains(&e.from_id) && child_ids.contains(&e.to_id))
+                        });
 
                         s.selected.clear();
                         s.highlighted_edges.clear();
@@ -2226,8 +2361,12 @@ fn attach_event_handlers(
                     return;
                 };
                 let (mx, my) = touch_pos(&touch, &state);
-                let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+                let Ok(mut s) = state.try_borrow_mut() else {
+                    return;
+                };
+                if s.destroyed {
+                    return;
+                }
                 s.mouse_down_pos = Some((mx, my));
 
                 if let Some(idx) = s.hit_test(mx, my) {
@@ -2256,8 +2395,12 @@ fn attach_event_handlers(
                     return;
                 };
                 let (mx, my) = touch_pos(&touch, &state);
-                let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+                let Ok(mut s) = state.try_borrow_mut() else {
+                    return;
+                };
+                if s.destroyed {
+                    return;
+                }
 
                 if let Some(idx) = s.dragging {
                     let (gx, gy) = s.screen_to_graph(mx, my);
@@ -2283,8 +2426,12 @@ fn attach_event_handlers(
                 event.prevent_default();
                 // Use changedTouches for the finger that was lifted
                 let touch = event.changed_touches().get(0);
-                let Ok(mut s) = state.try_borrow_mut() else { return };
-            if s.destroyed { return; }
+                let Ok(mut s) = state.try_borrow_mut() else {
+                    return;
+                };
+                if s.destroyed {
+                    return;
+                }
 
                 if let Some(touch) = touch {
                     let rect = s.canvas.get_bounding_client_rect();

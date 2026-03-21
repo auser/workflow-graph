@@ -127,10 +127,14 @@ pub fn render_with_callbacks(
                 let from_job = job_map.get(edge.from_id.as_str());
                 let to_job = job_map.get(edge.to_id.as_str());
                 if let (Some(fj), Some(tj)) = (from_job, to_job) {
-                    let from_ports: Vec<_> = fj.ports.iter()
+                    let from_ports: Vec<_> = fj
+                        .ports
+                        .iter()
                         .filter(|p| p.direction == PortDirection::Output)
                         .collect();
-                    let to_ports: Vec<_> = tj.ports.iter()
+                    let to_ports: Vec<_> = tj
+                        .ports
+                        .iter()
                         .filter(|p| p.direction == PortDirection::Input)
                         .collect();
                     let from_idx = from_ports.iter().position(|p| p.id == edge.from_port);
@@ -186,12 +190,20 @@ pub fn render_with_callbacks(
 
             if !skip_default {
                 // Look up node type definition from metadata
-                let node_type = job.metadata.get("node_type")
-                    .and_then(|v| v.as_str());
+                let node_type = job.metadata.get("node_type").and_then(|v| v.as_str());
                 let def = node_type.and_then(|t| callbacks.node_definitions.get(t));
 
                 if let Some(def) = def {
-                    draw_production_node(ctx, node, job, def, animation_time, now_ms, is_selected, theme);
+                    draw_production_node(
+                        ctx,
+                        node,
+                        job,
+                        def,
+                        animation_time,
+                        now_ms,
+                        is_selected,
+                        theme,
+                    );
                 } else {
                     draw_node(ctx, node, job, animation_time, now_ms, is_selected, theme);
                 }
@@ -230,7 +242,8 @@ pub fn render_with_callbacks(
         ctx.set_line_dash(&js_sys::Array::of2(
             &JsValue::from_f64(4.0),
             &JsValue::from_f64(3.0),
-        )).ok();
+        ))
+        .ok();
         ctx.stroke_rect(rx, ry, rw, rh);
         ctx.set_line_dash(&js_sys::Array::new()).ok();
     }
@@ -492,7 +505,8 @@ fn draw_production_node(
         &def.header_color
     } else {
         // Fallback: check job.metadata for override
-        job.metadata.get("header_color")
+        job.metadata
+            .get("header_color")
             .and_then(|v| v.as_str())
             .unwrap_or("#4b5563")
     };
@@ -509,7 +523,8 @@ fn draw_production_node(
     let icon = if !def.icon.is_empty() {
         &def.icon
     } else {
-        job.metadata.get("icon")
+        job.metadata
+            .get("icon")
             .and_then(|v| v.as_str())
             .unwrap_or("")
     };
@@ -545,7 +560,8 @@ fn draw_production_node(
         JobStatus::Cancelled => &colors.cancelled,
     };
     ctx.begin_path();
-    ctx.arc(x + w - 12.0, y + HEADER_HEIGHT / 2.0, 4.0, 0.0, 2.0 * PI).ok();
+    ctx.arc(x + w - 12.0, y + HEADER_HEIGHT / 2.0, 4.0, 0.0, 2.0 * PI)
+        .ok();
     ctx.set_fill_style_str(status_color);
     ctx.fill();
 
@@ -565,13 +581,21 @@ fn draw_production_node(
     let mut field_y = name_y + 6.0;
     for field_def in &def.fields {
         field_y += FIELD_ROW_HEIGHT;
-        let value = job.metadata.get(&field_def.key)
+        let value = job
+            .metadata
+            .get(&field_def.key)
             .map(|v| {
-                v.as_str().map(String::from).unwrap_or_else(|| v.to_string())
+                v.as_str()
+                    .map(String::from)
+                    .unwrap_or_else(|| v.to_string())
             })
-            .or_else(|| field_def.default_value.as_ref().map(|v| {
-                v.as_str().map(String::from).unwrap_or_else(|| v.to_string())
-            }));
+            .or_else(|| {
+                field_def.default_value.as_ref().map(|v| {
+                    v.as_str()
+                        .map(String::from)
+                        .unwrap_or_else(|| v.to_string())
+                })
+            });
 
         // Field label (left)
         ctx.set_font(&format!("10px {}", fonts.family));
@@ -589,8 +613,12 @@ fn draw_production_node(
             } else {
                 val.clone()
             };
-            let val_w = ctx.measure_text(&display_val).map(|m| m.width()).unwrap_or(40.0);
-            ctx.fill_text(&display_val, x + w - val_w - 10.0, field_y).ok();
+            let val_w = ctx
+                .measure_text(&display_val)
+                .map(|m| m.width())
+                .unwrap_or(40.0);
+            ctx.fill_text(&display_val, x + w - val_w - 10.0, field_y)
+                .ok();
 
             // Dropdown chevron for select fields
             if field_def.field_type == workflow_graph_shared::FieldType::Select {
@@ -622,7 +650,14 @@ fn draw_collapsed_compound(
     for offset in &offsets {
         ctx.save();
         ctx.set_global_alpha(0.3);
-        draw_rounded_rect(ctx, node.x + offset, node.y - offset, node.width, node.height, 8.0);
+        draw_rounded_rect(
+            ctx,
+            node.x + offset,
+            node.y - offset,
+            node.width,
+            node.height,
+            8.0,
+        );
         ctx.set_fill_style_str(&colors.node_bg);
         ctx.fill();
         ctx.set_stroke_style_str(&colors.node_border);
@@ -643,13 +678,22 @@ fn draw_collapsed_compound(
 
     ctx.set_font(&format!("bold 9px {}", fonts.family));
     ctx.set_fill_style_str("#ffffff");
-    let text_w = ctx.measure_text(&badge_text).map(|m| m.width()).unwrap_or(8.0);
-    ctx.fill_text(&badge_text, badge_x + (badge_w - text_w) / 2.0, badge_y + 12.0).ok();
+    let text_w = ctx
+        .measure_text(&badge_text)
+        .map(|m| m.width())
+        .unwrap_or(8.0);
+    ctx.fill_text(
+        &badge_text,
+        badge_x + (badge_w - text_w) / 2.0,
+        badge_y + 12.0,
+    )
+    .ok();
 
     // Expand chevron
     ctx.set_fill_style_str(&colors.text_secondary);
     ctx.set_font(&format!("11px {}", fonts.family));
-    ctx.fill_text("▶", node.x + 8.0, node.y + node.height - 8.0).ok();
+    ctx.fill_text("▶", node.x + 8.0, node.y + node.height - 8.0)
+        .ok();
 }
 
 /// Draw an expanded compound node: dashed border around group area with label.
@@ -664,13 +708,21 @@ fn draw_expanded_compound(
 
     // Dashed border around the group area
     ctx.save();
-    draw_rounded_rect(ctx, node.x - 8.0, node.y - 8.0, node.width + 16.0, node.height + 16.0, 12.0);
+    draw_rounded_rect(
+        ctx,
+        node.x - 8.0,
+        node.y - 8.0,
+        node.width + 16.0,
+        node.height + 16.0,
+        12.0,
+    );
     ctx.set_stroke_style_str(&colors.text_secondary);
     ctx.set_line_width(1.5);
     ctx.set_line_dash(&js_sys::Array::of2(
         &JsValue::from_f64(6.0),
         &JsValue::from_f64(4.0),
-    )).ok();
+    ))
+    .ok();
     ctx.stroke();
     ctx.set_line_dash(&js_sys::Array::new()).ok();
 
@@ -682,8 +734,12 @@ fn draw_expanded_compound(
     // Collapse chevron
     ctx.set_fill_style_str(&colors.text_secondary);
     ctx.set_font(&format!("11px {}", fonts.family));
-    let name_w = ctx.measure_text(&job.name).map(|m| m.width()).unwrap_or(40.0);
-    ctx.fill_text("▼", node.x + name_w + 6.0, node.y - 14.0).ok();
+    let name_w = ctx
+        .measure_text(&job.name)
+        .map(|m| m.width())
+        .unwrap_or(40.0);
+    ctx.fill_text("▼", node.x + name_w + 6.0, node.y - 14.0)
+        .ok();
 
     ctx.restore();
 }
@@ -799,8 +855,10 @@ fn draw_minimap(
 #[allow(clippy::too_many_arguments)]
 fn draw_port_edge(
     ctx: &CanvasRenderingContext2d,
-    x1: f64, y1: f64,
-    x2: f64, y2: f64,
+    x1: f64,
+    y1: f64,
+    x2: f64,
+    y2: f64,
     highlighted: bool,
     theme: &ResolvedTheme,
     style_override: Option<&EdgeStyle>,
@@ -808,8 +866,14 @@ fn draw_port_edge(
     let colors = &theme.colors;
     let color = style_override
         .and_then(|s| s.color.as_deref())
-        .unwrap_or(if highlighted { &colors.highlight } else { &colors.edge });
-    let width = style_override.and_then(|s| s.width).unwrap_or(if highlighted { 2.5 } else { 1.5 });
+        .unwrap_or(if highlighted {
+            &colors.highlight
+        } else {
+            &colors.edge
+        });
+    let width = style_override
+        .and_then(|s| s.width)
+        .unwrap_or(if highlighted { 2.5 } else { 1.5 });
 
     ctx.begin_path();
     ctx.set_stroke_style_str(color);
@@ -840,12 +904,12 @@ const PORT_FONT_SIZE: f64 = 10.0;
 /// Default colors for port types.
 fn port_type_color(port_type: &str) -> &'static str {
     match port_type {
-        "text" | "message" => "#3b82f6",    // blue
-        "json" | "data" => "#8b5cf6",       // violet
-        "tool_call" => "#f97316",           // orange
-        "event" | "trigger" => "#22c55e",   // green
-        "config" => "#6b7280",              // gray
-        _ => "#9ca3af",                     // default gray
+        "text" | "message" => "#3b82f6",  // blue
+        "json" | "data" => "#8b5cf6",     // violet
+        "tool_call" => "#f97316",         // orange
+        "event" | "trigger" => "#22c55e", // green
+        "config" => "#6b7280",            // gray
+        _ => "#9ca3af",                   // default gray
     }
 }
 
@@ -872,7 +936,10 @@ fn draw_ports(
     for (i, port) in input_ports.iter().enumerate() {
         let px = node.x;
         let py = node.y + port_y_offset_render(i, input_ports.len(), node.height);
-        let color = port.color.as_deref().unwrap_or_else(|| port_type_color(&port.port_type));
+        let color = port
+            .color
+            .as_deref()
+            .unwrap_or_else(|| port_type_color(&port.port_type));
 
         // Port dot
         ctx.begin_path();
@@ -888,14 +955,18 @@ fn draw_ports(
         // Port label (inside node, right of dot)
         ctx.set_font(&format!("{}px {}", PORT_FONT_SIZE, fonts.family));
         ctx.set_fill_style_str(color);
-        ctx.fill_text(&port.label, px + PORT_LABEL_OFFSET, py + 3.5).ok();
+        ctx.fill_text(&port.label, px + PORT_LABEL_OFFSET, py + 3.5)
+            .ok();
     }
 
     // Draw output ports (right edge)
     for (i, port) in output_ports.iter().enumerate() {
         let px = node.x + node.width;
         let py = node.y + port_y_offset_render(i, output_ports.len(), node.height);
-        let color = port.color.as_deref().unwrap_or_else(|| port_type_color(&port.port_type));
+        let color = port
+            .color
+            .as_deref()
+            .unwrap_or_else(|| port_type_color(&port.port_type));
 
         // Port dot
         ctx.begin_path();
@@ -911,8 +982,12 @@ fn draw_ports(
         // Port label (inside node, left of dot)
         ctx.set_font(&format!("{}px {}", PORT_FONT_SIZE, fonts.family));
         ctx.set_fill_style_str(color);
-        let label_width = ctx.measure_text(&port.label).map(|m| m.width()).unwrap_or(40.0);
-        ctx.fill_text(&port.label, px - PORT_LABEL_OFFSET - label_width, py + 3.5).ok();
+        let label_width = ctx
+            .measure_text(&port.label)
+            .map(|m| m.width())
+            .unwrap_or(40.0);
+        ctx.fill_text(&port.label, px - PORT_LABEL_OFFSET - label_width, py + 3.5)
+            .ok();
     }
 }
 
