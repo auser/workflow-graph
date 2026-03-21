@@ -1274,57 +1274,53 @@ pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> 
             let child_ids: std::collections::HashSet<String> =
                 children.iter().map(|j| j.id.clone()).collect();
 
-            // Find external ports: ports that connect to nodes OUTSIDE the group
+            // Find the first (entry) and last (exit) nodes by x-position in layout.
+            // First = leftmost (receives external input), Last = rightmost (produces external output).
+            let first_id = children
+                .iter()
+                .min_by(|a, b| {
+                    let ax = s.layout.nodes.iter().find(|n| n.job_id == a.id).map(|n| n.x).unwrap_or(0.0);
+                    let bx = s.layout.nodes.iter().find(|n| n.job_id == b.id).map(|n| n.x).unwrap_or(0.0);
+                    ax.partial_cmp(&bx).unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|j| j.id.clone())
+                .unwrap_or_default();
+            let last_id = children
+                .iter()
+                .max_by(|a, b| {
+                    let ax = s.layout.nodes.iter().find(|n| n.job_id == a.id).map(|n| n.x).unwrap_or(0.0);
+                    let bx = s.layout.nodes.iter().find(|n| n.job_id == b.id).map(|n| n.x).unwrap_or(0.0);
+                    ax.partial_cmp(&bx).unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|j| j.id.clone())
+                .unwrap_or_default();
+
+            // Group ports: inputs from the first node, outputs from the last node
             let mut group_input_ports: Vec<Port> = Vec::new();
             let mut group_output_ports: Vec<Port> = Vec::new();
 
             for child in &children {
                 for port in &child.ports {
                     match port.direction {
-                        PortDirection::Input => {
-                            // Check if any edge from outside connects to this port
-                            let has_external_edge = s.layout.edges.iter().any(|e| {
-                                e.to_id == child.id
-                                    && e.to_port == port.id
-                                    && !child_ids.contains(e.from_id.as_str())
+                        PortDirection::Input if child.id == first_id => {
+                            group_input_ports.push(Port {
+                                id: format!("{}.{}", child.id, port.id),
+                                label: port.label.clone(),
+                                direction: PortDirection::Input,
+                                port_type: port.port_type.clone(),
+                                color: port.color.clone(),
                             });
-                            // Also include ports with no incoming edges (unconnected inputs)
-                            let has_any_edge = s
-                                .layout
-                                .edges
-                                .iter()
-                                .any(|e| e.to_id == child.id && e.to_port == port.id);
-                            if has_external_edge || !has_any_edge {
-                                group_input_ports.push(Port {
-                                    id: format!("{}.{}", child.id, port.id),
-                                    label: format!("{}: {}", child.name, port.label),
-                                    direction: PortDirection::Input,
-                                    port_type: port.port_type.clone(),
-                                    color: port.color.clone(),
-                                });
-                            }
                         }
-                        PortDirection::Output => {
-                            let has_external_edge = s.layout.edges.iter().any(|e| {
-                                e.from_id == child.id
-                                    && e.from_port == port.id
-                                    && !child_ids.contains(e.to_id.as_str())
+                        PortDirection::Output if child.id == last_id => {
+                            group_output_ports.push(Port {
+                                id: format!("{}.{}", child.id, port.id),
+                                label: port.label.clone(),
+                                direction: PortDirection::Output,
+                                port_type: port.port_type.clone(),
+                                color: port.color.clone(),
                             });
-                            let has_any_edge = s
-                                .layout
-                                .edges
-                                .iter()
-                                .any(|e| e.from_id == child.id && e.from_port == port.id);
-                            if has_external_edge || !has_any_edge {
-                                group_output_ports.push(Port {
-                                    id: format!("{}.{}", child.id, port.id),
-                                    label: format!("{}: {}", child.name, port.label),
-                                    direction: PortDirection::Output,
-                                    port_type: port.port_type.clone(),
-                                    color: port.color.clone(),
-                                });
-                            }
                         }
+                        _ => {}
                     }
                 }
             }
