@@ -1246,22 +1246,7 @@ fn attach_event_handlers(
 
             let (gx, gy) = s.screen_to_graph(mx, my);
 
-            // Check port hit first (before node hit)
-            if let Some((node_idx, port_id, is_output, port_type, px, py)) =
-                s.port_hit_test(gx, gy)
-            {
-                let node_id = s.layout.nodes[node_idx].job_id.clone();
-                s.port_dragging = Some(PortDragState {
-                    from_node_id: node_id,
-                    from_port_id: port_id,
-                    from_port_type: port_type,
-                    from_is_output: is_output,
-                    current_x: px,
-                    current_y: py,
-                });
-                let html: &HtmlElement = s.canvas.unchecked_ref();
-                html.style().set_property("cursor", "crosshair").ok();
-            } else if let Some(idx) = s.hit_test(mx, my) {
+            if let Some(idx) = s.hit_test(mx, my) {
                 s.dragging = Some(idx);
                 s.drag_offset_x = gx - s.layout.nodes[idx].x;
                 s.drag_offset_y = gy - s.layout.nodes[idx].y;
@@ -1285,17 +1270,7 @@ fn attach_event_handlers(
             let (mx, my) = mouse_pos(&event, &state);
             let mut s = state.borrow_mut();
 
-            if s.port_dragging.is_some() {
-                // Port connection drag: update the preview line endpoint
-                let (gx, gy) = s.screen_to_graph(mx, my);
-                if let Some(ref mut pd) = s.port_dragging {
-                    pd.current_x = gx;
-                    pd.current_y = gy;
-                }
-                let html: &HtmlElement = s.canvas.unchecked_ref();
-                html.style().set_property("cursor", "crosshair").ok();
-                s.redraw();
-            } else if let Some(idx) = s.dragging {
+            if let Some(idx) = s.dragging {
                 let (gx, gy) = s.screen_to_graph(mx, my);
                 let node_w = s.layout.nodes[idx].width;
                 let node_h = s.layout.nodes[idx].height;
@@ -1351,48 +1326,6 @@ fn attach_event_handlers(
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
             let mut s = state.borrow_mut();
-
-            // Handle port connection completion
-            if let Some(pd) = s.port_dragging.take() {
-                let (gx, gy) = s.screen_to_graph(mx, my);
-                // Check if we released over a compatible port
-                if let Some((_node_idx, target_port_id, target_is_output, target_port_type, _px, _py)) =
-                    s.port_hit_test(gx, gy)
-                {
-                    let target_node_id = s.layout.nodes[_node_idx].job_id.clone();
-                    // Must connect output → input (not same direction)
-                    let valid = pd.from_is_output != target_is_output
-                        && target_node_id != pd.from_node_id
-                        && (pd.from_port_type == target_port_type
-                            || pd.from_port_type.is_empty()
-                            || target_port_type.is_empty());
-
-                    if valid {
-                        // Normalize: always from output to input
-                        let (from_node, from_port, to_node, to_port) = if pd.from_is_output {
-                            (pd.from_node_id.clone(), pd.from_port_id.clone(), target_node_id.clone(), target_port_id.clone())
-                        } else {
-                            (target_node_id.clone(), target_port_id.clone(), pd.from_node_id.clone(), pd.from_port_id.clone())
-                        };
-
-                        if let Some(ref cb) = s.on_connect {
-                            cb.call4(
-                                &JsValue::NULL,
-                                &JsValue::from_str(&from_node),
-                                &JsValue::from_str(&from_port),
-                                &JsValue::from_str(&to_node),
-                                &JsValue::from_str(&to_port),
-                            )
-                            .ok();
-                        }
-                    }
-                }
-                s.redraw();
-                let html: &HtmlElement = s.canvas.unchecked_ref();
-                html.style().set_property("cursor", "default").ok();
-                s.mouse_down_pos = None;
-                return;
-            }
 
             let is_click = s
                 .mouse_down_pos

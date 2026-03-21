@@ -313,14 +313,14 @@ fn draw_node(
     }
     ctx.stroke();
 
-    // Status icon
+    // Status icon (top area)
     let icon_x = node.x + tl.status_icon_margin + tl.status_icon_radius;
-    let icon_y = node.y + node.height / 2.0;
+    let icon_y = node.y + 14.0;
     draw_status_icon(ctx, icon_x, icon_y, &job.status, animation_time, theme);
 
-    // Job name
+    // Job name (top area, after icon)
     let text_x = icon_x + tl.status_icon_radius + 8.0;
-    let text_y = node.y + node.height / 2.0 + 4.0;
+    let text_y = node.y + 18.0;
     ctx.set_font(&format!("600 {}px {}", fonts.size_name, fonts.family));
     ctx.set_fill_style_str(&colors.text);
     ctx.fill_text(&job.name, text_x, text_y).ok();
