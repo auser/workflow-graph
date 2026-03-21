@@ -217,11 +217,22 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
     // Update data when workflow changes (only after initial load completes)
     useEffect(() => {
       if (!loading && graphRef.current && workflow !== workflowRef.current) {
+        const prevIds = new Set(workflowRef.current?.jobs?.map((j) => j.id) ?? []);
+        const newJobs = workflow?.jobs?.filter((j) => !prevIds.has(j.id)) ?? [];
         workflowRef.current = workflow;
+
+        // Update existing nodes' status
         graphRef.current.updateStatus(workflow).catch((err: unknown) => {
           const e = err instanceof Error ? err : new Error(String(err));
           onError?.(e);
         });
+
+        // Add any new nodes that weren't in the previous workflow
+        for (const job of newJobs) {
+          graphRef.current.addNode(job).catch(() => {
+            // Ignore — node may already exist in WASM state
+          });
+        }
       }
     }, [workflow, onError, loading]);
 
