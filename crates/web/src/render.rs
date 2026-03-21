@@ -117,6 +117,30 @@ pub fn render_with_callbacks(
             let highlighted = highlighted_edges.contains(&i);
             let edge_key = format!("{}->{}", edge.from_id, edge.to_id);
             let style_override = theme.edge_styles.get(&edge_key);
+
+            // If edge has port info, draw from/to port positions
+            if !edge.from_port.is_empty() && !edge.to_port.is_empty() {
+                let from_job = job_map.get(edge.from_id.as_str());
+                let to_job = job_map.get(edge.to_id.as_str());
+                if let (Some(fj), Some(tj)) = (from_job, to_job) {
+                    let from_ports: Vec<_> = fj.ports.iter()
+                        .filter(|p| p.direction == PortDirection::Output)
+                        .collect();
+                    let to_ports: Vec<_> = tj.ports.iter()
+                        .filter(|p| p.direction == PortDirection::Input)
+                        .collect();
+                    let from_idx = from_ports.iter().position(|p| p.id == edge.from_port);
+                    let to_idx = to_ports.iter().position(|p| p.id == edge.to_port);
+                    if let (Some(fi), Some(ti)) = (from_idx, to_idx) {
+                        let fx = from.x + from.width;
+                        let fy = from.y + port_y_offset_render(fi, from_ports.len(), from.height);
+                        let tx = to.x;
+                        let ty = to.y + port_y_offset_render(ti, to_ports.len(), to.height);
+                        draw_port_edge(ctx, fx, fy, tx, ty, highlighted, theme, style_override);
+                        continue;
+                    }
+                }
+            }
             draw_edge(ctx, from, to, highlighted, theme, style_override);
         }
     }
@@ -448,6 +472,41 @@ fn draw_minimap(
     );
 
     ctx.restore();
+}
+
+/// Draw an edge between specific port positions.
+fn draw_port_edge(
+    ctx: &CanvasRenderingContext2d,
+    x1: f64, y1: f64,
+    x2: f64, y2: f64,
+    highlighted: bool,
+    theme: &ResolvedTheme,
+    style_override: Option<&EdgeStyle>,
+) {
+    let colors = &theme.colors;
+    let color = style_override
+        .and_then(|s| s.color.as_deref())
+        .unwrap_or(if highlighted { &colors.highlight } else { &colors.edge });
+    let width = style_override.and_then(|s| s.width).unwrap_or(if highlighted { 2.5 } else { 1.5 });
+
+    ctx.begin_path();
+    ctx.set_stroke_style_str(color);
+    ctx.set_line_width(width);
+
+    if let Some(dash) = style_override.and_then(|s| s.dash.as_ref()) {
+        let arr = js_sys::Array::new();
+        for &d in dash {
+            arr.push(&JsValue::from_f64(d));
+        }
+        ctx.set_line_dash(&arr).ok();
+    }
+
+    let mid_x = (x1 + x2) / 2.0;
+    ctx.move_to(x1, y1);
+    ctx.bezier_curve_to(mid_x, y1, mid_x, y2, x2, y2);
+    ctx.stroke();
+
+    ctx.set_line_dash(&js_sys::Array::new()).ok();
 }
 
 // ─── Ports ───────────────────────────────────────────────────────────────────

@@ -880,9 +880,10 @@ pub fn set_on_drop(canvas_id: &str, callback: js_sys::Function) {
 
 // ─── Node CRUD API ───────────────────────────────────────────────────────────
 
-/// Add a new node (job) to the graph. Triggers re-layout and re-render.
+/// Add a new node (job) to the graph. Optionally specify position (x, y).
+/// If x/y are not provided (NaN or negative), positions below existing nodes.
 #[wasm_bindgen]
-pub fn add_node(canvas_id: &str, job_json: &str) -> Result<(), JsValue> {
+pub fn add_node(canvas_id: &str, job_json: &str, x: Option<f64>, y: Option<f64>) -> Result<(), JsValue> {
     let job: Job = serde_json::from_str(job_json)
         .map_err(|e| JsValue::from_str(&format!("Job JSON parse error: {e}")))?;
 
@@ -902,13 +903,20 @@ pub fn add_node(canvas_id: &str, job_json: &str) -> Result<(), JsValue> {
             let v_gap = s.theme.layout.v_gap;
             let node_width = s.theme.layout.node_width;
             let node_height = s.theme.layout.node_height;
-            // Position the new node below existing nodes (don't re-layout everything)
-            let max_y = s.layout.nodes.iter().map(|n| n.y + n.height).fold(0.0_f64, f64::max);
-            let new_x = padding;
-            let new_y = if s.layout.nodes.is_empty() {
-                padding
-            } else {
-                max_y + v_gap
+
+            // Use provided coordinates or auto-position below existing nodes
+            let (new_x, new_y) = match (x, y) {
+                (Some(px), Some(py)) if px >= 0.0 && py >= 0.0 => (px, py),
+                _ => {
+                    let max_y = s.layout.nodes.iter().map(|n| n.y + n.height).fold(0.0_f64, f64::max);
+                    let auto_x = padding;
+                    let auto_y = if s.layout.nodes.is_empty() {
+                        padding
+                    } else {
+                        max_y + v_gap
+                    };
+                    (auto_x, auto_y)
+                }
             };
             s.layout.nodes.push(layout::NodeLayout {
                 job_id: job.id.clone(),

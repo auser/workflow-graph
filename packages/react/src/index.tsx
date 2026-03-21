@@ -45,7 +45,7 @@ export interface WorkflowGraphHandle {
   getNodePositions(): Promise<Record<string, [number, number]>>;
   setNodePositions(positions: Record<string, [number, number]>): Promise<void>;
   setTheme(theme: ThemeConfig): Promise<void>;
-  addNode(job: JobType): Promise<void>;
+  addNode(job: JobType, x?: number, y?: number): Promise<void>;
   removeNode(jobId: string): Promise<void>;
   updateNode(jobId: string, partial: Partial<JobType>): Promise<void>;
   addEdge(fromId: string, toId: string, fromPort?: string, toPort?: string, metadata?: Record<string, unknown>): Promise<void>;
@@ -153,7 +153,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         setNodePositions: (positions: Record<string, [number, number]>) =>
           graphRef.current?.setNodePositions(positions) ?? Promise.resolve(),
         setTheme: (t: ThemeConfig) => graphRef.current?.setTheme(t) ?? Promise.resolve(),
-        addNode: (job: JobType) => graphRef.current?.addNode(job) ?? Promise.resolve(),
+        addNode: (job: JobType, x?: number, y?: number) => graphRef.current?.addNode(job, x, y) ?? Promise.resolve(),
         removeNode: (jobId: string) => graphRef.current?.removeNode(jobId) ?? Promise.resolve(),
         updateNode: (jobId: string, partial: Partial<JobType>) =>
           graphRef.current?.updateNode(jobId, partial) ?? Promise.resolve(),

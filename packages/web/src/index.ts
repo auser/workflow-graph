@@ -203,7 +203,7 @@ interface WasmModule {
   set_zoom(canvasId: string, level: number): void;
   get_node_positions(canvasId: string): Record<string, [number, number]>;
   set_node_positions(canvasId: string, json: string): void;
-  add_node(canvasId: string, jobJson: string): void;
+  add_node(canvasId: string, jobJson: string, x?: number, y?: number): void;
   remove_node(canvasId: string, jobId: string): void;
   update_node(canvasId: string, jobId: string, partialJson: string): void;
   add_edge(canvasId: string, fromId: string, toId: string, fromPort: string | null, toPort: string | null, metadataJson: string | null): void;
@@ -375,10 +375,10 @@ export class WorkflowGraph {
 
   // ─── Node CRUD API ─────────────────────────────────────────────────────────
 
-  /** Add a new node to the graph. Triggers re-layout. */
-  async addNode(job: Job): Promise<void> {
+  /** Add a new node to the graph. Optionally specify position (x, y) in graph-space. */
+  async addNode(job: Job, x?: number, y?: number): Promise<void> {
     const wasm = await ensureWasm();
-    wasm.add_node(this.canvasId, JSON.stringify(job));
+    wasm.add_node(this.canvasId, JSON.stringify(job), x, y);
   }
 
   /** Remove a node and all its connected edges. Triggers re-layout. */
