@@ -21,6 +21,10 @@ Render interactive workflow graphs in the browser with pixel-perfect GitHub Octi
 - **Layout direction** — left-to-right (default) or top-to-bottom
 - **Minimap** — optional overview overlay for large graphs
 - **Node CRUD API** — add, remove, update nodes and edges at runtime with automatic re-layout
+- **Port system** — typed input/output ports on nodes (Blender-style); edges connect port-to-port with type-checking
+- **Port rendering** — colored port dots on node edges with labels; configurable colors per port type
+- **Port connections** — drag from output port to input port to create edges; `onConnect` callback
+- **Drag & drop** — native HTML5 drop zone on canvas; `onDrop` callback with graph-space coordinates
 - **Custom node rendering** — callback to draw custom node content
 - **Edge click & styles** — clickable edges with per-edge color, width, and dash patterns
 - **Node & edge metadata** — arbitrary key-value metadata on nodes and edges for custom renderers

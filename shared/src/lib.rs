@@ -4,6 +4,33 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+/// Direction of a port on a node.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PortDirection {
+    Input,
+    Output,
+}
+
+/// A typed input or output port on a node.
+/// Ports define connection points — edges connect from an output port to an input port.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Port {
+    /// Unique identifier within the node (e.g., "message", "response").
+    pub id: String,
+    /// Display label.
+    pub label: String,
+    /// Whether this is an input or output port.
+    pub direction: PortDirection,
+    /// Type tag for connection compatibility (e.g., "text", "json", "tool_call").
+    /// Only ports with matching types can be connected.
+    #[serde(default)]
+    pub port_type: String,
+    /// Optional color override for the port dot.
+    #[serde(default)]
+    pub color: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum JobStatus {
@@ -39,6 +66,9 @@ pub struct Job {
     /// Arbitrary metadata for custom renderers (e.g., node_type, icon, color).
     #[serde(default)]
     pub metadata: HashMap<String, serde_json::Value>,
+    /// Input and output ports for node-graph-style connections.
+    #[serde(default)]
+    pub ports: Vec<Port>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,6 +100,7 @@ impl Workflow {
                     max_retries: 0,
                     attempt: 0,
                     metadata: HashMap::new(),
+                    ports: vec![],
                 },
                 Job {
                     id: "lint".into(),
@@ -84,6 +115,7 @@ impl Workflow {
                     max_retries: 0,
                     attempt: 0,
                     metadata: HashMap::new(),
+                    ports: vec![],
                 },
                 Job {
                     id: "typecheck".into(),
@@ -98,6 +130,7 @@ impl Workflow {
                     max_retries: 0,
                     attempt: 0,
                     metadata: HashMap::new(),
+                    ports: vec![],
                 },
                 Job {
                     id: "build".into(),
@@ -112,6 +145,7 @@ impl Workflow {
                     max_retries: 0,
                     attempt: 0,
                     metadata: HashMap::new(),
+                    ports: vec![],
                 },
                 Job {
                     id: "deploy-db".into(),
@@ -126,6 +160,7 @@ impl Workflow {
                     max_retries: 0,
                     attempt: 0,
                     metadata: HashMap::new(),
+                    ports: vec![],
                 },
                 Job {
                     id: "e2e-tests".into(),
@@ -140,6 +175,7 @@ impl Workflow {
                     max_retries: 0,
                     attempt: 0,
                     metadata: HashMap::new(),
+                    ports: vec![],
                 },
                 Job {
                     id: "deploy-preview".into(),
@@ -154,6 +190,7 @@ impl Workflow {
                     max_retries: 0,
                     attempt: 0,
                     metadata: HashMap::new(),
+                    ports: vec![],
                 },
                 Job {
                     id: "deploy-web".into(),
@@ -168,6 +205,7 @@ impl Workflow {
                     max_retries: 0,
                     attempt: 0,
                     metadata: HashMap::new(),
+                    ports: vec![],
                 },
             ],
         }
@@ -192,6 +230,7 @@ mod tests {
             max_retries: 0,
             attempt: 0,
             metadata,
+            ports: vec![],
         }
     }
 

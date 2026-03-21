@@ -16,6 +16,10 @@ pub struct NodeLayout {
 pub struct Edge {
     pub from_id: String,
     pub to_id: String,
+    /// Source port id (empty = legacy node-to-node edge).
+    pub from_port: String,
+    /// Target port id (empty = legacy node-to-node edge).
+    pub to_port: String,
     /// Arbitrary metadata for custom edge rendering (e.g., condition labels, edge type).
     pub metadata: HashMap<String, serde_json::Value>,
 }
@@ -163,6 +167,8 @@ pub fn compute_layout(workflow: &Workflow, theme: &ResolvedTheme) -> GraphLayout
                 edges.push(Edge {
                     from_id: dep_id.clone(),
                     to_id: job.id.clone(),
+                    from_port: String::new(),
+                    to_port: String::new(),
                     metadata: HashMap::new(),
                 });
             }
@@ -197,6 +203,7 @@ mod tests {
             max_retries: 0,
             attempt: 0,
             metadata: HashMap::new(),
+            ports: vec![],
         }
     }
 
@@ -310,6 +317,8 @@ mod tests {
         let edge = Edge {
             from_id: "a".into(),
             to_id: "b".into(),
+            from_port: String::new(),
+            to_port: String::new(),
             metadata: meta,
         };
 

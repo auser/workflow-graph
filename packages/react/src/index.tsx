@@ -21,6 +21,8 @@ import {
 export type {
   Workflow,
   Job,
+  Port,
+  PortDirection,
   EdgeInfo,
   GraphOptions,
   ThemeConfig,
@@ -46,7 +48,7 @@ export interface WorkflowGraphHandle {
   addNode(job: JobType): Promise<void>;
   removeNode(jobId: string): Promise<void>;
   updateNode(jobId: string, partial: Partial<JobType>): Promise<void>;
-  addEdge(fromId: string, toId: string, metadata?: Record<string, unknown>): Promise<void>;
+  addEdge(fromId: string, toId: string, fromPort?: string, toPort?: string, metadata?: Record<string, unknown>): Promise<void>;
   removeEdge(fromId: string, toId: string): Promise<void>;
   getNodes(): Promise<JobType[]>;
   getEdges(): Promise<EdgeInfoType[]>;
@@ -154,8 +156,8 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         removeNode: (jobId: string) => graphRef.current?.removeNode(jobId) ?? Promise.resolve(),
         updateNode: (jobId: string, partial: Partial<JobType>) =>
           graphRef.current?.updateNode(jobId, partial) ?? Promise.resolve(),
-        addEdge: (fromId: string, toId: string, metadata?: Record<string, unknown>) =>
-          graphRef.current?.addEdge(fromId, toId, metadata) ?? Promise.resolve(),
+        addEdge: (fromId: string, toId: string, fromPort?: string, toPort?: string, metadata?: Record<string, unknown>) =>
+          graphRef.current?.addEdge(fromId, toId, fromPort, toPort, metadata) ?? Promise.resolve(),
         removeEdge: (fromId: string, toId: string) =>
           graphRef.current?.removeEdge(fromId, toId) ?? Promise.resolve(),
         getNodes: () => graphRef.current?.getNodes() ?? Promise.resolve([] as JobType[]),

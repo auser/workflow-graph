@@ -25,12 +25,35 @@ export interface Job {
   attempt?: number;
   /** Arbitrary metadata for custom renderers (e.g., node_type, icon, color). */
   metadata?: Record<string, unknown>;
+  /** Input and output ports for node-graph-style connections. */
+  ports?: Port[];
 }
 
-/** An edge between two nodes with optional metadata. */
+/** Direction of a port on a node. */
+export type PortDirection = 'input' | 'output';
+
+/** A typed input or output port on a node. */
+export interface Port {
+  /** Unique identifier within the node (e.g., "message", "response"). */
+  id: string;
+  /** Display label. */
+  label: string;
+  /** Whether this is an input or output port. */
+  direction: PortDirection;
+  /** Type tag for connection compatibility (e.g., "text", "json", "tool_call"). */
+  port_type?: string;
+  /** Optional color override for the port dot. */
+  color?: string;
+}
+
+/** An edge between two nodes (optionally port-to-port) with optional metadata. */
 export interface EdgeInfo {
   from_id: string;
   to_id: string;
+  /** Source port id (empty string = legacy node-to-node edge). */
+  from_port?: string;
+  /** Target port id (empty string = legacy node-to-node edge). */
+  to_port?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -146,6 +169,8 @@ export interface GraphOptions {
   onRenderNode?: OnRenderNode;
   /** Called when an external element is dropped on the canvas. x/y are graph-space coords. */
   onDrop?: (x: number, y: number, data: string) => void;
+  /** Called when user drags from an output port to an input port to create a connection. */
+  onConnect?: (fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) => void;
   /** Custom theme configuration. */
   theme?: ThemeConfig;
   /** Automatically resize the canvas when the container resizes. */
@@ -170,6 +195,7 @@ interface WasmModule {
   set_on_edge_click(canvasId: string, cb: (fromId: string, toId: string) => void): void;
   set_on_render_node(canvasId: string, cb: OnRenderNode): void;
   set_on_drop(canvasId: string, cb: (x: number, y: number, data: string) => void): void;
+  set_on_connect(canvasId: string, cb: (fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) => void): void;
   select_node(canvasId: string, jobId: string): void;
   deselect_all(canvasId: string): void;
   reset_layout(canvasId: string): void;
@@ -180,7 +206,7 @@ interface WasmModule {
   add_node(canvasId: string, jobJson: string): void;
   remove_node(canvasId: string, jobId: string): void;
   update_node(canvasId: string, jobId: string, partialJson: string): void;
-  add_edge(canvasId: string, fromId: string, toId: string, metadataJson: string | null): void;
+  add_edge(canvasId: string, fromId: string, toId: string, fromPort: string | null, toPort: string | null, metadataJson: string | null): void;
   remove_edge(canvasId: string, fromId: string, toId: string): void;
   get_nodes(canvasId: string): Job[];
   get_edges(canvasId: string): EdgeInfo[];
@@ -273,6 +299,9 @@ export class WorkflowGraph {
     if (this.options.onDrop) {
       wasm.set_on_drop(this.canvasId, this.options.onDrop);
     }
+    if (this.options.onConnect) {
+      wasm.set_on_connect(this.canvasId, this.options.onConnect);
+    }
     if (this.options.autoResize) {
       wasm.set_auto_resize(this.canvasId, true);
     }
@@ -364,10 +393,10 @@ export class WorkflowGraph {
     wasm.update_node(this.canvasId, jobId, JSON.stringify(partial));
   }
 
-  /** Add an edge between two nodes. */
-  async addEdge(fromId: string, toId: string, metadata?: Record<string, unknown>): Promise<void> {
+  /** Add an edge between two nodes, optionally specifying ports. */
+  async addEdge(fromId: string, toId: string, fromPort?: string, toPort?: string, metadata?: Record<string, unknown>): Promise<void> {
     const wasm = await ensureWasm();
-    wasm.add_edge(this.canvasId, fromId, toId, metadata ? JSON.stringify(metadata) : null);
+    wasm.add_edge(this.canvasId, fromId, toId, fromPort ?? null, toPort ?? null, metadata ? JSON.stringify(metadata) : null);
   }
 
   /** Remove an edge between two nodes. */

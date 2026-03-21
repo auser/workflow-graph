@@ -32,6 +32,7 @@ fn generate_diamond_workflow(total_jobs: usize) -> Workflow {
         max_retries: 0,
         attempt: 0,
         metadata: std::collections::HashMap::new(),
+        ports: vec![],
     });
 
     if total_jobs <= 2 {
@@ -62,6 +63,7 @@ fn generate_diamond_workflow(total_jobs: usize) -> Workflow {
             max_retries: 0,
             attempt: 0,
             metadata: std::collections::HashMap::new(),
+            ports: vec![],
         });
     }
 
@@ -81,6 +83,7 @@ fn generate_diamond_workflow(total_jobs: usize) -> Workflow {
             max_retries: 0,
             attempt: 0,
             metadata: std::collections::HashMap::new(),
+            ports: vec![],
         });
     }
 
@@ -99,6 +102,7 @@ fn generate_diamond_workflow(total_jobs: usize) -> Workflow {
         max_retries: 0,
         attempt: 0,
         metadata: std::collections::HashMap::new(),
+        ports: vec![],
     });
 
     Workflow {

@@ -22,6 +22,17 @@ const MIN_ZOOM: f64 = 0.25;
 const MAX_ZOOM: f64 = 4.0;
 const ZOOM_SPEED: f64 = 0.001;
 
+/// State for dragging from a port to create a new edge.
+struct PortDragState {
+    from_node_id: String,
+    from_port_id: String,
+    from_port_type: String,
+    from_is_output: bool,
+    /// Current mouse position in graph-space.
+    current_x: f64,
+    current_y: f64,
+}
+
 /// Persistent state for an interactive graph instance.
 struct GraphState {
     workflow: Workflow,
@@ -63,6 +74,9 @@ struct GraphState {
     on_edge_click: Option<js_sys::Function>,
     on_render_node: Option<js_sys::Function>,
     on_drop: Option<js_sys::Function>,
+    on_connect: Option<js_sys::Function>,
+    // Port connection dragging state
+    port_dragging: Option<PortDragState>,
     // Click detection
     mouse_down_pos: Option<(f64, f64)>,
     // Resize
@@ -107,6 +121,13 @@ impl GraphState {
             &render::RenderCallbacks {
                 on_render_node: self.on_render_node.as_ref(),
             },
+            self.port_dragging.as_ref().map(|pd| render::PortDragRender {
+                from_x: pd.current_x, // will be set to port center when drag starts
+                from_y: pd.current_y,
+                to_x: pd.current_x,
+                to_y: pd.current_y,
+                color: "#58a6ff".to_string(),
+            }).as_ref(),
         )
         .ok();
     }
@@ -140,6 +161,63 @@ impl GraphState {
 
     fn screen_to_graph(&self, x: f64, y: f64) -> (f64, f64) {
         ((x - self.pan_x) / self.zoom, (y - self.pan_y) / self.zoom)
+    }
+
+    /// Hit-test ports: returns (node_index, port_id, is_output, port_type, port_center_x, port_center_y).
+    fn port_hit_test(&self, gx: f64, gy: f64) -> Option<(usize, String, bool, String, f64, f64)> {
+        use workflow_graph_shared::PortDirection;
+        let port_radius: f64 = 5.0;
+        let port_hit_radius: f64 = 8.0; // generous click target
+
+        for (node_idx, node) in self.layout.nodes.iter().enumerate() {
+            if let Some(job) = self.workflow.jobs.iter().find(|j| j.id == node.job_id) {
+                let input_ports: Vec<_> = job
+                    .ports
+                    .iter()
+                    .filter(|p| p.direction == PortDirection::Input)
+                    .collect();
+                let output_ports: Vec<_> = job
+                    .ports
+                    .iter()
+                    .filter(|p| p.direction == PortDirection::Output)
+                    .collect();
+
+                // Input ports on the left edge
+                for (i, port) in input_ports.iter().enumerate() {
+                    let px = node.x;
+                    let py =
+                        node.y + port_y_offset(i, input_ports.len(), node.height, port_radius);
+                    if (gx - px).powi(2) + (gy - py).powi(2) < port_hit_radius.powi(2) {
+                        return Some((
+                            node_idx,
+                            port.id.clone(),
+                            false,
+                            port.port_type.clone(),
+                            px,
+                            py,
+                        ));
+                    }
+                }
+
+                // Output ports on the right edge
+                for (i, port) in output_ports.iter().enumerate() {
+                    let px = node.x + node.width;
+                    let py =
+                        node.y + port_y_offset(i, output_ports.len(), node.height, port_radius);
+                    if (gx - px).powi(2) + (gy - py).powi(2) < port_hit_radius.powi(2) {
+                        return Some((
+                            node_idx,
+                            port.id.clone(),
+                            true,
+                            port.port_type.clone(),
+                            px,
+                            py,
+                        ));
+                    }
+                }
+            }
+        }
+        None
     }
 
     fn compute_highlighted_path(&mut self, node_idx: Option<usize>) {
@@ -404,6 +482,8 @@ pub fn render_workflow(
         on_edge_click: None,
         on_render_node: None,
         on_drop: None,
+        on_connect: None,
+        port_dragging: None,
         mouse_down_pos: None,
         auto_resize: false,
         _resize_observer: None,
@@ -701,6 +781,15 @@ pub fn set_on_render_node(canvas_id: &str, callback: js_sys::Function) {
     });
 }
 
+/// Set a connect callback: `(fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) => void`.
+/// Called when the user drags from an output port to an input port to create a connection.
+#[wasm_bindgen]
+pub fn set_on_connect(canvas_id: &str, callback: js_sys::Function) {
+    with_state(canvas_id, |s| {
+        s.on_connect = Some(callback);
+    });
+}
+
 /// Set a drop callback: `(x: number, y: number, data: string) => void`.
 /// Called when an external element is dropped on the canvas.
 /// `x` and `y` are graph-space coordinates, `data` is the dataTransfer text.
@@ -830,12 +919,15 @@ pub fn update_node(canvas_id: &str, job_id: &str, partial_json: &str) -> Result<
     })
 }
 
-/// Add an edge between two nodes. Triggers re-layout and re-render.
+/// Add an edge between two nodes, optionally specifying ports.
+/// If from_port/to_port are provided, the edge connects specific ports.
 #[wasm_bindgen]
 pub fn add_edge(
     canvas_id: &str,
     from_id: &str,
     to_id: &str,
+    from_port: Option<String>,
+    to_port: Option<String>,
     metadata_json: Option<String>,
 ) -> Result<(), JsValue> {
     let edge_metadata: std::collections::HashMap<String, serde_json::Value> = match metadata_json {
@@ -875,6 +967,8 @@ pub fn add_edge(
             s.layout.edges.push(layout::Edge {
                 from_id: from_id.to_string(),
                 to_id: to_id.to_string(),
+                from_port: from_port.unwrap_or_default(),
+                to_port: to_port.unwrap_or_default(),
                 metadata: edge_metadata,
             });
             s.redraw();
@@ -942,6 +1036,8 @@ pub fn get_edges(canvas_id: &str) -> JsValue {
                     serde_json::json!({
                         "from_id": e.from_id,
                         "to_id": e.to_id,
+                        "from_port": e.from_port,
+                        "to_port": e.to_port,
                         "metadata": e.metadata,
                     })
                 })
@@ -1536,6 +1632,16 @@ fn mouse_pos(event: &MouseEvent, state: &SharedState) -> (f64, f64) {
         event.client_x() as f64 - rect.left(),
         event.client_y() as f64 - rect.top(),
     )
+}
+
+/// Compute the Y offset for a port within a node.
+/// Distributes ports evenly along the node height.
+fn port_y_offset(index: usize, total: usize, node_height: f64, _port_radius: f64) -> f64 {
+    if total == 0 {
+        return node_height / 2.0;
+    }
+    let spacing = node_height / (total as f64 + 1.0);
+    spacing * (index as f64 + 1.0)
 }
 
 /// Evaluate a cubic bezier at parameter t ∈ [0,1].

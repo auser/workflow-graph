@@ -366,6 +366,7 @@ mod tests {
                     depends_on: vec![],
                     output: None,
                     metadata: std::collections::HashMap::new(),
+                    ports: vec![],
                 },
                 workflow_graph_shared::Job {
                     id: "b".into(),
@@ -380,6 +381,7 @@ mod tests {
                     depends_on: vec!["a".into()],
                     output: None,
                     metadata: std::collections::HashMap::new(),
+                    ports: vec![],
                 },
                 workflow_graph_shared::Job {
                     id: "c".into(),
@@ -394,6 +396,7 @@ mod tests {
                     depends_on: vec!["a".into()],
                     output: None,
                     metadata: std::collections::HashMap::new(),
+                    ports: vec![],
                 },
             ],
         }

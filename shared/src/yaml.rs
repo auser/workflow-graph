@@ -197,6 +197,7 @@ impl WorkflowDef {
                 max_retries: job_def.retries,
                 attempt: 0,
                 metadata: std::collections::HashMap::new(),
+                ports: vec![],
             });
         }
 

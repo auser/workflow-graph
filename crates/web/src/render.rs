@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use wasm_bindgen::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
-use workflow_graph_shared::{JobStatus, Workflow};
+use workflow_graph_shared::{JobStatus, PortDirection, Workflow};
 
 use crate::layout::{GraphLayout, NodeLayout};
 use crate::theme::{EdgeStyle, LayoutDirection, ResolvedTheme};
@@ -11,6 +11,15 @@ use crate::theme::{EdgeStyle, LayoutDirection, ResolvedTheme};
 /// Optional callbacks that influence rendering.
 pub struct RenderCallbacks<'a> {
     pub on_render_node: Option<&'a js_sys::Function>,
+}
+
+/// Active port connection drag state for rendering the preview line.
+pub struct PortDragRender {
+    pub from_x: f64,
+    pub from_y: f64,
+    pub to_x: f64,
+    pub to_y: f64,
+    pub color: String,
 }
 
 #[allow(dead_code)]
@@ -49,6 +58,7 @@ pub fn render(
         &RenderCallbacks {
             on_render_node: None,
         },
+        None,
     )
 }
 
@@ -69,6 +79,7 @@ pub fn render_with_callbacks(
     selected: &HashSet<String>,
     theme: &ResolvedTheme,
     callbacks: &RenderCallbacks,
+    port_drag: Option<&PortDragRender>,
 ) -> Result<(), JsValue> {
     let colors = &theme.colors;
     let tl = &theme.layout;
@@ -149,7 +160,28 @@ pub fn render_with_callbacks(
             if !skip_default {
                 draw_node(ctx, node, job, animation_time, now_ms, is_selected, theme);
             }
+
+            // Draw ports on all nodes (even custom-rendered ones)
+            if !job.ports.is_empty() {
+                draw_ports(ctx, node, job, theme);
+            }
         }
+    }
+
+    // Draw port connection preview line
+    if let Some(drag) = port_drag {
+        ctx.begin_path();
+        ctx.set_stroke_style_str(&drag.color);
+        ctx.set_line_width(2.0);
+        ctx.set_line_dash(&js_sys::Array::of2(
+            &JsValue::from_f64(6.0),
+            &JsValue::from_f64(4.0),
+        ))?;
+        let mid_x = (drag.from_x + drag.to_x) / 2.0;
+        ctx.move_to(drag.from_x, drag.from_y);
+        ctx.bezier_curve_to(mid_x, drag.from_y, mid_x, drag.to_y, drag.to_x, drag.to_y);
+        ctx.stroke();
+        ctx.set_line_dash(&js_sys::Array::new())?;
     }
 
     ctx.restore();
@@ -429,6 +461,101 @@ fn draw_minimap(
     );
 
     ctx.restore();
+}
+
+// ─── Ports ───────────────────────────────────────────────────────────────────
+
+const PORT_RADIUS: f64 = 4.5;
+const PORT_LABEL_OFFSET: f64 = 10.0;
+
+/// Default colors for port types.
+fn port_type_color(port_type: &str) -> &'static str {
+    match port_type {
+        "text" | "message" => "#3b82f6",    // blue
+        "json" | "data" => "#8b5cf6",       // violet
+        "tool_call" => "#f97316",           // orange
+        "event" | "trigger" => "#22c55e",   // green
+        "config" => "#6b7280",              // gray
+        _ => "#9ca3af",                     // default gray
+    }
+}
+
+fn draw_ports(
+    ctx: &CanvasRenderingContext2d,
+    node: &NodeLayout,
+    job: &workflow_graph_shared::Job,
+    theme: &ResolvedTheme,
+) {
+    let input_ports: Vec<_> = job
+        .ports
+        .iter()
+        .filter(|p| p.direction == PortDirection::Input)
+        .collect();
+    let output_ports: Vec<_> = job
+        .ports
+        .iter()
+        .filter(|p| p.direction == PortDirection::Output)
+        .collect();
+
+    let fonts = &theme.fonts;
+
+    // Draw input ports (left edge)
+    for (i, port) in input_ports.iter().enumerate() {
+        let px = node.x;
+        let py = node.y + port_y_offset_render(i, input_ports.len(), node.height);
+        let color = port.color.as_deref().unwrap_or_else(|| port_type_color(&port.port_type));
+
+        // Port dot
+        ctx.begin_path();
+        ctx.arc(px, py, PORT_RADIUS, 0.0, 2.0 * PI).ok();
+        ctx.set_fill_style_str(color);
+        ctx.fill();
+
+        // Port border
+        ctx.set_stroke_style_str("#1f2937");
+        ctx.set_line_width(1.5);
+        ctx.stroke();
+
+        // Port label
+        ctx.set_font(&format!("{}px {}", (fonts.size_duration as f64 * 0.85).max(8.0), fonts.family));
+        ctx.set_fill_style_str(color);
+        ctx.set_text_align("left");
+        ctx.fill_text(&port.label, px + PORT_LABEL_OFFSET, py + 3.5).ok();
+    }
+
+    // Draw output ports (right edge)
+    for (i, port) in output_ports.iter().enumerate() {
+        let px = node.x + node.width;
+        let py = node.y + port_y_offset_render(i, output_ports.len(), node.height);
+        let color = port.color.as_deref().unwrap_or_else(|| port_type_color(&port.port_type));
+
+        // Port dot
+        ctx.begin_path();
+        ctx.arc(px, py, PORT_RADIUS, 0.0, 2.0 * PI).ok();
+        ctx.set_fill_style_str(color);
+        ctx.fill();
+
+        // Port border
+        ctx.set_stroke_style_str("#1f2937");
+        ctx.set_line_width(1.5);
+        ctx.stroke();
+
+        // Port label (right-aligned)
+        ctx.set_font(&format!("{}px {}", (fonts.size_duration as f64 * 0.85).max(8.0), fonts.family));
+        ctx.set_fill_style_str(color);
+        ctx.set_text_align("right");
+        ctx.fill_text(&port.label, px - PORT_LABEL_OFFSET, py + 3.5).ok();
+    }
+
+    ctx.set_text_align("left"); // reset
+}
+
+fn port_y_offset_render(index: usize, total: usize, node_height: f64) -> f64 {
+    if total == 0 {
+        return node_height / 2.0;
+    }
+    let spacing = node_height / (total as f64 + 1.0);
+    spacing * (index as f64 + 1.0)
 }
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
