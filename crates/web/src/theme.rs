@@ -116,7 +116,9 @@ impl Default for ThemeFonts {
 }
 
 /// Node dimension and spacing configuration.
+/// All fields have defaults so partial JSON works.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ThemeLayout {
     pub node_width: f64,
     pub node_height: f64,

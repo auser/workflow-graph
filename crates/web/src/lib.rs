@@ -517,18 +517,31 @@ pub fn render_workflow(
     // Create ARIA live region for status announcements
     let live_region = create_live_region(&document, &canvas)?;
 
+    // Set canvas CSS to fill its container
+    let html_el: &HtmlElement = canvas.unchecked_ref();
+    html_el.style().set_property("width", "100%").ok();
+    html_el.style().set_property("height", "100%").ok();
+    html_el.style().set_property("display", "block").ok();
+
     // Use parent container size if available, otherwise tight layout dimensions
-    let (initial_w, initial_h) = if let Some(parent) = canvas.parent_element() {
-        let rect = parent.get_bounding_client_rect();
-        let pw = rect.width();
-        let ph = rect.height();
-        if pw > 0.0 && ph > 0.0 {
-            (pw.max(graph_layout.total_width), ph.max(graph_layout.total_height))
+    let (initial_w, initial_h) = {
+        let rect = canvas.get_bounding_client_rect();
+        let cw = rect.width();
+        let ch = rect.height();
+        if cw > 0.0 && ch > 0.0 {
+            (cw, ch)
+        } else if let Some(parent) = canvas.parent_element() {
+            let prect = parent.get_bounding_client_rect();
+            let pw = prect.width();
+            let ph = prect.height();
+            if pw > 0.0 && ph > 0.0 {
+                (pw, ph)
+            } else {
+                (graph_layout.total_width.max(600.0), graph_layout.total_height.max(300.0))
+            }
         } else {
-            (graph_layout.total_width, graph_layout.total_height)
+            (graph_layout.total_width.max(600.0), graph_layout.total_height.max(300.0))
         }
-    } else {
-        (graph_layout.total_width, graph_layout.total_height)
     };
 
     let state = Rc::new(RefCell::new(GraphState {
