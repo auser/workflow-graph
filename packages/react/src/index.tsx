@@ -70,6 +70,8 @@ export interface WorkflowGraphProps extends GraphOptions {
   onError?: (error: Error) => void;
   /** Custom loading skeleton. Defaults to a pulsing placeholder. */
   loadingSkeleton?: React.ReactNode;
+  /** Initial node positions to restore immediately after init. */
+  initialPositions?: Record<string, [number, number]>;
 }
 
 // Default loading skeleton
@@ -137,6 +139,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
       autoResize,
       onError,
       loadingSkeleton,
+      initialPositions,
     },
     ref,
   ) {
@@ -212,6 +215,10 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
             if (theme) {
               await graph.setTheme(theme).catch(() => {});
             }
+            // Restore saved positions immediately after layout
+            if (initialPositions && Object.keys(initialPositions).length > 0) {
+              await graph.setNodePositions(initialPositions).catch(() => {});
+            }
             setLoading(false);
             setError(null);
           }
@@ -252,8 +259,13 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
             // Ignore — node may already exist in WASM state
           });
         }
+
+        // Re-apply saved positions after topology update
+        if (initialPositions && Object.keys(initialPositions).length > 0) {
+          graphRef.current.setNodePositions(initialPositions).catch(() => {});
+        }
       }
-    }, [workflow, onError, loading]);
+    }, [workflow, onError, loading, initialPositions]);
 
     // Update theme when it changes
     useEffect(() => {
