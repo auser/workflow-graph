@@ -85,10 +85,15 @@ struct GraphState {
     // Accessibility
     live_region: Option<web_sys::HtmlElement>,
     last_announced: String,
+    // Lifecycle
+    destroyed: bool,
 }
 
 impl GraphState {
     fn redraw_with_time(&self, animation_time: f64, now_ms: f64) {
+        if self.destroyed {
+            return;
+        }
         // When autoResize is on, always use the parent container size
         // so nodes can be rendered anywhere without clipping
         let (tw, th) = if self.auto_resize {
@@ -566,6 +571,7 @@ pub fn render_workflow(
         _resize_observer: None,
         live_region: Some(live_region),
         last_announced: String::new(),
+        destroyed: false,
     }));
 
     state.borrow().redraw();
@@ -702,10 +708,13 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
                 let state_clone = state.clone();
                 let closure = Closure::<dyn FnMut(js_sys::Array, ResizeObserver)>::new(
                     move |entries: js_sys::Array, _observer: ResizeObserver| {
-                        // Guard: if state is already borrowed or canvas is gone, skip
+                        // Guard: if state is already borrowed or destroyed, skip
                         let Ok(mut s) = state_clone.try_borrow_mut() else {
                             return;
                         };
+                        if s.destroyed {
+                            return;
+                        }
                         let entry: ResizeObserverEntry = match entries.get(0).dyn_into() {
                             Ok(e) => e,
                             Err(_) => return,
@@ -1157,6 +1166,10 @@ pub fn get_edges(canvas_id: &str) -> JsValue {
 pub fn destroy(canvas_id: &str) {
     GRAPHS.with(|g| {
         if let Some(instance) = g.borrow_mut().remove(canvas_id) {
+            // Mark as destroyed first so any in-flight callbacks bail out
+            if let Ok(mut s) = instance.state.try_borrow_mut() {
+                s.destroyed = true;
+            }
             let s = instance.state.borrow();
             // Disconnect resize observer
             if let Some(ref observer) = s._resize_observer {
@@ -1271,6 +1284,7 @@ fn attach_event_handlers(
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
             let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
             s.mouse_down_pos = Some((mx, my));
 
             let (gx, gy) = s.screen_to_graph(mx, my);
@@ -1319,6 +1333,7 @@ fn attach_event_handlers(
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
             let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
 
             if s.port_dragging.is_some() {
                 // Cancel port drag if mouse button is no longer pressed
@@ -1386,6 +1401,7 @@ fn attach_event_handlers(
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
             let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
 
             // Handle port connection completion
             if let Some(pd) = s.port_dragging.take() {
@@ -1506,6 +1522,7 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |_event: MouseEvent| {
             let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
             let had_port_drag = s.port_dragging.is_some();
             s.dragging = None;
             s.panning = false;
@@ -1532,6 +1549,7 @@ fn attach_event_handlers(
         let closure = Closure::<dyn FnMut(WheelEvent)>::new(move |event: WheelEvent| {
             event.prevent_default();
             let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
 
             let (mx, my) = {
                 let rect = s.canvas.get_bounding_client_rect();
@@ -1559,6 +1577,7 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(KeyboardEvent)>::new(move |event: KeyboardEvent| {
             let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
             let key = event.key();
 
             match key.as_str() {
@@ -1654,6 +1673,7 @@ fn attach_event_handlers(
                 };
                 let (mx, my) = touch_pos(&touch, &state);
                 let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
                 s.mouse_down_pos = Some((mx, my));
 
                 if let Some(idx) = s.hit_test(mx, my) {
@@ -1683,6 +1703,7 @@ fn attach_event_handlers(
                 };
                 let (mx, my) = touch_pos(&touch, &state);
                 let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
 
                 if let Some(idx) = s.dragging {
                     let (gx, gy) = s.screen_to_graph(mx, my);
@@ -1709,6 +1730,7 @@ fn attach_event_handlers(
                 // Use changedTouches for the finger that was lifted
                 let touch = event.changed_touches().get(0);
                 let Ok(mut s) = state.try_borrow_mut() else { return };
+            if s.destroyed { return; }
 
                 if let Some(touch) = touch {
                     let rect = s.canvas.get_bounding_client_rect();
