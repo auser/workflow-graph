@@ -1251,6 +1251,27 @@ fn attach_event_handlers(
 
             let (gx, gy) = s.screen_to_graph(mx, my);
 
+            // Check port hit first (for port-to-port connections)
+            let has_ports = s.workflow.jobs.iter().any(|j| !j.ports.is_empty());
+            if has_ports {
+                if let Some((node_idx, port_id, is_output, port_type, px, py)) =
+                    s.port_hit_test(gx, gy)
+                {
+                    let node_id = s.layout.nodes[node_idx].job_id.clone();
+                    s.port_dragging = Some(PortDragState {
+                        from_node_id: node_id,
+                        from_port_id: port_id,
+                        from_port_type: port_type,
+                        from_is_output: is_output,
+                        current_x: px,
+                        current_y: py,
+                    });
+                    let html: &HtmlElement = s.canvas.unchecked_ref();
+                    html.style().set_property("cursor", "crosshair").ok();
+                    return;
+                }
+            }
+
             if let Some(idx) = s.hit_test(mx, my) {
                 s.dragging = Some(idx);
                 s.drag_offset_x = gx - s.layout.nodes[idx].x;
@@ -1275,11 +1296,19 @@ fn attach_event_handlers(
             let (mx, my) = mouse_pos(&event, &state);
             let Ok(mut s) = state.try_borrow_mut() else { return };
 
-            if let Some(idx) = s.dragging {
+            if s.port_dragging.is_some() {
+                let (gx, gy) = s.screen_to_graph(mx, my);
+                if let Some(ref mut pd) = s.port_dragging {
+                    pd.current_x = gx;
+                    pd.current_y = gy;
+                }
+                let html: &HtmlElement = s.canvas.unchecked_ref();
+                html.style().set_property("cursor", "crosshair").ok();
+                s.redraw();
+            } else if let Some(idx) = s.dragging {
                 let (gx, gy) = s.screen_to_graph(mx, my);
                 let node_w = s.layout.nodes[idx].width;
                 let node_h = s.layout.nodes[idx].height;
-                // Clamp to visible canvas area (accounting for pan/zoom)
                 let max_x = (s.canvas_width / s.zoom) - node_w;
                 let max_y = (s.canvas_height / s.zoom) - node_h;
                 let new_x = (gx - s.drag_offset_x).clamp(0.0, max_x.max(0.0));
@@ -1331,6 +1360,46 @@ fn attach_event_handlers(
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
             let Ok(mut s) = state.try_borrow_mut() else { return };
+
+            // Handle port connection completion
+            if let Some(pd) = s.port_dragging.take() {
+                let (gx, gy) = s.screen_to_graph(mx, my);
+                if let Some((_node_idx, target_port_id, target_is_output, target_port_type, _px, _py)) =
+                    s.port_hit_test(gx, gy)
+                {
+                    let target_node_id = s.layout.nodes[_node_idx].job_id.clone();
+                    // Must connect output→input, different nodes, compatible types
+                    let valid = pd.from_is_output != target_is_output
+                        && target_node_id != pd.from_node_id
+                        && (pd.from_port_type == target_port_type
+                            || pd.from_port_type.is_empty()
+                            || target_port_type.is_empty());
+
+                    if valid {
+                        let (from_node, from_port, to_node, to_port) = if pd.from_is_output {
+                            (pd.from_node_id, pd.from_port_id, target_node_id, target_port_id)
+                        } else {
+                            (target_node_id, target_port_id, pd.from_node_id, pd.from_port_id)
+                        };
+
+                        if let Some(ref cb) = s.on_connect {
+                            cb.call4(
+                                &JsValue::NULL,
+                                &JsValue::from_str(&from_node),
+                                &JsValue::from_str(&from_port),
+                                &JsValue::from_str(&to_node),
+                                &JsValue::from_str(&to_port),
+                            )
+                            .ok();
+                        }
+                    }
+                }
+                s.redraw();
+                let html: &HtmlElement = s.canvas.unchecked_ref();
+                html.style().set_property("cursor", "default").ok();
+                s.mouse_down_pos = None;
+                return;
+            }
 
             let is_click = s
                 .mouse_down_pos
@@ -1413,10 +1482,12 @@ fn attach_event_handlers(
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |_event: MouseEvent| {
             let Ok(mut s) = state.try_borrow_mut() else { return };
+            let had_port_drag = s.port_dragging.is_some();
             s.dragging = None;
             s.panning = false;
+            s.port_dragging = None;
             s.mouse_down_pos = None;
-            let had_hover = s.hovered.is_some();
+            let had_hover = s.hovered.is_some() || had_port_drag;
             s.hovered = None;
             s.highlighted_edges.clear();
             let html: &HtmlElement = s.canvas.unchecked_ref();
