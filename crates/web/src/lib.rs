@@ -96,7 +96,7 @@ struct GraphState {
 
 impl GraphState {
     fn redraw_with_time(&self, animation_time: f64, now_ms: f64) {
-        if self.destroyed {
+        if self.destroyed || !self.canvas.is_connected() {
             return;
         }
         // When autoResize is on, always use the parent container size
@@ -768,7 +768,7 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
                         let rect = entry.content_rect();
                         let w = rect.width();
                         let h = rect.height();
-                        if w > 0.0 && h > 0.0 {
+                        if w > 0.0 && h > 0.0 && s.canvas.is_connected() {
                             s.canvas_width = w;
                             s.canvas_height = h;
                             s.redraw();
