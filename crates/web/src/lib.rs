@@ -1279,8 +1279,20 @@ pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> 
             let first_id = children
                 .iter()
                 .min_by(|a, b| {
-                    let ax = s.layout.nodes.iter().find(|n| n.job_id == a.id).map(|n| n.x).unwrap_or(0.0);
-                    let bx = s.layout.nodes.iter().find(|n| n.job_id == b.id).map(|n| n.x).unwrap_or(0.0);
+                    let ax = s
+                        .layout
+                        .nodes
+                        .iter()
+                        .find(|n| n.job_id == a.id)
+                        .map(|n| n.x)
+                        .unwrap_or(0.0);
+                    let bx = s
+                        .layout
+                        .nodes
+                        .iter()
+                        .find(|n| n.job_id == b.id)
+                        .map(|n| n.x)
+                        .unwrap_or(0.0);
                     ax.partial_cmp(&bx).unwrap_or(std::cmp::Ordering::Equal)
                 })
                 .map(|j| j.id.clone())
@@ -1288,8 +1300,20 @@ pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> 
             let last_id = children
                 .iter()
                 .max_by(|a, b| {
-                    let ax = s.layout.nodes.iter().find(|n| n.job_id == a.id).map(|n| n.x).unwrap_or(0.0);
-                    let bx = s.layout.nodes.iter().find(|n| n.job_id == b.id).map(|n| n.x).unwrap_or(0.0);
+                    let ax = s
+                        .layout
+                        .nodes
+                        .iter()
+                        .find(|n| n.job_id == a.id)
+                        .map(|n| n.x)
+                        .unwrap_or(0.0);
+                    let bx = s
+                        .layout
+                        .nodes
+                        .iter()
+                        .find(|n| n.job_id == b.id)
+                        .map(|n| n.x)
+                        .unwrap_or(0.0);
                     ax.partial_cmp(&bx).unwrap_or(std::cmp::Ordering::Equal)
                 })
                 .map(|j| j.id.clone())
