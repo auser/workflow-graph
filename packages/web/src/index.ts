@@ -144,6 +144,8 @@ export interface GraphOptions {
   onEdgeClick?: (fromId: string, toId: string) => void;
   /** Custom node rendering callback. */
   onRenderNode?: OnRenderNode;
+  /** Called when an external element is dropped on the canvas. x/y are graph-space coords. */
+  onDrop?: (x: number, y: number, data: string) => void;
   /** Custom theme configuration. */
   theme?: ThemeConfig;
   /** Automatically resize the canvas when the container resizes. */
@@ -167,6 +169,7 @@ interface WasmModule {
   set_auto_resize(canvasId: string, enabled: boolean): void;
   set_on_edge_click(canvasId: string, cb: (fromId: string, toId: string) => void): void;
   set_on_render_node(canvasId: string, cb: OnRenderNode): void;
+  set_on_drop(canvasId: string, cb: (x: number, y: number, data: string) => void): void;
   select_node(canvasId: string, jobId: string): void;
   deselect_all(canvasId: string): void;
   reset_layout(canvasId: string): void;
@@ -266,6 +269,9 @@ export class WorkflowGraph {
     }
     if (this.options.onRenderNode) {
       wasm.set_on_render_node(this.canvasId, this.options.onRenderNode);
+    }
+    if (this.options.onDrop) {
+      wasm.set_on_drop(this.canvasId, this.options.onDrop);
     }
     if (this.options.autoResize) {
       wasm.set_auto_resize(this.canvasId, true);

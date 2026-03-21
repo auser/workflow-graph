@@ -122,6 +122,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
       onNodeDragEnd,
       onEdgeClick,
       onRenderNode,
+      onDrop,
       theme,
       autoResize,
       onError,
@@ -178,6 +179,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         onNodeDragEnd,
         onEdgeClick,
         onRenderNode,
+        onDrop,
         theme,
         autoResize,
       };

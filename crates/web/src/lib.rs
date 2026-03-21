@@ -62,6 +62,7 @@ struct GraphState {
     on_selection_change: Option<js_sys::Function>,
     on_edge_click: Option<js_sys::Function>,
     on_render_node: Option<js_sys::Function>,
+    on_drop: Option<js_sys::Function>,
     // Click detection
     mouse_down_pos: Option<(f64, f64)>,
     // Resize
@@ -402,6 +403,7 @@ pub fn render_workflow(
         on_node_drag_end,
         on_edge_click: None,
         on_render_node: None,
+        on_drop: None,
         mouse_down_pos: None,
         auto_resize: false,
         _resize_observer: None,
@@ -696,6 +698,16 @@ pub fn set_on_edge_click(canvas_id: &str, callback: js_sys::Function) {
 pub fn set_on_render_node(canvas_id: &str, callback: js_sys::Function) {
     with_state(canvas_id, |s| {
         s.on_render_node = Some(callback);
+    });
+}
+
+/// Set a drop callback: `(x: number, y: number, data: string) => void`.
+/// Called when an external element is dropped on the canvas.
+/// `x` and `y` are graph-space coordinates, `data` is the dataTransfer text.
+#[wasm_bindgen]
+pub fn set_on_drop(canvas_id: &str, callback: js_sys::Function) {
+    with_state(canvas_id, |s| {
+        s.on_drop = Some(callback);
     });
 }
 
@@ -1455,6 +1467,54 @@ fn attach_event_handlers(
                 s.panning = false;
             });
         add_listener!("touchend", closure);
+    }
+
+    // dragover — allow drop by preventing default
+    {
+        let closure =
+            Closure::<dyn FnMut(web_sys::DragEvent)>::new(move |event: web_sys::DragEvent| {
+                event.prevent_default();
+                if let Some(dt) = event.data_transfer() {
+                    dt.set_drop_effect("copy");
+                }
+            });
+        add_listener!("dragover", closure);
+    }
+
+    // drop — fire on_drop callback with graph-space coordinates and transferred data
+    {
+        let state = state.clone();
+        let closure =
+            Closure::<dyn FnMut(web_sys::DragEvent)>::new(move |event: web_sys::DragEvent| {
+                event.prevent_default();
+                let s = state.borrow();
+                let Some(ref cb) = s.on_drop else {
+                    return;
+                };
+
+                // Get mouse position relative to canvas
+                let rect = s.canvas.get_bounding_client_rect();
+                let mx = event.client_x() as f64 - rect.left();
+                let my = event.client_y() as f64 - rect.top();
+
+                // Convert to graph-space coordinates
+                let (gx, gy) = s.screen_to_graph(mx, my);
+
+                // Get the transferred data
+                let data = event
+                    .data_transfer()
+                    .and_then(|dt| dt.get_data("application/workflow-node").ok())
+                    .unwrap_or_default();
+
+                cb.call3(
+                    &JsValue::NULL,
+                    &JsValue::from_f64(gx),
+                    &JsValue::from_f64(gy),
+                    &JsValue::from_str(&data),
+                )
+                .ok();
+            });
+        add_listener!("drop", closure);
     }
 
     Ok(listeners)

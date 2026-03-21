@@ -50,4 +50,6 @@ features = [
     "Touch",
     "TouchEvent",
     "TouchList",
+    "DragEvent",
+    "DataTransfer",
 ]
