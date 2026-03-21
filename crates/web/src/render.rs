@@ -504,10 +504,9 @@ fn draw_ports(
         ctx.set_line_width(1.5);
         ctx.stroke();
 
-        // Port label
+        // Port label (inside node, right of dot)
         ctx.set_font(&format!("{}px {}", PORT_FONT_SIZE, fonts.family));
         ctx.set_fill_style_str(color);
-        ctx.set_text_align("left");
         ctx.fill_text(&port.label, px + PORT_LABEL_OFFSET, py + 3.5).ok();
     }
 
@@ -528,14 +527,12 @@ fn draw_ports(
         ctx.set_line_width(1.5);
         ctx.stroke();
 
-        // Port label (right-aligned)
+        // Port label (inside node, left of dot)
         ctx.set_font(&format!("{}px {}", PORT_FONT_SIZE, fonts.family));
         ctx.set_fill_style_str(color);
-        ctx.set_text_align("right");
-        ctx.fill_text(&port.label, px - PORT_LABEL_OFFSET, py + 3.5).ok();
+        let label_width = ctx.measure_text(&port.label).map(|m| m.width()).unwrap_or(40.0);
+        ctx.fill_text(&port.label, px - PORT_LABEL_OFFSET - label_width, py + 3.5).ok();
     }
-
-    ctx.set_text_align("left"); // reset
 }
 
 fn port_y_offset_render(index: usize, total: usize, node_height: f64) -> f64 {
