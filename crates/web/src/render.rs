@@ -94,23 +94,10 @@ pub fn render_with_callbacks(
     ctx.translate(pan_x, pan_y)?;
     ctx.scale(zoom, zoom)?;
 
-    // Draw graph background card
-    draw_rounded_rect(
-        ctx,
-        tl.padding - 10.0,
-        tl.padding - 10.0,
-        tw - 2.0 * tl.padding + 20.0,
-        th - 2.0 * tl.padding + 20.0,
-        12.0,
-    );
-    ctx.set_fill_style_str(&colors.graph_bg);
-    ctx.fill();
-    ctx.set_stroke_style_str(&colors.node_border);
-    ctx.set_line_width(1.0);
-    ctx.stroke();
-
-    // Draw header
-    draw_header(ctx, workflow, theme);
+    // Draw header (skip the constrained background box — nodes can go anywhere)
+    if tl.header_height > 0.0 {
+        draw_header(ctx, workflow, theme);
+    }
 
     // Build node lookup
     let node_map: HashMap<&str, &NodeLayout> = layout
@@ -465,8 +452,9 @@ fn draw_minimap(
 
 // ─── Ports ───────────────────────────────────────────────────────────────────
 
-const PORT_RADIUS: f64 = 4.5;
-const PORT_LABEL_OFFSET: f64 = 10.0;
+const PORT_RADIUS: f64 = 5.0;
+const PORT_LABEL_OFFSET: f64 = 14.0;
+const PORT_FONT_SIZE: f64 = 10.0;
 
 /// Default colors for port types.
 fn port_type_color(port_type: &str) -> &'static str {
@@ -517,7 +505,7 @@ fn draw_ports(
         ctx.stroke();
 
         // Port label
-        ctx.set_font(&format!("{}px {}", (fonts.size_duration as f64 * 0.85).max(8.0), fonts.family));
+        ctx.set_font(&format!("{}px {}", PORT_FONT_SIZE, fonts.family));
         ctx.set_fill_style_str(color);
         ctx.set_text_align("left");
         ctx.fill_text(&port.label, px + PORT_LABEL_OFFSET, py + 3.5).ok();
@@ -541,7 +529,7 @@ fn draw_ports(
         ctx.stroke();
 
         // Port label (right-aligned)
-        ctx.set_font(&format!("{}px {}", (fonts.size_duration as f64 * 0.85).max(8.0), fonts.family));
+        ctx.set_font(&format!("{}px {}", PORT_FONT_SIZE, fonts.family));
         ctx.set_fill_style_str(color);
         ctx.set_text_align("right");
         ctx.fill_text(&port.label, px - PORT_LABEL_OFFSET, py + 3.5).ok();
@@ -554,8 +542,11 @@ fn port_y_offset_render(index: usize, total: usize, node_height: f64) -> f64 {
     if total == 0 {
         return node_height / 2.0;
     }
-    let spacing = node_height / (total as f64 + 1.0);
-    spacing * (index as f64 + 1.0)
+    // Start ports below the node name area (top 28px reserved for name/header)
+    let top_margin = 28.0;
+    let usable_height = node_height - top_margin;
+    let spacing = usable_height / (total as f64 + 1.0);
+    top_margin + spacing * (index as f64 + 1.0)
 }
 
 // ─── Icons ───────────────────────────────────────────────────────────────────

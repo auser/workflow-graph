@@ -1266,8 +1266,8 @@ fn attach_event_handlers(
                 let (gx, gy) = s.screen_to_graph(mx, my);
                 let node_w = s.layout.nodes[idx].width;
                 let node_h = s.layout.nodes[idx].height;
-                let new_x = (gx - s.drag_offset_x).clamp(0.0, s.canvas_width - node_w);
-                let new_y = (gy - s.drag_offset_y).clamp(0.0, s.canvas_height - node_h);
+                let new_x = gx - s.drag_offset_x;
+                let new_y = gy - s.drag_offset_y;
                 s.layout.nodes[idx].x = new_x;
                 s.layout.nodes[idx].y = new_y;
                 s.redraw();
@@ -1315,6 +1315,48 @@ fn attach_event_handlers(
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
             let (mx, my) = mouse_pos(&event, &state);
             let mut s = state.borrow_mut();
+
+            // Handle port connection completion
+            if let Some(pd) = s.port_dragging.take() {
+                let (gx, gy) = s.screen_to_graph(mx, my);
+                // Check if we released over a compatible port
+                if let Some((_node_idx, target_port_id, target_is_output, target_port_type, _px, _py)) =
+                    s.port_hit_test(gx, gy)
+                {
+                    let target_node_id = s.layout.nodes[_node_idx].job_id.clone();
+                    // Must connect output → input (not same direction)
+                    let valid = pd.from_is_output != target_is_output
+                        && target_node_id != pd.from_node_id
+                        && (pd.from_port_type == target_port_type
+                            || pd.from_port_type.is_empty()
+                            || target_port_type.is_empty());
+
+                    if valid {
+                        // Normalize: always from output to input
+                        let (from_node, from_port, to_node, to_port) = if pd.from_is_output {
+                            (pd.from_node_id.clone(), pd.from_port_id.clone(), target_node_id.clone(), target_port_id.clone())
+                        } else {
+                            (target_node_id.clone(), target_port_id.clone(), pd.from_node_id.clone(), pd.from_port_id.clone())
+                        };
+
+                        if let Some(ref cb) = s.on_connect {
+                            cb.call4(
+                                &JsValue::NULL,
+                                &JsValue::from_str(&from_node),
+                                &JsValue::from_str(&from_port),
+                                &JsValue::from_str(&to_node),
+                                &JsValue::from_str(&to_port),
+                            )
+                            .ok();
+                        }
+                    }
+                }
+                s.redraw();
+                let html: &HtmlElement = s.canvas.unchecked_ref();
+                html.style().set_property("cursor", "default").ok();
+                s.mouse_down_pos = None;
+                return;
+            }
 
             let is_click = s
                 .mouse_down_pos
@@ -1707,13 +1749,15 @@ fn mouse_pos(event: &MouseEvent, state: &SharedState) -> (f64, f64) {
 }
 
 /// Compute the Y offset for a port within a node.
-/// Distributes ports evenly along the node height.
+/// Distributes ports evenly below the name area (top 28px reserved).
 fn port_y_offset(index: usize, total: usize, node_height: f64, _port_radius: f64) -> f64 {
     if total == 0 {
         return node_height / 2.0;
     }
-    let spacing = node_height / (total as f64 + 1.0);
-    spacing * (index as f64 + 1.0)
+    let top_margin = 28.0;
+    let usable_height = node_height - top_margin;
+    let spacing = usable_height / (total as f64 + 1.0);
+    top_margin + spacing * (index as f64 + 1.0)
 }
 
 /// Evaluate a cubic bezier at parameter t ∈ [0,1].
