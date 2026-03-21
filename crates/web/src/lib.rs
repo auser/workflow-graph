@@ -495,10 +495,24 @@ pub fn render_workflow(
     // Create ARIA live region for status announcements
     let live_region = create_live_region(&document, &canvas)?;
 
+    // Use parent container size if available, otherwise tight layout dimensions
+    let (initial_w, initial_h) = if let Some(parent) = canvas.parent_element() {
+        let rect = parent.get_bounding_client_rect();
+        let pw = rect.width();
+        let ph = rect.height();
+        if pw > 0.0 && ph > 0.0 {
+            (pw.max(graph_layout.total_width), ph.max(graph_layout.total_height))
+        } else {
+            (graph_layout.total_width, graph_layout.total_height)
+        }
+    } else {
+        (graph_layout.total_width, graph_layout.total_height)
+    };
+
     let state = Rc::new(RefCell::new(GraphState {
         workflow,
-        canvas_width: graph_layout.total_width,
-        canvas_height: graph_layout.total_height,
+        canvas_width: initial_w,
+        canvas_height: initial_h,
         initial_layout: graph_layout.clone(),
         layout: graph_layout,
         canvas: canvas.clone(),
@@ -865,12 +879,30 @@ pub fn add_node(canvas_id: &str, job_json: &str) -> Result<(), JsValue> {
                     job.id
                 )));
             }
+            // Copy layout values to avoid borrow conflict
+            let padding = s.theme.layout.padding;
+            let v_gap = s.theme.layout.v_gap;
+            let node_width = s.theme.layout.node_width;
+            let node_height = s.theme.layout.node_height;
+            // Position the new node below existing nodes (don't re-layout everything)
+            let max_y = s.layout.nodes.iter().map(|n| n.y + n.height).fold(0.0_f64, f64::max);
+            let new_x = padding;
+            let new_y = if s.layout.nodes.is_empty() {
+                padding
+            } else {
+                max_y + v_gap
+            };
+            s.layout.nodes.push(layout::NodeLayout {
+                job_id: job.id.clone(),
+                x: new_x,
+                y: new_y,
+                width: node_width,
+                height: node_height,
+            });
+            // Expand canvas if needed but never shrink
+            s.canvas_width = s.canvas_width.max(new_x + node_width + padding);
+            s.canvas_height = s.canvas_height.max(new_y + node_height + padding);
             s.workflow.jobs.push(job);
-            let new_layout = layout::compute_layout(&s.workflow, &s.theme);
-            s.canvas_width = new_layout.total_width;
-            s.canvas_height = new_layout.total_height;
-            s.initial_layout = new_layout.clone();
-            s.layout = new_layout;
             s.redraw();
             Ok(())
         } else {
@@ -1266,8 +1298,11 @@ fn attach_event_handlers(
                 let (gx, gy) = s.screen_to_graph(mx, my);
                 let node_w = s.layout.nodes[idx].width;
                 let node_h = s.layout.nodes[idx].height;
-                let new_x = gx - s.drag_offset_x;
-                let new_y = gy - s.drag_offset_y;
+                // Clamp to visible canvas area (accounting for pan/zoom)
+                let max_x = (s.canvas_width / s.zoom) - node_w;
+                let max_y = (s.canvas_height / s.zoom) - node_h;
+                let new_x = (gx - s.drag_offset_x).clamp(0.0, max_x.max(0.0));
+                let new_y = (gy - s.drag_offset_y).clamp(0.0, max_y.max(0.0));
                 s.layout.nodes[idx].x = new_x;
                 s.layout.nodes[idx].y = new_y;
                 s.redraw();
