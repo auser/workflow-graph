@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-03-21
+
+### Miscellaneous
+
+- Bump workspace version to 0.5.1([c82b420](https://github.com/auser/workflow-graph/commit/c82b420e77c48b36d1a623443ae54d2a95ce74b4))
+## [0.5.1] - 2026-03-21
+
+### Features
+
+- Add native drag-drop support to canvas([ef08fd8](https://github.com/auser/workflow-graph/commit/ef08fd80f35cb2e6c62fe9d50cc5c549ba265753))
+
+### Miscellaneous
+
+- Bump to 0.5.1([1ad7e58](https://github.com/auser/workflow-graph/commit/1ad7e58e6ff1eaaf3f81a45763ed755a76b41966))
 ## [0.5.0] - 2026-03-20
 
 ### Features
@@ -23,6 +37,8 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 
+- Bump npm packages to 0.5.0([5ae3dad](https://github.com/auser/workflow-graph/commit/5ae3dadd69402375e99755acd608a41da5d9b04c))
+- Add changelog for v0.5.0([85cc2f9](https://github.com/auser/workflow-graph/commit/85cc2f9773c432467b96739f279b119ee97e44d0))
 - Bump workspace version to 0.5.0([ad055e3](https://github.com/auser/workflow-graph/commit/ad055e324c5b510ba3bf52740667fdf61aad3915))
 ## [0.4.0] - 2026-03-17
 
