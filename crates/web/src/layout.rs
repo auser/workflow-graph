@@ -1,7 +1,37 @@
 use std::collections::HashMap;
-use workflow_graph_shared::Workflow;
+use workflow_graph_shared::{NodeDefinition, Workflow};
 
 use crate::theme::{LayoutDirection, ResolvedTheme};
+
+/// Compute the height for a node based on its NodeDefinition (if any).
+/// Returns theme default if no definition is registered.
+fn compute_node_height(
+    job: &workflow_graph_shared::Job,
+    node_defs: &HashMap<String, NodeDefinition>,
+    default_height: f64,
+) -> f64 {
+    let node_type = job.metadata.get("node_type").and_then(|v| v.as_str());
+    let def = node_type.and_then(|t| node_defs.get(t));
+    match def {
+        Some(d) if !d.fields.is_empty() => {
+            // header(28) + name line(24) + fields + ports + padding
+            let field_h = d.fields.len() as f64 * 22.0;
+            let port_count = job.ports.len().max(
+                d.inputs.len() + d.outputs.len()
+            );
+            let port_h = port_count as f64 * 20.0;
+            let computed = 28.0 + 24.0 + field_h + port_h.max(0.0) + 12.0;
+            computed.max(default_height)
+        }
+        Some(_) => {
+            // Has a definition but no fields — use header + name + ports
+            let port_count = job.ports.len();
+            let computed = 28.0 + 24.0 + (port_count as f64 * 20.0).max(20.0) + 12.0;
+            computed.max(default_height)
+        }
+        None => default_height,
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct NodeLayout {
@@ -33,6 +63,14 @@ pub struct GraphLayout {
 }
 
 pub fn compute_layout(workflow: &Workflow, theme: &ResolvedTheme) -> GraphLayout {
+    compute_layout_with_defs(workflow, theme, &HashMap::new())
+}
+
+pub fn compute_layout_with_defs(
+    workflow: &Workflow,
+    theme: &ResolvedTheme,
+    node_defs: &HashMap<String, NodeDefinition>,
+) -> GraphLayout {
     let jobs = &workflow.jobs;
     if jobs.is_empty() {
         return GraphLayout {
@@ -130,17 +168,33 @@ pub fn compute_layout(workflow: &Workflow, theme: &ResolvedTheme) -> GraphLayout
     let mut max_x: f64 = 0.0;
     let mut max_y: f64 = 0.0;
 
+    // Pre-compute per-node heights
+    let node_heights: Vec<f64> = jobs.iter()
+        .map(|j| compute_node_height(j, node_defs, tl.node_height))
+        .collect();
+
+    // Compute cumulative layer offsets (for variable heights)
+    let mut layer_y_offsets: Vec<f64> = Vec::with_capacity(layer_groups.len());
+    let mut cumulative_y = tl.padding + tl.header_height;
+    for group in &layer_groups {
+        layer_y_offsets.push(cumulative_y);
+        // Max height in this layer determines the next layer's offset
+        let max_h = group.iter()
+            .map(|&idx| node_heights[idx])
+            .fold(tl.node_height, f64::max);
+        cumulative_y += max_h + if is_vertical { tl.h_gap } else { tl.v_gap };
+    }
+
     for (layer, group) in layer_groups.iter().enumerate() {
         for (rank, &idx) in group.iter().enumerate() {
+            let h = node_heights[idx];
             let (x, y) = if is_vertical {
-                // Top-to-bottom: layers go down, siblings go right
                 let x = tl.padding + rank as f64 * (tl.node_width + tl.v_gap);
-                let y = tl.padding + tl.header_height + layer as f64 * (tl.node_height + tl.h_gap);
+                let y = layer_y_offsets[layer];
                 (x, y)
             } else {
-                // Left-to-right (default): layers go right, siblings go down
                 let x = tl.padding + layer as f64 * (tl.node_width + tl.h_gap);
-                let y = tl.padding + tl.header_height + rank as f64 * (tl.node_height + tl.v_gap);
+                let y = layer_y_offsets[layer] + rank as f64 * (tl.node_height + tl.v_gap);
                 (x, y)
             };
             nodes.push(NodeLayout {
@@ -148,10 +202,10 @@ pub fn compute_layout(workflow: &Workflow, theme: &ResolvedTheme) -> GraphLayout
                 x,
                 y,
                 width: tl.node_width,
-                height: tl.node_height,
+                height: h,
             });
             max_x = max_x.max(x + tl.node_width);
-            max_y = max_y.max(y + tl.node_height);
+            max_y = max_y.max(y + h);
         }
     }
 

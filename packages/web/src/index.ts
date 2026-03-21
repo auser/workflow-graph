@@ -161,6 +161,55 @@ export type OnRenderNode = (
   job: Job,
 ) => boolean;
 
+// ─── Node Definition types ──────────────────────────────────────────────────
+
+/** Type of inline field rendered inside a node body. */
+export type FieldType = 'text' | 'textarea' | 'select' | 'toggle' | 'badge' | 'slider';
+
+/** Definition of an inline field rendered inside a node. */
+export interface FieldDef {
+  /** Key used to read/write the field value in `Job.metadata`. */
+  key: string;
+  /** What kind of control to render. */
+  type: FieldType;
+  /** Display label. */
+  label: string;
+  /** Available options (for `select` fields). */
+  options?: string[];
+  /** Default value. */
+  defaultValue?: unknown;
+  /** Minimum value (for `slider` fields). */
+  min?: number;
+  /** Maximum value (for `slider` fields). */
+  max?: number;
+}
+
+/**
+ * Declarative definition of a node type.
+ *
+ * Registered via `WorkflowGraph.registerNodeType()`. The renderer uses this
+ * to draw colored headers, inline fields, and type-specific visuals.
+ * Consumers can define any number of custom node types.
+ */
+export interface NodeDefinition {
+  /** Unique type key (e.g., "agent", "tool"). Matched against `Job.metadata.node_type`. */
+  type: string;
+  /** Display label shown in the header bar. */
+  label: string;
+  /** Icon character (emoji or Unicode) rendered in the header. */
+  icon?: string;
+  /** Hex color for the header bar (e.g., "#3b82f6"). */
+  headerColor?: string;
+  /** Category for grouping in palettes (consumer-defined, no constraints). */
+  category?: string;
+  /** Inline fields rendered in the node body. */
+  fields?: FieldDef[];
+  /** Default input ports for this node type. */
+  inputs?: Port[];
+  /** Default output ports for this node type. */
+  outputs?: Port[];
+}
+
 /** Serializable graph state for persistence. */
 export interface GraphState {
   version: number;
@@ -201,6 +250,8 @@ export interface GraphOptions {
   onDrop?: (x: number, y: number, data: string) => void;
   /** Called when user drags from an output port to an input port to create a connection. */
   onConnect?: (fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) => void;
+  /** Called when user clicks on an inline field within a node. screenX/screenY are viewport coordinates for overlay positioning. */
+  onFieldClick?: (nodeId: string, fieldKey: string, screenX: number, screenY: number) => void;
   /** Custom theme configuration. */
   theme?: ThemeConfig;
   /** Automatically resize the canvas when the container resizes. */
@@ -301,6 +352,7 @@ export class WorkflowGraph {
   private destroyed = false;
   private persistKey: string | null = null;
   private persistStorage: PersistStorage | null = null;
+  private nodeTypeRegistry: Map<string, NodeDefinition> = new Map();
 
   constructor(container: HTMLElement, options: GraphOptions = {}) {
     this.canvasId = `gg-${Math.random().toString(36).slice(2, 9)}`;
@@ -339,18 +391,15 @@ export class WorkflowGraph {
     }).catch(() => {});
   }
 
-  /** Load persisted state and apply it */
+  /** Load persisted state and apply it (full restore: nodes, edges, positions, zoom, pan) */
   async restorePersistedState(): Promise<boolean> {
     if (!this.persistKey || !this.persistStorage) return false;
     try {
       const raw = this.persistStorage.getItem(this.persistKey);
       if (!raw) return false;
       const state: GraphState = JSON.parse(raw);
-      if (state && state.positions) {
-        await this.setNodePositions(state.positions);
-        if (state.zoom && state.zoom !== 1) {
-          await this.setZoom(state.zoom);
-        }
+      if (state) {
+        await this.loadState(state);
         return true;
       }
     } catch {
@@ -578,6 +627,41 @@ export class WorkflowGraph {
   }
 
   // ─── State Persistence API ──────────────────────────────────────────────────
+
+  // ─── Node type registry ──────────────────────────────────────────────────
+
+  /** Register a node type definition. The renderer uses this for colored headers, fields, etc. */
+  registerNodeType(def: NodeDefinition): void {
+    this.nodeTypeRegistry.set(def.type, def);
+  }
+
+  /** Register multiple node type definitions at once. */
+  registerNodeTypes(defs: NodeDefinition[]): void {
+    for (const def of defs) {
+      this.nodeTypeRegistry.set(def.type, def);
+    }
+  }
+
+  /** Get the registered definition for a node type, or null if not registered. */
+  getNodeType(type: string): NodeDefinition | null {
+    return this.nodeTypeRegistry.get(type) ?? null;
+  }
+
+  /** Get all registered node type definitions. */
+  getNodeTypes(): NodeDefinition[] {
+    return Array.from(this.nodeTypeRegistry.values());
+  }
+
+  /** Convert canvas (graph-space) coordinates to screen (viewport) coordinates. */
+  canvasToScreen(canvasX: number, canvasY: number): { x: number; y: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    // TODO: incorporate zoom/pan transforms from WASM state
+    // For now, return relative to viewport
+    return {
+      x: rect.left + canvasX,
+      y: rect.top + canvasY,
+    };
+  }
 
   /** Get the full graph state for persistence (JSON-serializable). */
   async getState(): Promise<GraphState | null> {

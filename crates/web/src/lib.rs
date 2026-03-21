@@ -26,7 +26,7 @@ const ZOOM_SPEED: f64 = 0.001;
 struct PortDragState {
     from_node_id: String,
     from_port_id: String,
-    from_port_type: String,
+    _from_port_type: String,
     from_is_output: bool,
     /// Current mouse position in graph-space.
     current_x: f64,
@@ -63,6 +63,8 @@ struct GraphState {
     highlighted_edges: Vec<usize>,
     // Selection
     selected: HashSet<String>,
+    /// Rubber-band selection rectangle in graph-space: (start_x, start_y, current_x, current_y)
+    selection_rect: Option<(f64, f64, f64, f64)>,
     // Animation
     animating: bool,
     // Callbacks
@@ -75,6 +77,9 @@ struct GraphState {
     on_render_node: Option<js_sys::Function>,
     on_drop: Option<js_sys::Function>,
     on_connect: Option<js_sys::Function>,
+    on_field_click: Option<js_sys::Function>,
+    // Node type definitions registry
+    node_definitions: HashMap<String, workflow_graph_shared::NodeDefinition>,
     // Port connection dragging state
     port_dragging: Option<PortDragState>,
     // Click detection
@@ -145,6 +150,8 @@ impl GraphState {
             &self.theme,
             &render::RenderCallbacks {
                 on_render_node: self.on_render_node.as_ref(),
+                node_definitions: &self.node_definitions,
+                selection_rect: self.selection_rect,
             },
             self.port_dragging.as_ref().map(|pd| {
                 // Find the port's screen position from the node layout
@@ -201,8 +208,8 @@ impl GraphState {
         use workflow_graph_shared::PortDirection;
         let port_radius: f64 = 5.0;
 
-        if let Some(node) = self.layout.nodes.iter().find(|n| n.job_id == node_id) {
-            if let Some(job) = self.workflow.jobs.iter().find(|j| j.id == node_id) {
+        if let Some(node) = self.layout.nodes.iter().find(|n| n.job_id == node_id)
+            && let Some(job) = self.workflow.jobs.iter().find(|j| j.id == node_id) {
                 let ports_of_dir: Vec<_> = job
                     .ports
                     .iter()
@@ -226,7 +233,6 @@ impl GraphState {
                     return (px, py);
                 }
             }
-        }
         (0.0, 0.0)
     }
 
@@ -577,6 +583,7 @@ pub fn render_workflow(
         hovered: None,
         highlighted_edges: vec![],
         selected: HashSet::new(),
+        selection_rect: None,
         animating: false,
         on_node_click,
         on_node_hover,
@@ -587,6 +594,8 @@ pub fn render_workflow(
         on_render_node: None,
         on_drop: None,
         on_connect: None,
+        on_field_click: None,
+        node_definitions: HashMap::new(),
         port_dragging: None,
         mouse_down_pos: None,
         auto_resize: false,
@@ -707,7 +716,7 @@ pub fn set_theme(canvas_id: &str, theme_json: &str) -> Result<(), JsValue> {
         s.theme = resolved;
 
         if needs_relayout {
-            let new_layout = layout::compute_layout(&s.workflow, &s.theme);
+            let new_layout = layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
             s.canvas_width = new_layout.total_width;
             s.canvas_height = new_layout.total_height;
             s.initial_layout = new_layout.clone();
@@ -916,6 +925,26 @@ pub fn set_on_drop(canvas_id: &str, callback: js_sys::Function) {
     });
 }
 
+/// Set a field click callback: `(nodeId: string, fieldKey: string, screenX: number, screenY: number) => void`.
+#[wasm_bindgen]
+pub fn set_on_field_click(canvas_id: &str, callback: js_sys::Function) {
+    with_state(canvas_id, |s| {
+        s.on_field_click = Some(callback);
+    });
+}
+
+/// Register a node type definition (JSON). Used for production node rendering.
+#[wasm_bindgen]
+pub fn register_node_type(canvas_id: &str, def_json: &str) -> Result<(), JsValue> {
+    let def: workflow_graph_shared::NodeDefinition = serde_json::from_str(def_json)
+        .map_err(|e| JsValue::from_str(&format!("NodeDefinition JSON parse error: {e}")))?;
+    with_state(canvas_id, |s| {
+        s.node_definitions.insert(def.node_type.clone(), def);
+        s.redraw();
+    });
+    Ok(())
+}
+
 // ─── Node CRUD API ───────────────────────────────────────────────────────────
 
 /// Add a new node (job) to the graph. Optionally specify position (x, y).
@@ -994,7 +1023,7 @@ pub fn remove_node(canvas_id: &str, job_id: &str) -> Result<(), JsValue> {
                 job.depends_on.retain(|dep| dep != job_id);
             }
             s.selected.remove(job_id);
-            let new_layout = layout::compute_layout(&s.workflow, &s.theme);
+            let new_layout = layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
             s.canvas_width = new_layout.total_width;
             s.canvas_height = new_layout.total_height;
             s.initial_layout = new_layout.clone();
@@ -1411,12 +1440,11 @@ pub fn toggle_collapse(canvas_id: &str, node_id: &str) -> Result<(), JsValue> {
             let mut s = instance.state.borrow_mut();
             if s.destroyed { return Ok(()) }
 
-            if let Some(job) = s.workflow.jobs.iter_mut().find(|j| j.id == node_id) {
-                if job.children.is_some() {
+            if let Some(job) = s.workflow.jobs.iter_mut().find(|j| j.id == node_id)
+                && job.children.is_some() {
                     job.collapsed = !job.collapsed;
                     s.redraw();
                 }
-            }
             Ok(())
         } else {
             Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
@@ -1481,29 +1509,25 @@ pub fn load_state(canvas_id: &str, state_json: &str) -> Result<(), JsValue> {
             let mut s = instance.state.borrow_mut();
 
             // Restore workflow
-            if let Some(workflow_val) = state_val.get("workflow") {
-                if let Ok(workflow) = serde_json::from_value::<Workflow>(workflow_val.clone()) {
+            if let Some(workflow_val) = state_val.get("workflow")
+                && let Ok(workflow) = serde_json::from_value::<Workflow>(workflow_val.clone()) {
                     s.workflow = workflow;
                 }
-            }
 
             // Recompute layout from workflow
-            let new_layout = layout::compute_layout(&s.workflow, &s.theme);
+            let new_layout = layout::compute_layout_with_defs(&s.workflow, &s.theme, &s.node_definitions);
             s.layout = new_layout;
 
             // Restore positions (overrides computed layout)
             if let Some(positions) = state_val.get("positions").and_then(|v| v.as_object()) {
                 for node in &mut s.layout.nodes {
-                    if let Some(pos) = positions.get(&node.job_id) {
-                        if let Some(arr) = pos.as_array() {
-                            if arr.len() == 2 {
-                                if let (Some(x), Some(y)) = (arr[0].as_f64(), arr[1].as_f64()) {
+                    if let Some(pos) = positions.get(&node.job_id)
+                        && let Some(arr) = pos.as_array()
+                            && arr.len() == 2
+                                && let (Some(x), Some(y)) = (arr[0].as_f64(), arr[1].as_f64()) {
                                     node.x = x;
                                     node.y = y;
                                 }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -1578,11 +1602,10 @@ pub fn destroy(canvas_id: &str) {
 fn with_state(canvas_id: &str, f: impl FnOnce(&mut GraphState)) {
     GRAPHS.with(|g| {
         let graphs = g.borrow();
-        if let Some(instance) = graphs.get(canvas_id) {
-            if let Ok(mut s) = instance.state.try_borrow_mut() {
+        if let Some(instance) = graphs.get(canvas_id)
+            && let Ok(mut s) = instance.state.try_borrow_mut() {
                 f(&mut s);
             }
-        }
     });
 }
 
@@ -1658,6 +1681,21 @@ fn attach_event_handlers(
                 _closure: Box::new(closure),
             });
         }};
+        ($event:expr, $closure:expr, non_passive) => {{
+            let closure = $closure;
+            let js_fn: js_sys::Function =
+                closure.as_ref().unchecked_ref::<js_sys::Function>().clone();
+            let opts = web_sys::AddEventListenerOptions::new();
+            opts.set_passive(false);
+            canvas.add_event_listener_with_callback_and_add_event_listener_options(
+                $event, &js_fn, &opts,
+            )?;
+            listeners.push(StoredListener {
+                event: $event,
+                js_fn,
+                _closure: Box::new(closure),
+            });
+        }};
     }
     // mousedown
     {
@@ -1672,15 +1710,15 @@ fn attach_event_handlers(
 
             // Check port hit first (for port-to-port connections)
             let has_ports = s.workflow.jobs.iter().any(|j| !j.ports.is_empty());
-            if has_ports {
-                if let Some((node_idx, port_id, is_output, port_type, px, py)) =
+            if has_ports
+                && let Some((node_idx, port_id, is_output, port_type, px, py)) =
                     s.port_hit_test(gx, gy)
                 {
                     let node_id = s.layout.nodes[node_idx].job_id.clone();
                     s.port_dragging = Some(PortDragState {
                         from_node_id: node_id,
                         from_port_id: port_id,
-                        from_port_type: port_type,
+                        _from_port_type: port_type,
                         from_is_output: is_output,
                         current_x: px,
                         current_y: py,
@@ -1689,7 +1727,6 @@ fn attach_event_handlers(
                     html.style().set_property("cursor", "crosshair").ok();
                     return;
                 }
-            }
 
             if let Some(idx) = s.hit_test(mx, my) {
                 s.dragging = Some(idx);
@@ -1697,6 +1734,11 @@ fn attach_event_handlers(
                 s.drag_offset_y = gy - s.layout.nodes[idx].y;
                 let html: &HtmlElement = s.canvas.unchecked_ref();
                 html.style().set_property("cursor", "grabbing").ok();
+            } else if event.shift_key() {
+                // Shift+drag on empty space → rubber-band selection
+                s.selection_rect = Some((gx, gy, gx, gy));
+                let html: &HtmlElement = s.canvas.unchecked_ref();
+                html.style().set_property("cursor", "crosshair").ok();
             } else {
                 s.panning = true;
                 s.pan_start_x = mx;
@@ -1737,6 +1779,13 @@ fn attach_event_handlers(
                 let (gx, gy) = s.screen_to_graph(mx, my);
                 s.layout.nodes[idx].x = gx - s.drag_offset_x;
                 s.layout.nodes[idx].y = gy - s.drag_offset_y;
+                s.redraw();
+            } else if s.selection_rect.is_some() {
+                let (gx, gy) = s.screen_to_graph(mx, my);
+                if let Some(ref mut rect) = s.selection_rect {
+                    rect.2 = gx;
+                    rect.3 = gy;
+                }
                 s.redraw();
             } else if s.panning {
                 let dx = mx - s.pan_start_x;
@@ -1787,7 +1836,7 @@ fn attach_event_handlers(
             // Handle port connection completion
             if let Some(pd) = s.port_dragging.take() {
                 let (gx, gy) = s.screen_to_graph(mx, my);
-                if let Some((_node_idx, target_port_id, target_is_output, target_port_type, _px, _py)) =
+                if let Some((_node_idx, target_port_id, target_is_output, _target_port_type, _px, _py)) =
                     s.port_hit_test(gx, gy)
                 {
                     let target_node_id = s.layout.nodes[_node_idx].job_id.clone();
@@ -1815,6 +1864,38 @@ fn attach_event_handlers(
                         }
                     }
                 }
+                s.redraw();
+                let html: &HtmlElement = s.canvas.unchecked_ref();
+                html.style().set_property("cursor", "default").ok();
+                s.mouse_down_pos = None;
+                return;
+            }
+
+            // Handle rubber-band selection completion
+            if let Some((x1, y1, x2, y2)) = s.selection_rect.take() {
+                let min_x = x1.min(x2);
+                let max_x = x1.max(x2);
+                let min_y = y1.min(y2);
+                let max_y = y1.max(y2);
+
+                // Select all nodes whose center is inside the rectangle
+                // Collect IDs first to avoid borrow conflict
+                let selected_ids: Vec<String> = s.layout.nodes.iter()
+                    .filter(|node| {
+                        let cx = node.x + node.width / 2.0;
+                        let cy = node.y + node.height / 2.0;
+                        cx >= min_x && cx <= max_x && cy >= min_y && cy <= max_y
+                    })
+                    .map(|node| node.job_id.clone())
+                    .collect();
+
+                if !event.shift_key() {
+                    s.selected.clear();
+                }
+                for id in selected_ids {
+                    s.selected.insert(id);
+                }
+                s.fire_selection_change();
                 s.redraw();
                 let html: &HtmlElement = s.canvas.unchecked_ref();
                 html.style().set_property("cursor", "default").ok();
@@ -1950,7 +2031,7 @@ fn attach_event_handlers(
 
             s.redraw();
         });
-        add_listener!("wheel", closure);
+        add_listener!("wheel", closure, non_passive);
     }
 
     // keydown (Tab to cycle nodes, Enter/Space to select, Escape to deselect)
@@ -2162,7 +2243,7 @@ fn attach_event_handlers(
                     s.pan_start_pan_y = s.pan_y;
                 }
             });
-        add_listener!("touchstart", closure);
+        add_listener!("touchstart", closure, non_passive);
     }
 
     // touchmove — mirrors mousemove logic
@@ -2191,7 +2272,7 @@ fn attach_event_handlers(
                     s.redraw();
                 }
             });
-        add_listener!("touchmove", closure);
+        add_listener!("touchmove", closure, non_passive);
     }
 
     // touchend — mirrors mouseup logic (click detection + drag end)

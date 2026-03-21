@@ -17,6 +17,7 @@ import {
   type GraphState as GraphStateType,
   type GraphOptions,
   type ThemeConfig,
+  type NodeDefinition as NodeDefinitionType,
 } from '@auser/workflow-graph-web';
 
 export type {
@@ -37,6 +38,9 @@ export type {
   EdgeStyle,
   Labels,
   OnRenderNode,
+  NodeDefinition,
+  FieldDef,
+  FieldType,
 } from '@auser/workflow-graph-web';
 export { darkTheme, lightTheme, highContrastTheme } from '@auser/workflow-graph-web';
 
@@ -61,6 +65,11 @@ export interface WorkflowGraphHandle {
   groupSelected(groupName?: string): Promise<void>;
   ungroupNode(nodeId: string): Promise<void>;
   toggleCollapse(nodeId: string): Promise<void>;
+  registerNodeType(def: NodeDefinitionType): void;
+  registerNodeTypes(defs: NodeDefinitionType[]): void;
+  getNodeType(type: string): NodeDefinitionType | null;
+  getNodeTypes(): NodeDefinitionType[];
+  canvasToScreen(x: number, y: number): { x: number; y: number };
   readonly instance: WorkflowGraph | null;
 }
 
@@ -74,6 +83,8 @@ export interface WorkflowGraphProps extends GraphOptions {
   loadingSkeleton?: React.ReactNode;
   /** Initial node positions to restore immediately after init. */
   initialPositions?: Record<string, [number, number]>;
+  /** Node type definitions — auto-registered on mount. */
+  nodeTypes?: NodeDefinitionType[];
 }
 
 // Default loading skeleton
@@ -139,9 +150,12 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
       onConnect,
       theme,
       autoResize,
+      persist,
+      onFieldClick,
       onError,
       loadingSkeleton,
       initialPositions,
+      nodeTypes,
     },
     ref,
   ) {
@@ -180,6 +194,11 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         groupSelected: (groupName?: string) => graphRef.current?.groupSelected(groupName) ?? Promise.resolve(),
         ungroupNode: (nodeId: string) => graphRef.current?.ungroupNode(nodeId) ?? Promise.resolve(),
         toggleCollapse: (nodeId: string) => graphRef.current?.toggleCollapse(nodeId) ?? Promise.resolve(),
+        registerNodeType: (def: NodeDefinitionType) => graphRef.current?.registerNodeType(def),
+        registerNodeTypes: (defs: NodeDefinitionType[]) => graphRef.current?.registerNodeTypes(defs),
+        getNodeType: (type: string) => graphRef.current?.getNodeType(type) ?? null,
+        getNodeTypes: () => graphRef.current?.getNodeTypes() ?? [],
+        canvasToScreen: (x: number, y: number) => graphRef.current?.canvasToScreen(x, y) ?? { x: 0, y: 0 },
         get instance() {
           return graphRef.current;
         },
@@ -203,10 +222,17 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         onConnect,
         theme,
         autoResize,
+        persist,
+        onFieldClick,
       };
 
       const graph = new WorkflowGraph(containerRef.current, options);
       graphRef.current = graph;
+
+      // Register node type definitions
+      if (nodeTypes && nodeTypes.length > 0) {
+        graph.registerNodeTypes(nodeTypes);
+      }
 
       let destroyed = false;
       graph
@@ -217,7 +243,8 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
             if (theme) {
               await graph.setTheme(theme).catch(() => {});
             }
-            // Restore saved positions immediately after layout
+            // Persisted state is auto-restored inside setWorkflow when persist is configured.
+            // Override with explicit initialPositions if provided
             if (initialPositions && Object.keys(initialPositions).length > 0) {
               await graph.setNodePositions(initialPositions).catch(() => {});
             }
@@ -280,7 +307,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
     }, [theme, onError]);
 
     return (
-      <div className={className} style={{ ...style, position: 'relative' }}>
+      <div className={className} style={{ width: '100%', height: '100%', ...style, position: 'relative' }}>
         {(loading || error) && (loadingSkeleton ?? <DefaultSkeleton />)}
         <div
           ref={containerRef}

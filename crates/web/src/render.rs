@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use wasm_bindgen::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
-use workflow_graph_shared::{JobStatus, PortDirection, Workflow};
+use workflow_graph_shared::{JobStatus, NodeDefinition, PortDirection, Workflow};
 
 use crate::layout::{GraphLayout, NodeLayout};
 use crate::theme::{EdgeStyle, LayoutDirection, ResolvedTheme};
@@ -11,6 +11,8 @@ use crate::theme::{EdgeStyle, LayoutDirection, ResolvedTheme};
 /// Optional callbacks that influence rendering.
 pub struct RenderCallbacks<'a> {
     pub on_render_node: Option<&'a js_sys::Function>,
+    pub node_definitions: &'a HashMap<String, NodeDefinition>,
+    pub selection_rect: Option<(f64, f64, f64, f64)>,
 }
 
 /// Active port connection drag state for rendering the preview line.
@@ -57,6 +59,8 @@ pub fn render(
         theme,
         &RenderCallbacks {
             on_render_node: None,
+            node_definitions: &HashMap::new(),
+            selection_rect: None,
         },
         None,
     )
@@ -136,7 +140,19 @@ pub fn render_with_callbacks(
                         let fy = from.y + port_y_offset_render(fi, from_ports.len(), from.height);
                         let tx = to.x;
                         let ty = to.y + port_y_offset_render(ti, to_ports.len(), to.height);
-                        draw_port_edge(ctx, fx, fy, tx, ty, highlighted, theme, style_override);
+                        // Use source port type color for the edge if no explicit style override
+                        let port_color_override = if style_override.is_none() {
+                            let color = port_type_color(&from_ports[fi].port_type);
+                            Some(EdgeStyle {
+                                color: Some(color.to_string()),
+                                width: Some(2.5),
+                                dash: None,
+                            })
+                        } else {
+                            None
+                        };
+                        let effective_override = style_override.or(port_color_override.as_ref());
+                        draw_port_edge(ctx, fx, fy, tx, ty, highlighted, theme, effective_override);
                         continue;
                     }
                 }
@@ -169,7 +185,25 @@ pub fn render_with_callbacks(
             }
 
             if !skip_default {
-                draw_node(ctx, node, job, animation_time, now_ms, is_selected, theme);
+                // Look up node type definition from metadata
+                let node_type = job.metadata.get("node_type")
+                    .and_then(|v| v.as_str());
+                let def = node_type.and_then(|t| callbacks.node_definitions.get(t));
+
+                if let Some(def) = def {
+                    draw_production_node(ctx, node, job, def, animation_time, now_ms, is_selected, theme);
+                } else {
+                    draw_node(ctx, node, job, animation_time, now_ms, is_selected, theme);
+                }
+
+                // Draw compound node decorations
+                if job.children.as_ref().is_some_and(|c| !c.is_empty()) {
+                    if job.collapsed {
+                        draw_collapsed_compound(ctx, node, job, theme);
+                    } else {
+                        draw_expanded_compound(ctx, node, job, theme);
+                    }
+                }
             }
 
             // Draw ports on all nodes (even custom-rendered ones)
@@ -177,6 +211,28 @@ pub fn render_with_callbacks(
                 draw_ports(ctx, node, job, theme);
             }
         }
+    }
+
+    // Draw rubber-band selection rectangle
+    if let Some((x1, y1, x2, y2)) = callbacks.selection_rect {
+        let rx = x1.min(x2);
+        let ry = y1.min(y2);
+        let rw = (x2 - x1).abs();
+        let rh = (y2 - y1).abs();
+
+        // Semi-transparent fill
+        ctx.set_fill_style_str("rgba(59, 130, 246, 0.08)");
+        ctx.fill_rect(rx, ry, rw, rh);
+
+        // Dashed border
+        ctx.set_stroke_style_str("rgba(59, 130, 246, 0.5)");
+        ctx.set_line_width(1.0);
+        ctx.set_line_dash(&js_sys::Array::of2(
+            &JsValue::from_f64(4.0),
+            &JsValue::from_f64(3.0),
+        )).ok();
+        ctx.stroke_rect(rx, ry, rw, rh);
+        ctx.set_line_dash(&js_sys::Array::new()).ok();
     }
 
     // Draw port connection preview line
@@ -382,6 +438,269 @@ fn draw_node(
     }
 }
 
+// ─── Production Node Rendering ────────────────────────────────────────────────
+
+const HEADER_HEIGHT: f64 = 28.0;
+const FIELD_ROW_HEIGHT: f64 = 22.0;
+const _NODE_PADDING_BOTTOM: f64 = 8.0;
+const PRODUCTION_RADIUS: f64 = 10.0;
+
+#[allow(clippy::too_many_arguments)]
+fn draw_production_node(
+    ctx: &CanvasRenderingContext2d,
+    node: &NodeLayout,
+    job: &workflow_graph_shared::Job,
+    def: &NodeDefinition,
+    _animation_time: f64,
+    _now_ms: f64,
+    is_selected: bool,
+    theme: &ResolvedTheme,
+) {
+    let colors = &theme.colors;
+    let fonts = &theme.fonts;
+    let x = node.x;
+    let y = node.y;
+    let w = node.width;
+    let h = node.height;
+
+    // Node shadow
+    ctx.save();
+    ctx.set_shadow_color("rgba(0,0,0,0.25)");
+    ctx.set_shadow_blur(8.0);
+    ctx.set_shadow_offset_x(2.0);
+    ctx.set_shadow_offset_y(2.0);
+
+    // Node background
+    draw_rounded_rect(ctx, x, y, w, h, PRODUCTION_RADIUS);
+    ctx.set_fill_style_str(&colors.node_bg);
+    ctx.fill();
+    ctx.restore(); // restore shadow state
+
+    // Selection or normal border
+    draw_rounded_rect(ctx, x, y, w, h, PRODUCTION_RADIUS);
+    if is_selected {
+        ctx.set_stroke_style_str(&colors.selected);
+        ctx.set_line_width(2.0);
+    } else {
+        ctx.set_stroke_style_str(&colors.node_border);
+        ctx.set_line_width(1.0);
+    }
+    ctx.stroke();
+
+    // ── Header bar ──
+    let header_color = if !def.header_color.is_empty() {
+        &def.header_color
+    } else {
+        // Fallback: check job.metadata for override
+        job.metadata.get("header_color")
+            .and_then(|v| v.as_str())
+            .unwrap_or("#4b5563")
+    };
+
+    // Clip header to top rounded corners
+    ctx.save();
+    draw_rounded_rect_top(ctx, x, y, w, HEADER_HEIGHT, PRODUCTION_RADIUS);
+    ctx.clip();
+    ctx.set_fill_style_str(header_color);
+    ctx.fill_rect(x, y, w, HEADER_HEIGHT);
+    ctx.restore();
+
+    // Header icon
+    let icon = if !def.icon.is_empty() {
+        &def.icon
+    } else {
+        job.metadata.get("icon")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+    };
+    let mut text_x = x + 10.0;
+    if !icon.is_empty() {
+        ctx.set_font(&format!("13px {}", fonts.family));
+        ctx.set_fill_style_str("#ffffff");
+        ctx.fill_text(icon, text_x, y + 19.0).ok();
+        text_x += 20.0;
+    }
+
+    // Header label
+    ctx.set_font(&format!("bold 11px {}", fonts.family));
+    ctx.set_fill_style_str("#ffffff");
+    let label = &def.label;
+    let max_label_w = w - (text_x - x) - 24.0; // leave room for status dot
+    let measured = ctx.measure_text(label).map(|m| m.width()).unwrap_or(60.0);
+    if measured > max_label_w {
+        let chars = ((max_label_w / measured) * label.len() as f64) as usize;
+        let truncated = format!("{}...", &label[..chars.saturating_sub(2)]);
+        ctx.fill_text(&truncated, text_x, y + 19.0).ok();
+    } else {
+        ctx.fill_text(label, text_x, y + 19.0).ok();
+    }
+
+    // Status dot (top-right of header)
+    let status_color = match job.status {
+        JobStatus::Running => &colors.running,
+        JobStatus::Success => &colors.success,
+        JobStatus::Failure => &colors.failure,
+        JobStatus::Queued => &colors.queued,
+        JobStatus::Skipped => &colors.skipped,
+        JobStatus::Cancelled => &colors.cancelled,
+    };
+    ctx.begin_path();
+    ctx.arc(x + w - 12.0, y + HEADER_HEIGHT / 2.0, 4.0, 0.0, 2.0 * PI).ok();
+    ctx.set_fill_style_str(status_color);
+    ctx.fill();
+
+    // ── Node name ──
+    let name_y = y + HEADER_HEIGHT + 18.0;
+    ctx.set_font(&format!("600 {}px {}", fonts.size_name, fonts.family));
+    ctx.set_fill_style_str(&colors.text);
+    let max_chars = ((w - 20.0) / 7.5) as usize;
+    let display_name = if job.name.len() > max_chars {
+        format!("{}...", &job.name[..max_chars.saturating_sub(3)])
+    } else {
+        job.name.clone()
+    };
+    ctx.fill_text(&display_name, x + 10.0, name_y).ok();
+
+    // ── Inline fields ──
+    let mut field_y = name_y + 6.0;
+    for field_def in &def.fields {
+        field_y += FIELD_ROW_HEIGHT;
+        let value = job.metadata.get(&field_def.key)
+            .map(|v| {
+                v.as_str().map(String::from).unwrap_or_else(|| v.to_string())
+            })
+            .or_else(|| field_def.default_value.as_ref().map(|v| {
+                v.as_str().map(String::from).unwrap_or_else(|| v.to_string())
+            }));
+
+        // Field label (left)
+        ctx.set_font(&format!("10px {}", fonts.family));
+        ctx.set_fill_style_str(&colors.text_secondary);
+        ctx.fill_text(&field_def.label, x + 10.0, field_y).ok();
+
+        // Field value (right-aligned)
+        if let Some(val) = &value {
+            ctx.set_fill_style_str(&colors.text);
+            let max_val_w = w * 0.5;
+            let val_measured = ctx.measure_text(val).map(|m| m.width()).unwrap_or(40.0);
+            let display_val = if val_measured > max_val_w {
+                let chars = ((max_val_w / val_measured) * val.len() as f64) as usize;
+                format!("{}...", &val[..chars.saturating_sub(3)])
+            } else {
+                val.clone()
+            };
+            let val_w = ctx.measure_text(&display_val).map(|m| m.width()).unwrap_or(40.0);
+            ctx.fill_text(&display_val, x + w - val_w - 10.0, field_y).ok();
+
+            // Dropdown chevron for select fields
+            if field_def.field_type == workflow_graph_shared::FieldType::Select {
+                ctx.set_fill_style_str(&colors.text_secondary);
+                ctx.fill_text("▾", x + w - 10.0, field_y).ok();
+            }
+        }
+    }
+}
+
+// ─── Compound Node Rendering ──────────────────────────────────────────────────
+
+/// Draw a collapsed compound node: stacked cards visual with child count badge.
+fn draw_collapsed_compound(
+    ctx: &CanvasRenderingContext2d,
+    node: &NodeLayout,
+    job: &workflow_graph_shared::Job,
+    theme: &ResolvedTheme,
+) {
+    let colors = &theme.colors;
+    let fonts = &theme.fonts;
+    let child_count = job.children.as_ref().map(|c| c.len()).unwrap_or(0);
+    if child_count == 0 {
+        return;
+    }
+
+    // Draw stacked card effect (two offset rectangles behind the main node)
+    let offsets = [6.0, 3.0];
+    for offset in &offsets {
+        ctx.save();
+        ctx.set_global_alpha(0.3);
+        draw_rounded_rect(ctx, node.x + offset, node.y - offset, node.width, node.height, 8.0);
+        ctx.set_fill_style_str(&colors.node_bg);
+        ctx.fill();
+        ctx.set_stroke_style_str(&colors.node_border);
+        ctx.set_line_width(1.0);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Child count badge (top-right)
+    let badge_text = format!("{child_count}");
+    let badge_w = 24.0_f64.max(badge_text.len() as f64 * 8.0 + 12.0);
+    let badge_x = node.x + node.width - badge_w - 6.0;
+    let badge_y = node.y + node.height - 20.0;
+
+    draw_rounded_rect(ctx, badge_x, badge_y, badge_w, 16.0, 8.0);
+    ctx.set_fill_style_str("#3b82f6");
+    ctx.fill();
+
+    ctx.set_font(&format!("bold 9px {}", fonts.family));
+    ctx.set_fill_style_str("#ffffff");
+    let text_w = ctx.measure_text(&badge_text).map(|m| m.width()).unwrap_or(8.0);
+    ctx.fill_text(&badge_text, badge_x + (badge_w - text_w) / 2.0, badge_y + 12.0).ok();
+
+    // Expand chevron
+    ctx.set_fill_style_str(&colors.text_secondary);
+    ctx.set_font(&format!("11px {}", fonts.family));
+    ctx.fill_text("▶", node.x + 8.0, node.y + node.height - 8.0).ok();
+}
+
+/// Draw an expanded compound node: dashed border around group area with label.
+fn draw_expanded_compound(
+    ctx: &CanvasRenderingContext2d,
+    node: &NodeLayout,
+    job: &workflow_graph_shared::Job,
+    theme: &ResolvedTheme,
+) {
+    let colors = &theme.colors;
+    let fonts = &theme.fonts;
+
+    // Dashed border around the group area
+    ctx.save();
+    draw_rounded_rect(ctx, node.x - 8.0, node.y - 8.0, node.width + 16.0, node.height + 16.0, 12.0);
+    ctx.set_stroke_style_str(&colors.text_secondary);
+    ctx.set_line_width(1.5);
+    ctx.set_line_dash(&js_sys::Array::of2(
+        &JsValue::from_f64(6.0),
+        &JsValue::from_f64(4.0),
+    )).ok();
+    ctx.stroke();
+    ctx.set_line_dash(&js_sys::Array::new()).ok();
+
+    // Group label (top-left, above the dashed border)
+    ctx.set_font(&format!("bold 10px {}", fonts.family));
+    ctx.set_fill_style_str(&colors.text_secondary);
+    ctx.fill_text(&job.name, node.x, node.y - 14.0).ok();
+
+    // Collapse chevron
+    ctx.set_fill_style_str(&colors.text_secondary);
+    ctx.set_font(&format!("11px {}", fonts.family));
+    let name_w = ctx.measure_text(&job.name).map(|m| m.width()).unwrap_or(40.0);
+    ctx.fill_text("▼", node.x + name_w + 6.0, node.y - 14.0).ok();
+
+    ctx.restore();
+}
+
+/// Draw a rounded rect with only the top corners rounded (for header clipping).
+fn draw_rounded_rect_top(ctx: &CanvasRenderingContext2d, x: f64, y: f64, w: f64, h: f64, r: f64) {
+    ctx.begin_path();
+    ctx.move_to(x + r, y);
+    ctx.line_to(x + w - r, y);
+    ctx.arc_to(x + w, y, x + w, y + r, r).ok();
+    ctx.line_to(x + w, y + h);
+    ctx.line_to(x, y + h);
+    ctx.line_to(x, y + r);
+    ctx.arc_to(x, y, x + r, y, r).ok();
+    ctx.close_path();
+}
+
 // ─── Minimap ─────────────────────────────────────────────────────────────────
 
 const MINIMAP_WIDTH: f64 = 160.0;
@@ -475,6 +794,9 @@ fn draw_minimap(
 }
 
 /// Draw an edge between specific port positions.
+///
+/// `points` is `(x1, y1, x2, y2)`.
+#[allow(clippy::too_many_arguments)]
 fn draw_port_edge(
     ctx: &CanvasRenderingContext2d,
     x1: f64, y1: f64,

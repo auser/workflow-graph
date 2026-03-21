@@ -31,6 +31,73 @@ pub struct Port {
     pub color: Option<String>,
 }
 
+/// Type of inline field rendered inside a node body.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FieldType {
+    Text,
+    Textarea,
+    Select,
+    Toggle,
+    Badge,
+    Slider,
+}
+
+/// Definition of an inline field rendered inside a node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FieldDef {
+    /// Key used to read/write the field value in `Job.metadata`.
+    pub key: String,
+    /// What kind of control to render.
+    pub field_type: FieldType,
+    /// Display label.
+    pub label: String,
+    /// Available options (for `Select` fields).
+    #[serde(default)]
+    pub options: Vec<String>,
+    /// Default value (serialized as JSON).
+    #[serde(default)]
+    pub default_value: Option<serde_json::Value>,
+    /// Minimum value (for `Slider` fields).
+    #[serde(default)]
+    pub min: Option<f64>,
+    /// Maximum value (for `Slider` fields).
+    #[serde(default)]
+    pub max: Option<f64>,
+}
+
+/// Declarative definition of a node type.
+///
+/// Registered via `WorkflowGraph.registerNodeType()`. The renderer uses this
+/// to draw colored headers, inline fields, and type-specific visuals.
+/// Consumers can define any number of custom node types.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NodeDefinition {
+    /// Unique type key (e.g., "agent", "tool", "my-custom-node").
+    /// Matched against `Job.metadata["node_type"]`.
+    pub node_type: String,
+    /// Display label shown in the header bar.
+    pub label: String,
+    /// Icon character (emoji or Unicode) rendered in the header.
+    #[serde(default)]
+    pub icon: String,
+    /// Hex color for the header bar (e.g., "#3b82f6").
+    #[serde(default)]
+    pub header_color: String,
+    /// Category for grouping in palettes (consumer-defined, no constraints).
+    #[serde(default)]
+    pub category: String,
+    /// Inline fields rendered in the node body.
+    #[serde(default)]
+    pub fields: Vec<FieldDef>,
+    /// Default input ports for this node type.
+    #[serde(default)]
+    pub inputs: Vec<Port>,
+    /// Default output ports for this node type.
+    #[serde(default)]
+    pub outputs: Vec<Port>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum JobStatus {
