@@ -601,7 +601,7 @@ pub fn update_workflow_data(canvas_id: &str, workflow_json: &str) -> Result<(), 
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let state = &instance.state;
-            let Ok(mut s) = state.try_borrow_mut() else { return };
+            let Ok(mut s) = state.try_borrow_mut() else { return Ok(()) };
             // Snapshot old statuses for a11y announcements
             let old_statuses: HashMap<String, JobStatus> = s
                 .workflow
@@ -676,7 +676,7 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let state = &instance.state;
-            let Ok(mut s) = state.try_borrow_mut() else { return };
+            let Ok(mut s) = state.try_borrow_mut() else { return Ok(()) };
             if enabled && !s.auto_resize {
                 let parent = s
                     .canvas
