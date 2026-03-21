@@ -213,7 +213,7 @@ impl GraphState {
     fn port_hit_test(&self, gx: f64, gy: f64) -> Option<(usize, String, bool, String, f64, f64)> {
         use workflow_graph_shared::PortDirection;
         let port_radius: f64 = 5.0;
-        let port_hit_radius: f64 = 8.0; // generous click target
+        let port_hit_radius: f64 = 6.0; // tight to avoid intercepting node drags
 
         for (node_idx, node) in self.layout.nodes.iter().enumerate() {
             if let Some(job) = self.workflow.jobs.iter().find(|j| j.id == node.job_id) {
