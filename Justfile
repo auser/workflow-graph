@@ -90,11 +90,12 @@ changelog version="":
 bump-versions VERSION:
     #!/usr/bin/env bash
     set -euo pipefail
-    # Root workspace manifest: [workspace.package] version and inline dep versions
+    # Root workspace manifest: [workspace.package] version
     sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' Cargo.toml
-    # Update existing workspace dep versions, then add version to any that lack it
-    perl -i -pe 's|(version = )"[^"]+"|${1}"{{VERSION}}"| if /^workflow-graph-/' Cargo.toml
-    perl -i -pe 's| \}$|, version = "{{VERSION}}" }| if /^workflow-graph-/ && !/version/' Cargo.toml
+    # Update [workspace.dependencies] version strings (lines with both path= and version=)
+    sed -i '' '/^workflow-graph-.*path = /s/version = "[^"]*"/version = "{{VERSION}}"/' Cargo.toml
+    # Add version to workspace deps that have path= but lack version=
+    perl -i -pe 's| \}$|, version = "{{VERSION}}" }| if /^workflow-graph-.*path = / && !/version/' Cargo.toml
     echo "    Cargo.toml [workspace.package] → {{VERSION}}"
     # Standalone Cargo.toml files (plugins, fixtures) that don't use version.workspace
     rg --files -g 'Cargo.toml' | grep -v '^Cargo\.toml$' | while IFS= read -r f; do
