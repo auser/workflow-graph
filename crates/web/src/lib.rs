@@ -1701,21 +1701,30 @@ fn attach_event_handlers(
 }
 
 fn touch_pos(touch: &web_sys::Touch, state: &SharedState) -> (f64, f64) {
-    let s = state.borrow();
-    let rect = s.canvas.get_bounding_client_rect();
-    (
-        touch.client_x() as f64 - rect.left(),
-        touch.client_y() as f64 - rect.top(),
-    )
+    match state.try_borrow() {
+        Ok(s) => {
+            let rect = s.canvas.get_bounding_client_rect();
+            (
+                touch.client_x() as f64 - rect.left(),
+                touch.client_y() as f64 - rect.top(),
+            )
+        }
+        Err(_) => (0.0, 0.0),
+    }
 }
 
 fn mouse_pos(event: &MouseEvent, state: &SharedState) -> (f64, f64) {
-    let s = state.borrow();
-    let rect = s.canvas.get_bounding_client_rect();
-    (
-        event.client_x() as f64 - rect.left(),
-        event.client_y() as f64 - rect.top(),
-    )
+    // Use try_borrow to avoid panic when ResizeObserver has a mutable borrow
+    match state.try_borrow() {
+        Ok(s) => {
+            let rect = s.canvas.get_bounding_client_rect();
+            (
+                event.client_x() as f64 - rect.left(),
+                event.client_y() as f64 - rect.top(),
+            )
+        }
+        Err(_) => (0.0, 0.0),
+    }
 }
 
 /// Compute the Y offset for a port within a node.
