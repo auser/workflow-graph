@@ -56,6 +56,9 @@ export interface WorkflowGraphHandle {
   getEdges(): Promise<EdgeInfoType[]>;
   getState(): Promise<GraphStateType | null>;
   loadState(state: GraphStateType): Promise<void>;
+  groupSelected(groupName?: string): Promise<void>;
+  ungroupNode(nodeId: string): Promise<void>;
+  toggleCollapse(nodeId: string): Promise<void>;
   readonly instance: WorkflowGraph | null;
 }
 
@@ -169,6 +172,9 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         getEdges: () => graphRef.current?.getEdges() ?? Promise.resolve([] as EdgeInfoType[]),
         getState: () => graphRef.current?.getState() ?? Promise.resolve(null),
         loadState: (state: GraphStateType) => graphRef.current?.loadState(state) ?? Promise.resolve(),
+        groupSelected: (groupName?: string) => graphRef.current?.groupSelected(groupName) ?? Promise.resolve(),
+        ungroupNode: (nodeId: string) => graphRef.current?.ungroupNode(nodeId) ?? Promise.resolve(),
+        toggleCollapse: (nodeId: string) => graphRef.current?.toggleCollapse(nodeId) ?? Promise.resolve(),
         get instance() {
           return graphRef.current;
         },

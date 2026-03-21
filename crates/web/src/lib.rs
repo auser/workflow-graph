@@ -15,7 +15,7 @@ use web_sys::{
 
 use layout::GraphLayout;
 use theme::ResolvedTheme;
-use workflow_graph_shared::{Job, JobStatus, Workflow};
+use workflow_graph_shared::{Job, JobStatus, Port, PortDirection, Workflow};
 
 const CLICK_THRESHOLD: f64 = 5.0;
 const MIN_ZOOM: f64 = 0.25;
@@ -1191,6 +1191,239 @@ pub fn get_edges(canvas_id: &str) -> JsValue {
     })
 }
 
+// ─── Compound Node API ───────────────────────────────────────────────────────
+
+/// Group selected nodes into a compound node.
+/// Creates a new node with the selected nodes as children.
+/// The compound node's ports are the unconnected external ports of the children.
+#[wasm_bindgen]
+pub fn group_selected(canvas_id: &str, group_name: &str) -> Result<(), JsValue> {
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+            if s.destroyed { return Ok(()) }
+
+            let selected_ids: Vec<String> = s.selected.iter().cloned().collect();
+            if selected_ids.len() < 2 {
+                return Err(JsValue::from_str("Select at least 2 nodes to group"));
+            }
+
+            // Extract children from workflow
+            let mut children: Vec<Job> = Vec::new();
+            let mut remaining: Vec<Job> = Vec::new();
+            for job in s.workflow.jobs.drain(..) {
+                if selected_ids.contains(&job.id) {
+                    children.push(job);
+                } else {
+                    remaining.push(job);
+                }
+            }
+
+            // Collect all child IDs for edge filtering (owned to avoid borrow conflict)
+            let child_ids: std::collections::HashSet<String> =
+                children.iter().map(|j| j.id.clone()).collect();
+
+            // Find external ports: ports that connect to nodes OUTSIDE the group
+            let mut group_input_ports: Vec<Port> = Vec::new();
+            let mut group_output_ports: Vec<Port> = Vec::new();
+
+            for child in &children {
+                for port in &child.ports {
+                    match port.direction {
+                        PortDirection::Input => {
+                            // Check if any edge from outside connects to this port
+                            let has_external_edge = s.layout.edges.iter().any(|e| {
+                                e.to_id == child.id
+                                    && e.to_port == port.id
+                                    && !child_ids.contains(e.from_id.as_str())
+                            });
+                            // Also include ports with no incoming edges (unconnected inputs)
+                            let has_any_edge = s.layout.edges.iter().any(|e| {
+                                e.to_id == child.id && e.to_port == port.id
+                            });
+                            if has_external_edge || !has_any_edge {
+                                group_input_ports.push(Port {
+                                    id: format!("{}.{}", child.id, port.id),
+                                    label: format!("{}: {}", child.name, port.label),
+                                    direction: PortDirection::Input,
+                                    port_type: port.port_type.clone(),
+                                    color: port.color.clone(),
+                                });
+                            }
+                        }
+                        PortDirection::Output => {
+                            let has_external_edge = s.layout.edges.iter().any(|e| {
+                                e.from_id == child.id
+                                    && e.from_port == port.id
+                                    && !child_ids.contains(e.to_id.as_str())
+                            });
+                            let has_any_edge = s.layout.edges.iter().any(|e| {
+                                e.from_id == child.id && e.from_port == port.id
+                            });
+                            if has_external_edge || !has_any_edge {
+                                group_output_ports.push(Port {
+                                    id: format!("{}.{}", child.id, port.id),
+                                    label: format!("{}: {}", child.name, port.label),
+                                    direction: PortDirection::Output,
+                                    port_type: port.port_type.clone(),
+                                    color: port.color.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Calculate group position (center of children)
+            let child_positions: Vec<(f64, f64)> = selected_ids
+                .iter()
+                .filter_map(|id| {
+                    s.layout.nodes.iter().find(|n| n.job_id == *id).map(|n| (n.x, n.y))
+                })
+                .collect();
+            let avg_x = child_positions.iter().map(|(x, _)| x).sum::<f64>()
+                / child_positions.len().max(1) as f64;
+            let avg_y = child_positions.iter().map(|(_, y)| y).sum::<f64>()
+                / child_positions.len().max(1) as f64;
+
+            // Create compound node
+            let group_id = format!("group-{}", js_sys::Date::now() as u64);
+            let mut all_ports = group_input_ports;
+            all_ports.extend(group_output_ports);
+
+            let compound = Job {
+                id: group_id.clone(),
+                name: group_name.to_string(),
+                status: JobStatus::Queued,
+                command: String::new(),
+                duration_secs: None,
+                started_at: None,
+                depends_on: vec![],
+                output: None,
+                required_labels: vec![],
+                max_retries: 0,
+                attempt: 0,
+                metadata: {
+                    let mut m = std::collections::HashMap::new();
+                    m.insert("node_type".to_string(), serde_json::json!("group"));
+                    m
+                },
+                ports: all_ports,
+                children: Some(children),
+                collapsed: true,
+            };
+
+            remaining.push(compound);
+            s.workflow.jobs = remaining;
+
+            // Remove child nodes from layout, add group node
+            s.layout.nodes.retain(|n| !selected_ids.contains(&n.job_id));
+
+            let node_w = s.theme.layout.node_width;
+            let node_h = s.theme.layout.node_height;
+            s.layout.nodes.push(layout::NodeLayout {
+                job_id: group_id,
+                x: avg_x,
+                y: avg_y,
+                width: node_w,
+                height: node_h,
+            });
+
+            // Remove internal edges (between children), keep external
+            s.layout.edges.retain(|e| {
+                !(child_ids.contains(e.from_id.as_str()) && child_ids.contains(e.to_id.as_str()))
+            });
+
+            s.selected.clear();
+            s.fire_selection_change();
+            s.redraw();
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
+        }
+    })
+}
+
+/// Ungroup a compound node, restoring its children to the canvas.
+#[wasm_bindgen]
+pub fn ungroup_node(canvas_id: &str, node_id: &str) -> Result<(), JsValue> {
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+            if s.destroyed { return Ok(()) }
+
+            // Find the compound node
+            let idx = s.workflow.jobs.iter().position(|j| j.id == node_id);
+            let Some(idx) = idx else {
+                return Err(JsValue::from_str(&format!("No node '{node_id}'")));
+            };
+
+            let children = s.workflow.jobs[idx].children.clone();
+            let Some(children) = children else {
+                return Err(JsValue::from_str("Node is not a compound node"));
+            };
+
+            // Get group position for placing children
+            let group_pos = s.layout.nodes.iter()
+                .find(|n| n.job_id == node_id)
+                .map(|n| (n.x, n.y))
+                .unwrap_or((30.0, 30.0));
+
+            // Remove compound node
+            s.workflow.jobs.remove(idx);
+            s.layout.nodes.retain(|n| n.job_id != node_id);
+
+            // Add children back
+            let tl_w = s.theme.layout.node_width;
+            let tl_h = s.theme.layout.node_height;
+            let v_gap = s.theme.layout.v_gap;
+
+            for (i, child) in children.into_iter().enumerate() {
+                let child_id = child.id.clone();
+                s.workflow.jobs.push(child);
+                s.layout.nodes.push(layout::NodeLayout {
+                    job_id: child_id,
+                    x: group_pos.0,
+                    y: group_pos.1 + (i as f64) * (tl_h + v_gap),
+                    width: tl_w,
+                    height: tl_h,
+                });
+            }
+
+            s.selected.clear();
+            s.fire_selection_change();
+            s.redraw();
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
+        }
+    })
+}
+
+/// Toggle a compound node between collapsed and expanded state.
+#[wasm_bindgen]
+pub fn toggle_collapse(canvas_id: &str, node_id: &str) -> Result<(), JsValue> {
+    GRAPHS.with(|g| {
+        let graphs = g.borrow();
+        if let Some(instance) = graphs.get(canvas_id) {
+            let mut s = instance.state.borrow_mut();
+            if s.destroyed { return Ok(()) }
+
+            if let Some(job) = s.workflow.jobs.iter_mut().find(|j| j.id == node_id) {
+                if job.children.is_some() {
+                    job.collapsed = !job.collapsed;
+                    s.redraw();
+                }
+            }
+            Ok(())
+        } else {
+            Err(JsValue::from_str(&format!("No graph instance '{canvas_id}'")))
+        }
+    })
+}
+
 /// Get the full graph state as a JSON string for persistence.
 /// Includes workflow data, node positions, zoom, pan, and selection.
 #[wasm_bindgen]
@@ -1794,6 +2027,98 @@ fn attach_event_handlers(
                 "Escape" => {
                     if !s.selected.is_empty() {
                         s.selected.clear();
+                        s.fire_selection_change();
+                        s.redraw();
+                    }
+                }
+                "g" if event.ctrl_key() || event.meta_key() => {
+                    // Ctrl+G / Cmd+G: Group selected nodes into compound node
+                    if s.selected.len() >= 2 {
+                        event.prevent_default();
+                        let selected_ids: Vec<String> = s.selected.iter().cloned().collect();
+                        let child_ids: std::collections::HashSet<String> =
+                            selected_ids.iter().cloned().collect();
+
+                        // Extract children
+                        let mut children: Vec<Job> = Vec::new();
+                        let mut remaining: Vec<Job> = Vec::new();
+                        for job in s.workflow.jobs.drain(..) {
+                            if child_ids.contains(&job.id) {
+                                children.push(job);
+                            } else {
+                                remaining.push(job);
+                            }
+                        }
+
+                        // Compute group position
+                        let positions: Vec<(f64, f64)> = selected_ids.iter()
+                            .filter_map(|id| s.layout.nodes.iter().find(|n| &n.job_id == id).map(|n| (n.x, n.y)))
+                            .collect();
+                        let avg_x = positions.iter().map(|p| p.0).sum::<f64>() / positions.len().max(1) as f64;
+                        let avg_y = positions.iter().map(|p| p.1).sum::<f64>() / positions.len().max(1) as f64;
+
+                        // Collect external ports
+                        let mut ports: Vec<Port> = Vec::new();
+                        for child in &children {
+                            for port in &child.ports {
+                                let is_external = match port.direction {
+                                    PortDirection::Input => !s.layout.edges.iter().any(|e|
+                                        e.to_id == child.id && e.to_port == port.id && child_ids.contains(&e.from_id)),
+                                    PortDirection::Output => !s.layout.edges.iter().any(|e|
+                                        e.from_id == child.id && e.from_port == port.id && child_ids.contains(&e.to_id)),
+                                };
+                                if is_external {
+                                    ports.push(Port {
+                                        id: format!("{}.{}", child.id, port.id),
+                                        label: format!("{}: {}", child.name, port.label),
+                                        direction: port.direction.clone(),
+                                        port_type: port.port_type.clone(),
+                                        color: port.color.clone(),
+                                    });
+                                }
+                            }
+                        }
+
+                        let group_id = format!("group-{}", js_sys::Date::now() as u64);
+                        let compound = Job {
+                            id: group_id.clone(),
+                            name: "Group".to_string(),
+                            status: JobStatus::Queued,
+                            command: String::new(),
+                            duration_secs: None,
+                            started_at: None,
+                            depends_on: vec![],
+                            output: None,
+                            required_labels: vec![],
+                            max_retries: 0,
+                            attempt: 0,
+                            metadata: {
+                                let mut m = std::collections::HashMap::new();
+                                m.insert("node_type".to_string(), serde_json::json!("group"));
+                                m
+                            },
+                            ports,
+                            children: Some(children),
+                            collapsed: true,
+                        };
+
+                        remaining.push(compound);
+                        s.workflow.jobs = remaining;
+
+                        // Update layout
+                        s.layout.nodes.retain(|n| !child_ids.contains(&n.job_id));
+                        let nw = s.theme.layout.node_width;
+                        let nh = s.theme.layout.node_height;
+                        s.layout.nodes.push(layout::NodeLayout {
+                            job_id: group_id,
+                            x: avg_x, y: avg_y,
+                            width: nw, height: nh,
+                        });
+                        s.layout.edges.retain(|e|
+                            !(child_ids.contains(&e.from_id) && child_ids.contains(&e.to_id)));
+
+                        s.selected.clear();
+                        s.highlighted_edges.clear();
                         s.fire_selection_change();
                         s.redraw();
                     }

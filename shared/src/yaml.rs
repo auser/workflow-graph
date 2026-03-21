@@ -198,6 +198,8 @@ impl WorkflowDef {
                 attempt: 0,
                 metadata: std::collections::HashMap::new(),
                 ports: vec![],
+                children: None,
+                collapsed: false,
             });
         }
 

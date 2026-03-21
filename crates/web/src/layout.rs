@@ -204,6 +204,8 @@ mod tests {
             attempt: 0,
             metadata: HashMap::new(),
             ports: vec![],
+            children: None,
+            collapsed: false,
         }
     }
 

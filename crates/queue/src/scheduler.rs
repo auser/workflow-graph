@@ -367,6 +367,8 @@ mod tests {
                     output: None,
                     metadata: std::collections::HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 workflow_graph_shared::Job {
                     id: "b".into(),
@@ -382,6 +384,8 @@ mod tests {
                     output: None,
                     metadata: std::collections::HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 workflow_graph_shared::Job {
                     id: "c".into(),
@@ -397,6 +401,8 @@ mod tests {
                     output: None,
                     metadata: std::collections::HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
             ],
         }

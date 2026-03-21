@@ -27,6 +27,10 @@ export interface Job {
   metadata?: Record<string, unknown>;
   /** Input and output ports for node-graph-style connections. */
   ports?: Port[];
+  /** Child nodes for compound (grouped) nodes. */
+  children?: Job[];
+  /** Whether this compound node is collapsed (renders as single node). */
+  collapsed?: boolean;
 }
 
 /** Direction of a port on a node. */
@@ -223,6 +227,9 @@ interface WasmModule {
   get_edges(canvasId: string): EdgeInfo[];
   get_state(canvasId: string): GraphState;
   load_state(canvasId: string, stateJson: string): void;
+  group_selected(canvasId: string, groupName: string): void;
+  ungroup_node(canvasId: string, nodeId: string): void;
+  toggle_collapse(canvasId: string, nodeId: string): void;
   destroy(canvasId: string): void;
 }
 
@@ -446,6 +453,29 @@ export class WorkflowGraph {
     if (!this.alive) return [];
     const wasm = await ensureWasm();
     return wasm.get_edges(this.canvasId);
+  }
+
+  // ─── Compound Node API ─────────────────────────────────────────────────────
+
+  /** Group selected nodes into a compound node. Requires 2+ selected nodes. */
+  async groupSelected(groupName: string = 'Group'): Promise<void> {
+    if (!this.alive) return;
+    const wasm = await ensureWasm();
+    wasm.group_selected(this.canvasId, groupName);
+  }
+
+  /** Ungroup a compound node, restoring its children to the canvas. */
+  async ungroupNode(nodeId: string): Promise<void> {
+    if (!this.alive) return;
+    const wasm = await ensureWasm();
+    wasm.ungroup_node(this.canvasId, nodeId);
+  }
+
+  /** Toggle a compound node between collapsed and expanded. */
+  async toggleCollapse(nodeId: string): Promise<void> {
+    if (!this.alive) return;
+    const wasm = await ensureWasm();
+    wasm.toggle_collapse(this.canvasId, nodeId);
   }
 
   // ─── State Persistence API ──────────────────────────────────────────────────

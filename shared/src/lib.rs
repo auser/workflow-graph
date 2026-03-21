@@ -69,6 +69,14 @@ pub struct Job {
     /// Input and output ports for node-graph-style connections.
     #[serde(default)]
     pub ports: Vec<Port>,
+    /// If this is a compound node (node group), contains the child nodes.
+    /// When collapsed, renders as a single node with aggregated ports.
+    /// When expanded, renders children with a dashed border.
+    #[serde(default)]
+    pub children: Option<Vec<Job>>,
+    /// Whether this compound node is collapsed (shows as single node).
+    #[serde(default)]
+    pub collapsed: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -101,6 +109,8 @@ impl Workflow {
                     attempt: 0,
                     metadata: HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 Job {
                     id: "lint".into(),
@@ -116,6 +126,8 @@ impl Workflow {
                     attempt: 0,
                     metadata: HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 Job {
                     id: "typecheck".into(),
@@ -131,6 +143,8 @@ impl Workflow {
                     attempt: 0,
                     metadata: HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 Job {
                     id: "build".into(),
@@ -146,6 +160,8 @@ impl Workflow {
                     attempt: 0,
                     metadata: HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 Job {
                     id: "deploy-db".into(),
@@ -161,6 +177,8 @@ impl Workflow {
                     attempt: 0,
                     metadata: HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 Job {
                     id: "e2e-tests".into(),
@@ -176,6 +194,8 @@ impl Workflow {
                     attempt: 0,
                     metadata: HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 Job {
                     id: "deploy-preview".into(),
@@ -191,6 +211,8 @@ impl Workflow {
                     attempt: 0,
                     metadata: HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
                 Job {
                     id: "deploy-web".into(),
@@ -206,6 +228,8 @@ impl Workflow {
                     attempt: 0,
                     metadata: HashMap::new(),
                     ports: vec![],
+                    children: None,
+                    collapsed: false,
                 },
             ],
         }
@@ -231,6 +255,8 @@ mod tests {
             attempt: 0,
             metadata,
             ports: vec![],
+            children: None,
+            collapsed: false,
         }
     }
 
