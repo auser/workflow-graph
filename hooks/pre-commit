@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Ensure Cargo.lock is staged whenever any Cargo.toml is staged.
+
+set -euo pipefail
+
+# Check if any Cargo.toml file is staged
+if git diff --cached --name-only | grep -q 'Cargo\.toml$'; then
+    # Check if Cargo.lock has unstaged changes
+    if ! git diff --quiet Cargo.lock 2>/dev/null; then
+        echo "ERROR: Cargo.toml is staged but Cargo.lock has unstaged changes."
+        echo "Run: git add Cargo.lock"
+        exit 1
+    fi
+    # Check if Cargo.lock is modified but not staged (already in index check)
+    if git diff --name-only Cargo.lock 2>/dev/null | grep -q 'Cargo\.lock'; then
+        echo "ERROR: Cargo.toml is staged but Cargo.lock is not."
+        echo "Run: git add Cargo.lock"
+        exit 1
+    fi
+fi
