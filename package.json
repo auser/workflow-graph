@@ -1,0 +1,6 @@
+{
+	"dependencies": {
+		"@auser/workflow-graph-web": "0.6.1",
+		"@auser/workflow-graph-react": "0.6.1"
+	}
+}

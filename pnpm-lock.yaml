@@ -1,0 +1,44 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@auser/workflow-graph-react':
+        specifier: 0.6.1
+        version: 0.6.1(@auser/workflow-graph-web@0.6.1)(react@19.2.4)
+      '@auser/workflow-graph-web':
+        specifier: 0.6.1
+        version: 0.6.1
+
+packages:
+
+  '@auser/workflow-graph-react@0.6.1':
+    resolution: {integrity: sha512-o2TYAue9aqwEtqoT5O4zNdx3TVHdiMMbsoCDxWfrZBV5olXkwp8HDEGp1QUKOiNRXRnUGqSMVSKQTK6CCntioA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@auser/workflow-graph-web': ^0.4.0
+      react: ^18.0.0 || ^19.0.0
+
+  '@auser/workflow-graph-web@0.6.1':
+    resolution: {integrity: sha512-w/Qr8ZE+e+CtMauOToocB0sKHkIWaymWW61nceXlI+pvVVt81mTvpID1WaVEuxy9cFrO6VnruZ/yS1vcZXUDIw==}
+    engines: {node: '>=18'}
+
+  react@19.2.4:
+    resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
+    engines: {node: '>=0.10.0'}
+
+snapshots:
+
+  '@auser/workflow-graph-react@0.6.1(@auser/workflow-graph-web@0.6.1)(react@19.2.4)':
+    dependencies:
+      '@auser/workflow-graph-web': 0.6.1
+      react: 19.2.4
+
+  '@auser/workflow-graph-web@0.6.1': {}
+
+  react@19.2.4: {}

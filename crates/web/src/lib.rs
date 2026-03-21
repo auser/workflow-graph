@@ -125,12 +125,20 @@ impl GraphState {
             &render::RenderCallbacks {
                 on_render_node: self.on_render_node.as_ref(),
             },
-            self.port_dragging.as_ref().map(|pd| render::PortDragRender {
-                from_x: pd.current_x, // will be set to port center when drag starts
-                from_y: pd.current_y,
-                to_x: pd.current_x,
-                to_y: pd.current_y,
-                color: "#58a6ff".to_string(),
+            self.port_dragging.as_ref().map(|pd| {
+                // Find the port's screen position from the node layout
+                let (start_x, start_y) = self.port_screen_pos(
+                    &pd.from_node_id,
+                    &pd.from_port_id,
+                    pd.from_is_output,
+                );
+                render::PortDragRender {
+                    from_x: start_x,
+                    from_y: start_y,
+                    to_x: pd.current_x,
+                    to_y: pd.current_y,
+                    color: "#58a6ff".to_string(),
+                }
             }).as_ref(),
         )
         .ok();
@@ -165,6 +173,40 @@ impl GraphState {
 
     fn screen_to_graph(&self, x: f64, y: f64) -> (f64, f64) {
         ((x - self.pan_x) / self.zoom, (y - self.pan_y) / self.zoom)
+    }
+
+    /// Get the graph-space position of a port on a node.
+    fn port_screen_pos(&self, node_id: &str, port_id: &str, is_output: bool) -> (f64, f64) {
+        use workflow_graph_shared::PortDirection;
+        let port_radius: f64 = 5.0;
+
+        if let Some(node) = self.layout.nodes.iter().find(|n| n.job_id == node_id) {
+            if let Some(job) = self.workflow.jobs.iter().find(|j| j.id == node_id) {
+                let ports_of_dir: Vec<_> = job
+                    .ports
+                    .iter()
+                    .filter(|p| {
+                        if is_output {
+                            p.direction == PortDirection::Output
+                        } else {
+                            p.direction == PortDirection::Input
+                        }
+                    })
+                    .collect();
+
+                if let Some(idx) = ports_of_dir.iter().position(|p| p.id == port_id) {
+                    let px = if is_output {
+                        node.x + node.width
+                    } else {
+                        node.x
+                    };
+                    let py =
+                        node.y + port_y_offset(idx, ports_of_dir.len(), node.height, port_radius);
+                    return (px, py);
+                }
+            }
+        }
+        (0.0, 0.0)
     }
 
     /// Hit-test ports: returns (node_index, port_id, is_output, port_type, port_center_x, port_center_y).
@@ -1169,8 +1211,24 @@ fn attach_event_handlers(
             let mut s = state.borrow_mut();
             s.mouse_down_pos = Some((mx, my));
 
-            if let Some(idx) = s.hit_test(mx, my) {
-                let (gx, gy) = s.screen_to_graph(mx, my);
+            let (gx, gy) = s.screen_to_graph(mx, my);
+
+            // Check port hit first (before node hit)
+            if let Some((node_idx, port_id, is_output, port_type, px, py)) =
+                s.port_hit_test(gx, gy)
+            {
+                let node_id = s.layout.nodes[node_idx].job_id.clone();
+                s.port_dragging = Some(PortDragState {
+                    from_node_id: node_id,
+                    from_port_id: port_id,
+                    from_port_type: port_type,
+                    from_is_output: is_output,
+                    current_x: px,
+                    current_y: py,
+                });
+                let html: &HtmlElement = s.canvas.unchecked_ref();
+                html.style().set_property("cursor", "crosshair").ok();
+            } else if let Some(idx) = s.hit_test(mx, my) {
                 s.dragging = Some(idx);
                 s.drag_offset_x = gx - s.layout.nodes[idx].x;
                 s.drag_offset_y = gy - s.layout.nodes[idx].y;
@@ -1194,7 +1252,17 @@ fn attach_event_handlers(
             let (mx, my) = mouse_pos(&event, &state);
             let mut s = state.borrow_mut();
 
-            if let Some(idx) = s.dragging {
+            if s.port_dragging.is_some() {
+                // Port connection drag: update the preview line endpoint
+                let (gx, gy) = s.screen_to_graph(mx, my);
+                if let Some(ref mut pd) = s.port_dragging {
+                    pd.current_x = gx;
+                    pd.current_y = gy;
+                }
+                let html: &HtmlElement = s.canvas.unchecked_ref();
+                html.style().set_property("cursor", "crosshair").ok();
+                s.redraw();
+            } else if let Some(idx) = s.dragging {
                 let (gx, gy) = s.screen_to_graph(mx, my);
                 let node_w = s.layout.nodes[idx].width;
                 let node_h = s.layout.nodes[idx].height;
