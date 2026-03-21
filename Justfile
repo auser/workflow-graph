@@ -104,6 +104,13 @@ bump-versions VERSION:
             echo "    $f → {{VERSION}}"
         fi
     done
+    # Bump npm package.json versions
+    for f in packages/web/package.json packages/react/package.json; do
+        if [ -f "$f" ]; then
+            sed -i '' 's/"version": "[^"]*"/"version": "{{VERSION}}"/' "$f"
+            echo "    $f → {{VERSION}}"
+        fi
+    done
     # Always sync the lockfile after version changes
     cargo update --workspace
     echo "    Cargo.lock → synced"
