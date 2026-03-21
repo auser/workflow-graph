@@ -1368,12 +1368,10 @@ fn attach_event_handlers(
                     s.port_hit_test(gx, gy)
                 {
                     let target_node_id = s.layout.nodes[_node_idx].job_id.clone();
-                    // Must connect output→input, different nodes, compatible types
+                    // Must connect output→input on different nodes
+                    // Type compatibility is left to the application's onConnect handler
                     let valid = pd.from_is_output != target_is_output
-                        && target_node_id != pd.from_node_id
-                        && (pd.from_port_type == target_port_type
-                            || pd.from_port_type.is_empty()
-                            || target_port_type.is_empty());
+                        && target_node_id != pd.from_node_id;
 
                     if valid {
                         let (from_node, from_port, to_node, to_port) = if pd.from_is_output {
