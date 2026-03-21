@@ -220,6 +220,7 @@ impl Labels {
 /// Complete theme configuration passed to render_workflow.
 /// Every field is optional — omitted fields use the light-theme defaults.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ThemeConfig {
     pub colors: Option<ThemeColors>,
     pub fonts: Option<ThemeFonts>,

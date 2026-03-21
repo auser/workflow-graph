@@ -491,8 +491,17 @@ pub fn render_workflow(
         .map_err(|e| JsValue::from_str(&format!("JSON parse error: {e}")))?;
 
     let theme_config: Option<theme::ThemeConfig> = match theme_json {
-        Some(ref json) if !json.is_empty() => serde_json::from_str(json)
-            .map_err(|e| JsValue::from_str(&format!("Theme JSON parse error: {e}")))?,
+        Some(ref json) if !json.is_empty() => {
+            match serde_json::from_str(json) {
+                Ok(tc) => Some(tc),
+                Err(e) => {
+                    web_sys::console::warn_1(&JsValue::from_str(&format!(
+                        "Theme JSON parse warning (using defaults): {e}"
+                    )));
+                    None
+                }
+            }
+        }
         _ => None,
     };
     let resolved_theme = ResolvedTheme::from_config(theme_config);
@@ -676,8 +685,15 @@ pub fn update_workflow_data(canvas_id: &str, workflow_json: &str) -> Result<(), 
 /// Update the theme at runtime without resetting state.
 #[wasm_bindgen]
 pub fn set_theme(canvas_id: &str, theme_json: &str) -> Result<(), JsValue> {
-    let theme_config: theme::ThemeConfig = serde_json::from_str(theme_json)
-        .map_err(|e| JsValue::from_str(&format!("Theme JSON parse error: {e}")))?;
+    let theme_config: theme::ThemeConfig = match serde_json::from_str(theme_json) {
+        Ok(tc) => tc,
+        Err(e) => {
+            web_sys::console::warn_1(&JsValue::from_str(&format!(
+                "Theme JSON parse warning (using defaults): {e}"
+            )));
+            return Ok(());
+        }
+    };
     let resolved = ResolvedTheme::from_config(Some(theme_config));
 
     with_state(canvas_id, |s| {

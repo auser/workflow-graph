@@ -194,8 +194,12 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
       let destroyed = false;
       graph
         .setWorkflow(workflow)
-        .then(() => {
+        .then(async () => {
           if (!destroyed) {
+            // Re-apply theme after init to ensure it takes effect
+            if (theme) {
+              await graph.setTheme(theme).catch(() => {});
+            }
             setLoading(false);
             setError(null);
           }
