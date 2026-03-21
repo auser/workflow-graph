@@ -1,6 +1,6 @@
 {
   "name": "@auser/workflow-graph-react",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "type": "module",
   "description": "React component for workflow DAG visualization",
   "main": "dist/index.js",

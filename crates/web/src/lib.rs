@@ -1307,14 +1307,8 @@ fn attach_event_handlers(
                 s.redraw();
             } else if let Some(idx) = s.dragging {
                 let (gx, gy) = s.screen_to_graph(mx, my);
-                let node_w = s.layout.nodes[idx].width;
-                let node_h = s.layout.nodes[idx].height;
-                let max_x = (s.canvas_width / s.zoom) - node_w;
-                let max_y = (s.canvas_height / s.zoom) - node_h;
-                let new_x = (gx - s.drag_offset_x).clamp(0.0, max_x.max(0.0));
-                let new_y = (gy - s.drag_offset_y).clamp(0.0, max_y.max(0.0));
-                s.layout.nodes[idx].x = new_x;
-                s.layout.nodes[idx].y = new_y;
+                s.layout.nodes[idx].x = gx - s.drag_offset_x;
+                s.layout.nodes[idx].y = gy - s.drag_offset_y;
                 s.redraw();
             } else if s.panning {
                 let dx = mx - s.pan_start_x;
@@ -1639,12 +1633,8 @@ fn attach_event_handlers(
 
                 if let Some(idx) = s.dragging {
                     let (gx, gy) = s.screen_to_graph(mx, my);
-                    let node_w = s.layout.nodes[idx].width;
-                    let node_h = s.layout.nodes[idx].height;
-                    let new_x = (gx - s.drag_offset_x).clamp(0.0, s.canvas_width - node_w);
-                    let new_y = (gy - s.drag_offset_y).clamp(0.0, s.canvas_height - node_h);
-                    s.layout.nodes[idx].x = new_x;
-                    s.layout.nodes[idx].y = new_y;
+                    s.layout.nodes[idx].x = gx - s.drag_offset_x;
+                    s.layout.nodes[idx].y = gy - s.drag_offset_y;
                     s.redraw();
                 } else if s.panning {
                     let dx = mx - s.pan_start_x;
