@@ -191,23 +191,26 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
       const graph = new WorkflowGraph(containerRef.current, options);
       graphRef.current = graph;
 
-      // Defer initialization to next frame to ensure canvas is in the DOM
-      requestAnimationFrame(() => {
-        graph
-          .setWorkflow(workflow)
-          .then(() => {
+      let destroyed = false;
+      graph
+        .setWorkflow(workflow)
+        .then(() => {
+          if (!destroyed) {
             setLoading(false);
             setError(null);
-          })
-          .catch((err: unknown) => {
+          }
+        })
+        .catch((err: unknown) => {
+          if (!destroyed) {
             const e = err instanceof Error ? err : new Error(String(err));
             setError(e);
             setLoading(false);
             onError?.(e);
-          });
-      });
+          }
+        });
 
       return () => {
+        destroyed = true;
         graph.destroy().catch(() => {});
         graphRef.current = null;
       };
