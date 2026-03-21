@@ -1579,6 +1579,27 @@ fn attach_event_handlers(
                         }
                     }
                 }
+                "Delete" | "Backspace" => {
+                    if !s.selected.is_empty() {
+                        event.prevent_default();
+                        let to_remove: Vec<String> = s.selected.iter().cloned().collect();
+                        for job_id in &to_remove {
+                            // Remove from workflow jobs
+                            s.workflow.jobs.retain(|j| j.id != *job_id);
+                            // Remove edges referencing this node
+                            for job in &mut s.workflow.jobs {
+                                job.depends_on.retain(|dep| dep != job_id);
+                            }
+                            // Remove from layout
+                            s.layout.nodes.retain(|n| n.job_id != *job_id);
+                            s.layout.edges.retain(|e| e.from_id != *job_id && e.to_id != *job_id);
+                        }
+                        s.selected.clear();
+                        s.highlighted_edges.clear();
+                        s.fire_selection_change();
+                        s.redraw();
+                    }
+                }
                 "Escape" => {
                     if !s.selected.is_empty() {
                         s.selected.clear();
