@@ -27,6 +27,8 @@ export type {
   EdgeInfo,
   GraphState,
   GraphOptions,
+  PersistOptions,
+  PersistStorage,
   ThemeConfig,
   ThemeColors,
   ThemeFonts,

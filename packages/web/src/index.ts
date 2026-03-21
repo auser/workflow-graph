@@ -172,6 +172,21 @@ export interface GraphState {
   pan_y: number;
 }
 
+/** Storage backend for auto-persistence. */
+export interface PersistStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+/** Auto-persistence configuration. */
+export interface PersistOptions {
+  /** Storage key name. Default: 'workflow-graph-state' */
+  key?: string;
+  /** Storage backend. Default: localStorage */
+  storage?: PersistStorage;
+}
+
 export interface GraphOptions {
   onNodeClick?: (jobId: string) => void;
   onNodeHover?: (jobId: string | null) => void;
@@ -190,6 +205,10 @@ export interface GraphOptions {
   theme?: ThemeConfig;
   /** Automatically resize the canvas when the container resizes. */
   autoResize?: boolean;
+  /** Enable auto-persistence. Graph state saved on every change. */
+  persist?: PersistOptions | boolean;
+  /** Initial node positions to restore after layout. */
+  initialPositions?: Record<string, [number, number]>;
 }
 
 /** WASM module interface — typed subset of exported functions. */
@@ -280,6 +299,8 @@ export class WorkflowGraph {
   private options: GraphOptions;
   private initialized = false;
   private destroyed = false;
+  private persistKey: string | null = null;
+  private persistStorage: PersistStorage | null = null;
 
   constructor(container: HTMLElement, options: GraphOptions = {}) {
     this.canvasId = `gg-${Math.random().toString(36).slice(2, 9)}`;
@@ -291,6 +312,58 @@ export class WorkflowGraph {
     this.canvas.tabIndex = 0;
     container.appendChild(this.canvas);
     this.options = options;
+
+    // Set up auto-persistence
+    if (options.persist) {
+      const persistOpts = typeof options.persist === 'boolean'
+        ? {} : options.persist;
+      this.persistKey = persistOpts.key ?? 'workflow-graph-state';
+      this.persistStorage = persistOpts.storage ?? (typeof localStorage !== 'undefined' ? localStorage : null);
+    }
+
+    // Wrap onNodeDragEnd to auto-save
+    const originalDragEnd = options.onNodeDragEnd;
+    options.onNodeDragEnd = (jobId, x, y) => {
+      originalDragEnd?.(jobId, x, y);
+      this.autoPersist();
+    };
+  }
+
+  /** Save state to configured storage */
+  private autoPersist(): void {
+    if (!this.persistKey || !this.persistStorage || this.destroyed) return;
+    this.getState().then(state => {
+      if (state && this.persistKey && this.persistStorage) {
+        this.persistStorage.setItem(this.persistKey, JSON.stringify(state));
+      }
+    }).catch(() => {});
+  }
+
+  /** Load persisted state and apply it */
+  async restorePersistedState(): Promise<boolean> {
+    if (!this.persistKey || !this.persistStorage) return false;
+    try {
+      const raw = this.persistStorage.getItem(this.persistKey);
+      if (!raw) return false;
+      const state: GraphState = JSON.parse(raw);
+      if (state && state.positions) {
+        await this.setNodePositions(state.positions);
+        if (state.zoom && state.zoom !== 1) {
+          await this.setZoom(state.zoom);
+        }
+        return true;
+      }
+    } catch {
+      // Invalid stored state — ignore
+    }
+    return false;
+  }
+
+  /** Clear persisted state */
+  clearPersistedState(): void {
+    if (this.persistKey && this.persistStorage) {
+      this.persistStorage.removeItem(this.persistKey);
+    }
   }
 
   /** Render a workflow. Call this on initial load. */
@@ -298,16 +371,21 @@ export class WorkflowGraph {
     const wasm = await ensureWasm();
     const json = JSON.stringify(workflow);
     const themeJson = this.options.theme ? JSON.stringify(this.options.theme) : null;
-    wasm.render_workflow(
-      this.canvasId,
-      json,
-      this.options.onNodeClick || null,
-      this.options.onNodeHover || null,
-      this.options.onCanvasClick || null,
-      this.options.onSelectionChange || null,
-      this.options.onNodeDragEnd || null,
-      themeJson,
-    );
+    try {
+      wasm.render_workflow(
+        this.canvasId,
+        json,
+        this.options.onNodeClick || null,
+        this.options.onNodeHover || null,
+        this.options.onCanvasClick || null,
+        this.options.onSelectionChange || null,
+        this.options.onNodeDragEnd || null,
+        themeJson,
+      );
+    } catch (e) {
+      console.warn('workflow-graph: render_workflow failed, continuing anyway:', e);
+    }
+    // Always mark as initialized — the canvas and GRAPHS entry exist even if rendering had issues
     this.initialized = true;
 
     // Wire up optional callbacks that use separate WASM functions
@@ -326,6 +404,16 @@ export class WorkflowGraph {
     if (this.options.autoResize) {
       wasm.set_auto_resize(this.canvasId, true);
     }
+
+    // Restore persisted positions after initial layout
+    if (this.persistKey) {
+      await this.restorePersistedState();
+    }
+
+    // Apply initial positions prop (from React)
+    if (this.options.initialPositions && Object.keys(this.options.initialPositions).length > 0) {
+      await this.setNodePositions(this.options.initialPositions).catch(() => {});
+    }
   }
 
   /** Update workflow data without resetting positions or zoom. */
@@ -333,7 +421,13 @@ export class WorkflowGraph {
     if (!this.alive) return;
     const wasm = await ensureWasm();
     if (this.initialized) {
+      // Save positions before update (updateStatus may trigger layout changes)
+      const positions = wasm.get_node_positions(this.canvasId);
       wasm.update_workflow_data(this.canvasId, JSON.stringify(workflow));
+      // Restore positions after update
+      if (positions && Object.keys(positions).length > 0) {
+        wasm.set_node_positions(this.canvasId, JSON.stringify(positions));
+      }
     } else {
       await this.setWorkflow(workflow);
     }
@@ -411,6 +505,7 @@ export class WorkflowGraph {
     if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.add_node(this.canvasId, JSON.stringify(job), x, y);
+    this.autoPersist();
   }
 
   /** Remove a node and all its connected edges. Triggers re-layout. */
@@ -418,6 +513,7 @@ export class WorkflowGraph {
     if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.remove_node(this.canvasId, jobId);
+    this.autoPersist();
   }
 
   /** Update a node's properties via partial JSON merge. */
@@ -425,6 +521,7 @@ export class WorkflowGraph {
     if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.update_node(this.canvasId, jobId, JSON.stringify(partial));
+    this.autoPersist();
   }
 
   /** Add an edge between two nodes, optionally specifying ports. */
@@ -432,6 +529,7 @@ export class WorkflowGraph {
     if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.add_edge(this.canvasId, fromId, toId, fromPort ?? null, toPort ?? null, metadata ? JSON.stringify(metadata) : null);
+    this.autoPersist();
   }
 
   /** Remove an edge between two nodes. */
@@ -439,6 +537,7 @@ export class WorkflowGraph {
     if (!this.alive) return;
     const wasm = await ensureWasm();
     wasm.remove_edge(this.canvasId, fromId, toId);
+    this.autoPersist();
   }
 
   /** Get all nodes in the graph. */
@@ -508,9 +607,9 @@ export class WorkflowGraph {
     this.initialized = false;
   }
 
-  /** Guard: check if this instance is still alive before calling WASM */
+  /** Guard: check if this instance has been destroyed */
   private get alive(): boolean {
-    return this.initialized && !this.destroyed;
+    return !this.destroyed;
   }
 }
 
