@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-03-21
+
+### Bug Fixes
+
+- Guard ResizeObserver callback against disconnected canvas([66982e7](https://github.com/auser/workflow-graph/commit/66982e7cf012192e7ce469e83df10a7fbf5330a9))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.1([290e349](https://github.com/auser/workflow-graph/commit/290e349d4b0d4c2ee3dd5f4910e254c4a82e0045))
 ## [1.2.0] - 2026-03-21
 
 ### Features
