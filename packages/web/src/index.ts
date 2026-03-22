@@ -297,6 +297,7 @@ interface WasmModule {
   set_auto_resize(canvasId: string, enabled: boolean): void;
   redraw(canvasId: string): void;
   resize_canvas(canvasId: string, width: number, height: number): void;
+  enable_auto_resize(canvasId: string): void;
   mark_destroyed(canvasId: string): void;
   set_on_edge_click(canvasId: string, cb: (fromId: string, toId: string) => void): void;
   set_on_render_node(canvasId: string, cb: OnRenderNode): void;
@@ -398,6 +399,8 @@ export class WorkflowGraph {
     this.canvas = document.createElement('canvas');
     this.canvas.id = this.canvasId;
     this.canvas.style.display = 'block';
+    this.canvas.style.width = '100%';
+    this.canvas.style.height = '100%';
     this.canvas.setAttribute('role', 'img');
     this.canvas.setAttribute('aria-label', 'Workflow DAG visualization');
     this.canvas.tabIndex = 0;
@@ -496,23 +499,10 @@ export class WorkflowGraph {
       wasm.set_on_connect(this.canvasId, this.options.onConnect);
     }
     if (this.options.autoResize) {
-      // Use JS-side ResizeObserver so we can disconnect synchronously in destroy().
-      // Do NOT use wasm.set_auto_resize — its observer can't be disconnected synchronously
-      // because destroy() awaits ensureWasm(), leaving a microtask gap.
-      const parent = this.canvas.parentElement;
-      if (parent) {
-        const canvasId = this.canvasId;
-        this.resizeObserver = new ResizeObserver((entries) => {
-          if (this.destroyed) return;
-          const entry = entries[0];
-          if (!entry) return;
-          const { width, height } = entry.contentRect;
-          if (width > 0 && height > 0) {
-            try { wasm.resize_canvas(canvasId, width, height); } catch { /* destroyed */ }
-          }
-        });
-        this.resizeObserver.observe(parent);
-      }
+      // Use WASM auto_resize — sets the flag AND creates an observer that sizes
+      // the canvas to the parent on every resize. mark_destroyed() ensures the
+      // observer callback bails out safely when the graph is destroyed.
+      wasm.set_auto_resize(this.canvasId, true);
     }
 
     // Restore persisted positions after initial layout
