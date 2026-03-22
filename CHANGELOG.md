@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2026-03-22
+
+### Bug Fixes
+
+- RestorePersistedState uses full loadState for complete restore([292fa81](https://github.com/auser/workflow-graph/commit/292fa81137ae8fbff724e2365d036b8db0808178))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.3([f464f82](https://github.com/auser/workflow-graph/commit/f464f821987d2d30fad1b5d20c639efa82d9ac52))
 ## [1.2.2] - 2026-03-21
 
 ### Bug Fixes
