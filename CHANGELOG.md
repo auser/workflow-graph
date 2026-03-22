@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.10] - 2026-03-22
+
+### Bug Fixes
+
+- Get_nodes/get_edges return JSON strings (serde_wasm_bindgen fix)([344f015](https://github.com/auser/workflow-graph/commit/344f0153edf1fe5d6f0719fd22b1f61f6b163ee8))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.10([0745063](https://github.com/auser/workflow-graph/commit/0745063d9a427c619d46cf24343fbf25266424d5))
 ## [1.2.9] - 2026-03-22
 
 ### Bug Fixes
