@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.5] - 2026-03-22
+
+### Bug Fixes
+
+- Use JS-side ResizeObserver to enable synchronous disconnect([7f3c60f](https://github.com/auser/workflow-graph/commit/7f3c60f28fd3b8855d57262c42936c6a743eb00b))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.5([1262c89](https://github.com/auser/workflow-graph/commit/1262c893f124d5f7367eb23678dc73f4656b8e9c))
 ## [1.2.4] - 2026-03-22
 
 ### Bug Fixes
