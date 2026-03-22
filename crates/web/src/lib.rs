@@ -794,6 +794,28 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
     })
 }
 
+/// Force a redraw of the graph. Used by JS-side ResizeObserver.
+#[wasm_bindgen]
+pub fn redraw(canvas_id: &str) {
+    with_state(canvas_id, |s| {
+        if !s.destroyed {
+            s.redraw();
+        }
+    });
+}
+
+/// Resize the canvas and redraw. Called by JS-side ResizeObserver.
+#[wasm_bindgen]
+pub fn resize_canvas(canvas_id: &str, width: f64, height: f64) {
+    with_state(canvas_id, |s| {
+        if !s.destroyed && width > 0.0 && height > 0.0 {
+            s.canvas_width = width;
+            s.canvas_height = height;
+            s.redraw();
+        }
+    });
+}
+
 /// Return the dark theme preset as a JSON string consumers can pass to render_workflow.
 #[wasm_bindgen]
 pub fn get_dark_theme() -> String {

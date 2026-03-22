@@ -277,6 +277,8 @@ interface WasmModule {
   update_workflow_data(canvasId: string, json: string): void;
   set_theme(canvasId: string, json: string): void;
   set_auto_resize(canvasId: string, enabled: boolean): void;
+  redraw(canvasId: string): void;
+  resize_canvas(canvasId: string, width: number, height: number): void;
   set_on_edge_click(canvasId: string, cb: (fromId: string, toId: string) => void): void;
   set_on_render_node(canvasId: string, cb: OnRenderNode): void;
   set_on_drop(canvasId: string, cb: (x: number, y: number, data: string) => void): void;
@@ -353,6 +355,7 @@ export class WorkflowGraph {
   private persistKey: string | null = null;
   private persistStorage: PersistStorage | null = null;
   private nodeTypeRegistry: Map<string, NodeDefinition> = new Map();
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(container: HTMLElement, options: GraphOptions = {}) {
     this.canvasId = `gg-${Math.random().toString(36).slice(2, 9)}`;
@@ -451,7 +454,23 @@ export class WorkflowGraph {
       wasm.set_on_connect(this.canvasId, this.options.onConnect);
     }
     if (this.options.autoResize) {
-      wasm.set_auto_resize(this.canvasId, true);
+      // Use JS-side ResizeObserver so we can disconnect synchronously in destroy().
+      // Do NOT use wasm.set_auto_resize — its observer can't be disconnected synchronously
+      // because destroy() awaits ensureWasm(), leaving a microtask gap.
+      const parent = this.canvas.parentElement;
+      if (parent) {
+        const canvasId = this.canvasId;
+        this.resizeObserver = new ResizeObserver((entries) => {
+          if (this.destroyed) return;
+          const entry = entries[0];
+          if (!entry) return;
+          const { width, height } = entry.contentRect;
+          if (width > 0 && height > 0) {
+            try { wasm.resize_canvas(canvasId, width, height); } catch { /* destroyed */ }
+          }
+        });
+        this.resizeObserver.observe(parent);
+      }
     }
 
     // Restore persisted positions after initial layout
@@ -680,17 +699,19 @@ export class WorkflowGraph {
   /** Clean up event listeners, resize observer, and remove the canvas. */
   async destroy(): Promise<void> {
     this.destroyed = true;
-    // Disconnect ResizeObserver and destroy WASM state BEFORE removing canvas,
-    // so no callback can fire on a detached/undefined canvas reference.
+    // Disconnect JS-side ResizeObserver SYNCHRONOUSLY — no microtask gap.
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    // Now safe to remove canvas and clean up WASM state
+    this.canvas.remove();
     try {
       const wasm = await ensureWasm();
-      // set_auto_resize(false) disconnects the ResizeObserver inside WASM
-      wasm.set_auto_resize(this.canvasId, false);
       wasm.destroy(this.canvasId);
     } catch {
       // Ignore — WASM may already be in a bad state
     }
-    this.canvas.remove();
     this.initialized = false;
   }
 
