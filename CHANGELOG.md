@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.7] - 2026-03-22
+
+### Bug Fixes
+
+- Mark_destroyed synchronously to prevent animation loop race([93b6adb](https://github.com/auser/workflow-graph/commit/93b6adb10d805b07d4117a6eccde056fa5a8d5a3))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.7([0b64bab](https://github.com/auser/workflow-graph/commit/0b64babaa87ece82debeac3c7bfd1d5fe781dee8))
 ## [1.2.6] - 2026-03-22
 
 ### Bug Fixes
