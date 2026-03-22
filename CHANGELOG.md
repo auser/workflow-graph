@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.9] - 2026-03-22
+
+### Bug Fixes
+
+- Persistence + WASM lifecycle cleanup([7fcb7ed](https://github.com/auser/workflow-graph/commit/7fcb7ed30a0ea0e6974ad32f73c72defe88bdc68))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.9([5e5cf29](https://github.com/auser/workflow-graph/commit/5e5cf29a3bfa0dbc54d48d62fb3bdb7bf001eaf4))
 ## [1.2.8] - 2026-03-22
 
 ### Bug Fixes
