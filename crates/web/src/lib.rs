@@ -897,7 +897,11 @@ pub fn get_node_positions(canvas_id: &str) -> JsValue {
                 .iter()
                 .map(|n| (n.job_id.as_str(), (n.x, n.y)))
                 .collect();
-            serde_wasm_bindgen::to_value(&positions).unwrap_or(JsValue::NULL)
+            // Return JSON string — serde_wasm_bindgen produces Map not Object
+            match serde_json::to_string(&positions) {
+                Ok(json) => JsValue::from_str(&json),
+                Err(_) => JsValue::NULL,
+            }
         } else {
             JsValue::NULL
         }
@@ -1539,6 +1543,7 @@ pub fn toggle_collapse(canvas_id: &str, node_id: &str) -> Result<(), JsValue> {
 
 /// Get the full graph state as a JSON string for persistence.
 /// Includes workflow data, node positions, zoom, pan, and selection.
+/// Returns a JSON string (not a JsValue object) to avoid serde_wasm_bindgen Map issues.
 #[wasm_bindgen]
 pub fn get_state(canvas_id: &str) -> JsValue {
     GRAPHS.with(|g| {
@@ -1574,7 +1579,12 @@ pub fn get_state(canvas_id: &str) -> JsValue {
                 "pan_x": s.pan_x,
                 "pan_y": s.pan_y,
             });
-            serde_wasm_bindgen::to_value(&state).unwrap_or(JsValue::NULL)
+            // Return as JSON string — JS side will JSON.parse it.
+            // serde_wasm_bindgen::to_value produces Map objects instead of plain Objects.
+            match serde_json::to_string(&state) {
+                Ok(json) => JsValue::from_str(&json),
+                Err(_) => JsValue::NULL,
+            }
         } else {
             JsValue::NULL
         }

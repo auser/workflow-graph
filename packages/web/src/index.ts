@@ -388,27 +388,43 @@ export class WorkflowGraph {
 
   /** Save state to configured storage */
   private autoPersist(): void {
-    if (!this.persistKey || !this.persistStorage || this.destroyed) return;
+    if (!this.persistKey || !this.persistStorage || this.destroyed) {
+      console.log('[wg-persist] autoPersist skipped:', { key: this.persistKey, destroyed: this.destroyed });
+      return;
+    }
     this.getState().then(state => {
       if (state && this.persistKey && this.persistStorage) {
+        const posCount = state.positions ? Object.keys(state.positions).length : 0;
+        console.log('[wg-persist] SAVED:', { nodes: state.workflow?.jobs?.length, positions: posCount, edges: state.edges?.length });
         this.persistStorage.setItem(this.persistKey, JSON.stringify(state));
+      } else {
+        console.log('[wg-persist] getState returned null');
       }
-    }).catch(() => {});
+    }).catch((e) => { console.error('[wg-persist] autoPersist error:', e); });
   }
 
   /** Restore full persisted state (workflow, positions, edges, zoom, pan). */
   async restorePersistedState(): Promise<boolean> {
-    if (!this.persistKey || !this.persistStorage) return false;
+    if (!this.persistKey || !this.persistStorage) {
+      console.log('[wg-persist] restore skipped: no key/storage');
+      return false;
+    }
     try {
       const raw = this.persistStorage.getItem(this.persistKey);
-      if (!raw) return false;
+      if (!raw) {
+        console.log('[wg-persist] restore: nothing in localStorage for', this.persistKey);
+        return false;
+      }
       const state: GraphState = JSON.parse(raw);
       if (state) {
+        const posCount = state.positions ? Object.keys(state.positions).length : 0;
+        console.log('[wg-persist] RESTORING:', { nodes: state.workflow?.jobs?.length, positions: posCount, edges: state.edges?.length });
         await this.loadState(state);
+        console.log('[wg-persist] restore complete');
         return true;
       }
-    } catch {
-      // Invalid stored state — ignore
+    } catch (e) {
+      console.error('[wg-persist] restore error:', e);
     }
     return false;
   }
@@ -496,12 +512,14 @@ export class WorkflowGraph {
     const wasm = await ensureWasm();
     if (this.initialized) {
       // Save positions before update (updateStatus may trigger layout changes)
-      const positions = wasm.get_node_positions(this.canvasId);
+      const rawPositions = wasm.get_node_positions(this.canvasId);
+      const positions = typeof rawPositions === 'string' ? JSON.parse(rawPositions) : rawPositions;
       wasm.update_workflow_data(this.canvasId, JSON.stringify(workflow));
       // Restore positions after update
       if (positions && Object.keys(positions).length > 0) {
         wasm.set_node_positions(this.canvasId, JSON.stringify(positions));
       }
+      this.autoPersist();
     } else {
       await this.setWorkflow(workflow);
     }
@@ -562,7 +580,11 @@ export class WorkflowGraph {
   async getNodePositions(): Promise<Record<string, [number, number]>> {
     if (!this.alive) return {};
     const wasm = await ensureWasm();
-    return wasm.get_node_positions(this.canvasId);
+    const result = wasm.get_node_positions(this.canvasId);
+    if (typeof result === 'string') {
+      try { return JSON.parse(result); } catch { return {}; }
+    }
+    return result;
   }
 
   /** Restore previously saved node positions. */
@@ -692,7 +714,13 @@ export class WorkflowGraph {
   async getState(): Promise<GraphState | null> {
     if (!this.alive) return null;
     const wasm = await ensureWasm();
-    return wasm.get_state(this.canvasId) as GraphState | null;
+    const result = wasm.get_state(this.canvasId);
+    if (result === null || result === undefined) return null;
+    // WASM returns a JSON string to avoid serde_wasm_bindgen Map issues
+    if (typeof result === 'string') {
+      try { return JSON.parse(result) as GraphState; } catch { return null; }
+    }
+    return result as GraphState;
   }
 
   /** Load a previously saved graph state. Restores nodes, positions, edges, zoom, pan. */

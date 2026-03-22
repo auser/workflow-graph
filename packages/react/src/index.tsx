@@ -162,6 +162,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
     const containerRef = useRef<HTMLDivElement>(null);
     const graphRef = useRef<WorkflowGraph | null>(null);
     const workflowRef = useRef<Workflow>(workflow);
+    const destroyedRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
@@ -210,6 +211,20 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
     useEffect(() => {
       if (typeof document === 'undefined' || !containerRef.current) return;
 
+      // If a previous graph exists (React StrictMode re-mount), destroy it
+      // synchronously first to prevent stale WASM state corruption.
+      if (graphRef.current) {
+        graphRef.current.destroy().catch(() => {});
+        graphRef.current = null;
+      }
+      destroyedRef.current = false;
+
+      // Clear any leftover canvas elements from previous mount
+      const container = containerRef.current;
+      while (container.querySelector('canvas')) {
+        container.querySelector('canvas')!.remove();
+      }
+
       const options: GraphOptions = {
         onNodeClick,
         onNodeHover,
@@ -226,7 +241,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         onFieldClick,
       };
 
-      const graph = new WorkflowGraph(containerRef.current, options);
+      const graph = new WorkflowGraph(container, options);
       graphRef.current = graph;
 
       // Register node type definitions
@@ -234,11 +249,10 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         graph.registerNodeTypes(nodeTypes);
       }
 
-      let destroyed = false;
       graph
         .setWorkflow(workflow)
         .then(async () => {
-          if (!destroyed) {
+          if (!destroyedRef.current) {
             // Re-apply theme after init to ensure it takes effect
             if (theme) {
               await graph.setTheme(theme).catch(() => {});
@@ -253,7 +267,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
           }
         })
         .catch((err: unknown) => {
-          if (!destroyed) {
+          if (!destroyedRef.current) {
             const e = err instanceof Error ? err : new Error(String(err));
             setError(e);
             setLoading(false);
@@ -262,7 +276,7 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
         });
 
       return () => {
-        destroyed = true;
+        destroyedRef.current = true;
         graph.destroy().catch(() => {});
         graphRef.current = null;
       };
