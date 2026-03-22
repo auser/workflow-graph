@@ -122,17 +122,10 @@ impl GraphState {
         if tw <= 0.0 || th <= 0.0 {
             return;
         }
+        // Set buffer resolution (rendering resolution), NOT CSS display size.
+        // CSS width/height is set to 100% in constructor and render_workflow.
         self.canvas.set_width((tw * self.dpr) as u32);
         self.canvas.set_height((th * self.dpr) as u32);
-        let html_el: &HtmlElement = self.canvas.unchecked_ref();
-        html_el
-            .style()
-            .set_property("width", &format!("{tw}px"))
-            .ok();
-        html_el
-            .style()
-            .set_property("height", &format!("{th}px"))
-            .ok();
 
         render::render_with_callbacks(
             &self.ctx,
