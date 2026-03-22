@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.6] - 2026-03-22
+
+### Bug Fixes
+
+- Persist initial state after setWorkflow completes([a1aa8b8](https://github.com/auser/workflow-graph/commit/a1aa8b88f7954a92466558512b0c980caea5a507))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.6([9bf9e02](https://github.com/auser/workflow-graph/commit/9bf9e028bce524f277d201dfd1740ded59189fa0))
 ## [1.2.5] - 2026-03-22
 
 ### Bug Fixes
