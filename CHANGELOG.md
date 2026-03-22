@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.4] - 2026-03-22
+
+### Bug Fixes
+
+- Disconnect ResizeObserver before removing canvas in destroy()([fc30c54](https://github.com/auser/workflow-graph/commit/fc30c548b68ca423f4d0aab422a6b4f80fbf268f))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.4([94bf638](https://github.com/auser/workflow-graph/commit/94bf6388449bc651d541c4082fa49ce4279e7559))
 ## [1.2.3] - 2026-03-22
 
 ### Bug Fixes
