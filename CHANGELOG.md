@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.11] - 2026-03-21
+
+### Reverts
+
+- Revert canvas sizing changes (b0beea9, f0590d5, 6fe079d, 198a73f) that were introduced after v1.2.10
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.11
+
 ## [1.2.10] - 2026-03-22
 
 ### Bug Fixes
