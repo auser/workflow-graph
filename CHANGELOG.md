@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.8] - 2026-03-22
+
+### Bug Fixes
+
+- React StrictMode compat + serde_wasm_bindgen Map fix([eeb93b4](https://github.com/auser/workflow-graph/commit/eeb93b4327426be524768cb33b1456f47f42815e))
+- Guard all event handlers with destroyed check before canvas access([3e03c80](https://github.com/auser/workflow-graph/commit/3e03c80ce9e3fb6190c93fc8324d8ff9b836d32a))
+
+### Miscellaneous
+
+- Bump workspace version to 1.2.8([a3a4d39](https://github.com/auser/workflow-graph/commit/a3a4d39b114275d9c6c8fdde97077001028acc97))
 ## [1.2.7] - 2026-03-22
 
 ### Bug Fixes
