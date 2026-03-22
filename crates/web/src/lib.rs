@@ -99,14 +99,18 @@ impl GraphState {
         if self.destroyed {
             return;
         }
-        // Always use parent container size so canvas fills its container.
-        // Falls back to canvas_width/canvas_height if no parent or zero dimensions.
-        let (tw, th) = if let Some(parent) = self.canvas.parent_element() {
-            let rect = parent.get_bounding_client_rect();
-            let pw = rect.width();
-            let ph = rect.height();
-            if pw > 0.0 && ph > 0.0 {
-                (pw, ph)
+        // When autoResize is on, always use the parent container size
+        // so nodes can be rendered anywhere without clipping
+        let (tw, th) = if self.auto_resize {
+            if let Some(parent) = self.canvas.parent_element() {
+                let rect = parent.get_bounding_client_rect();
+                let pw = rect.width();
+                let ph = rect.height();
+                if pw > 0.0 && ph > 0.0 {
+                    (pw, ph)
+                } else {
+                    (self.canvas_width, self.canvas_height)
+                }
             } else {
                 (self.canvas_width, self.canvas_height)
             }
