@@ -10,7 +10,7 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::{
     CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, KeyboardEvent, MouseEvent,
-    ResizeObserver, ResizeObserverEntry, WheelEvent,
+    ResizeObserver, WheelEvent,
 };
 
 use layout::GraphLayout;
@@ -100,7 +100,8 @@ impl GraphState {
             return;
         }
         // Always use parent container size so canvas fills its container.
-        // Falls back to canvas_width/canvas_height if no parent or zero dimensions.
+        // If parent isn't available or has zero size, keep current canvas dimensions
+        // rather than shrinking to graph content bounds.
         let (tw, th) = if let Some(parent) = self.canvas.parent_element() {
             let rect = parent.get_bounding_client_rect();
             let pw = rect.width();
@@ -108,10 +109,14 @@ impl GraphState {
             if pw > 0.0 && ph > 0.0 {
                 (pw, ph)
             } else {
-                (self.canvas_width, self.canvas_height)
+                // Parent has zero size — keep current canvas CSS dimensions
+                let crect = self.canvas.get_bounding_client_rect();
+                let cw = crect.width();
+                let ch = crect.height();
+                if cw > 0.0 && ch > 0.0 { (cw, ch) } else { return; }
             }
         } else {
-            (self.canvas_width, self.canvas_height)
+            return; // No parent — skip redraw entirely
         };
         // Guard against zero dimensions
         if tw <= 0.0 || th <= 0.0 {
@@ -731,63 +736,15 @@ pub fn set_theme(canvas_id: &str, theme_json: &str) -> Result<(), JsValue> {
     Ok(())
 }
 
-/// Enable or disable auto-resize via ResizeObserver on the canvas parent.
+/// Enable or disable auto-resize flag. Canvas sizing is handled by CSS (100% width/height)
+/// and WASM redraw_with_time reads parent dimensions directly. No WASM-side ResizeObserver
+/// is created — observers on stale canvas references caused memory corruption.
 #[wasm_bindgen]
 pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
-    GRAPHS.with(|g| {
-        let graphs = g.borrow();
-        if let Some(instance) = graphs.get(canvas_id) {
-            let state = &instance.state;
-            let Ok(mut s) = state.try_borrow_mut() else {
-                return Ok(());
-            };
-            if enabled && !s.auto_resize {
-                let parent = s
-                    .canvas
-                    .parent_element()
-                    .ok_or_else(|| JsValue::from_str("canvas has no parent element"))?;
-
-                let state_clone = state.clone();
-                let closure = Closure::<dyn FnMut(js_sys::Array, ResizeObserver)>::new(
-                    move |entries: js_sys::Array, _observer: ResizeObserver| {
-                        // Guard: if state is already borrowed or destroyed, skip
-                        let Ok(mut s) = state_clone.try_borrow_mut() else {
-                            return;
-                        };
-                        if s.destroyed {
-                            return;
-                        }
-                        let entry: ResizeObserverEntry = match entries.get(0).dyn_into() {
-                            Ok(e) => e,
-                            Err(_) => return,
-                        };
-                        let rect = entry.content_rect();
-                        let w = rect.width();
-                        let h = rect.height();
-                        if w > 0.0 && h > 0.0 {
-                            s.canvas_width = w;
-                            s.canvas_height = h;
-                            s.redraw();
-                        }
-                    },
-                );
-
-                let observer = ResizeObserver::new(closure.as_ref().unchecked_ref())?;
-                observer.observe(&parent);
-                closure.forget(); // ResizeObserver closure — cleaned up via observer.disconnect()
-                s._resize_observer = Some(observer);
-                s.auto_resize = true;
-            } else if !enabled && s.auto_resize {
-                if let Some(observer) = s._resize_observer.take() {
-                    observer.disconnect();
-                }
-                s.auto_resize = false;
-            }
-            Ok(())
-        } else {
-            Ok(())
-        }
-    })
+    with_state(canvas_id, |s| {
+        s.auto_resize = enabled;
+    });
+    Ok(())
 }
 
 /// Force a redraw of the graph. Used by JS-side ResizeObserver.

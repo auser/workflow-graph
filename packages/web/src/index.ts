@@ -498,12 +498,10 @@ export class WorkflowGraph {
     if (this.options.onConnect) {
       wasm.set_on_connect(this.canvasId, this.options.onConnect);
     }
-    if (this.options.autoResize) {
-      // Use WASM auto_resize — sets the flag AND creates an observer that sizes
-      // the canvas to the parent on every resize. mark_destroyed() ensures the
-      // observer callback bails out safely when the graph is destroyed.
-      wasm.set_auto_resize(this.canvasId, true);
-    }
+    // Canvas CSS is set to 100% width/height in constructor.
+    // Do NOT call wasm.set_auto_resize — its observer callback can access
+    // stale canvas references on destroyed graphs, corrupting WASM memory.
+    // The WASM redraw_with_time reads parent dimensions directly.
 
     // Restore persisted positions after initial layout
     if (this.persistKey) {
@@ -845,7 +843,7 @@ export class WorkflowGraph {
       if (!wrapper) {
         // Create new wrapper for this node
         wrapper = document.createElement('div');
-        wrapper.style.cssText = 'position:absolute;pointer-events:auto;transform-origin:top left;';
+        wrapper.style.cssText = 'position:absolute;pointer-events:none;transform-origin:top left;';
         wrapper.dataset.nodeId = node.id;
         this.nodeOverlayLayer!.appendChild(wrapper);
         this.nodeOverlayElements.set(node.id, wrapper);
