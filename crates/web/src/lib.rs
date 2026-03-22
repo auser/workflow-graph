@@ -1766,7 +1766,7 @@ fn maybe_start_animation(canvas_id: &str, state: &SharedState) {
     *callback.borrow_mut() = Some(Closure::new(move |_timestamp: f64| {
         let should_continue = match state.try_borrow() {
             Ok(s) => {
-                if !s.has_running_jobs() {
+                if s.destroyed || !s.has_running_jobs() {
                     false
                 } else {
                     let now = js_sys::Date::now();
@@ -1774,7 +1774,7 @@ fn maybe_start_animation(canvas_id: &str, state: &SharedState) {
                     true
                 }
             }
-            Err(_) => true,
+            Err(_) => false, // Can't borrow → stop animation instead of continuing
         };
 
         if should_continue {

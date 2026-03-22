@@ -388,43 +388,27 @@ export class WorkflowGraph {
 
   /** Save state to configured storage */
   private autoPersist(): void {
-    if (!this.persistKey || !this.persistStorage || this.destroyed) {
-      console.log('[wg-persist] autoPersist skipped:', { key: this.persistKey, destroyed: this.destroyed });
-      return;
-    }
+    if (!this.persistKey || !this.persistStorage || this.destroyed) return;
     this.getState().then(state => {
       if (state && this.persistKey && this.persistStorage) {
-        const posCount = state.positions ? Object.keys(state.positions).length : 0;
-        console.log('[wg-persist] SAVED:', { nodes: state.workflow?.jobs?.length, positions: posCount, edges: state.edges?.length });
         this.persistStorage.setItem(this.persistKey, JSON.stringify(state));
-      } else {
-        console.log('[wg-persist] getState returned null');
       }
-    }).catch((e) => { console.error('[wg-persist] autoPersist error:', e); });
+    }).catch(() => {});
   }
 
   /** Restore full persisted state (workflow, positions, edges, zoom, pan). */
   async restorePersistedState(): Promise<boolean> {
-    if (!this.persistKey || !this.persistStorage) {
-      console.log('[wg-persist] restore skipped: no key/storage');
-      return false;
-    }
+    if (!this.persistKey || !this.persistStorage) return false;
     try {
       const raw = this.persistStorage.getItem(this.persistKey);
-      if (!raw) {
-        console.log('[wg-persist] restore: nothing in localStorage for', this.persistKey);
-        return false;
-      }
+      if (!raw) return false;
       const state: GraphState = JSON.parse(raw);
       if (state) {
-        const posCount = state.positions ? Object.keys(state.positions).length : 0;
-        console.log('[wg-persist] RESTORING:', { nodes: state.workflow?.jobs?.length, positions: posCount, edges: state.edges?.length });
         await this.loadState(state);
-        console.log('[wg-persist] restore complete');
         return true;
       }
-    } catch (e) {
-      console.error('[wg-persist] restore error:', e);
+    } catch {
+      // Invalid stored state — ignore
     }
     return false;
   }
@@ -519,7 +503,9 @@ export class WorkflowGraph {
       if (positions && Object.keys(positions).length > 0) {
         wasm.set_node_positions(this.canvasId, JSON.stringify(positions));
       }
-      this.autoPersist();
+      // Don't autoPersist here — updateStatus runs every topology poll (3s)
+      // and can overwrite user-dragged positions if WASM state was corrupted.
+      // Persistence is handled by user actions (drag, add, remove, connect).
     } else {
       await this.setWorkflow(workflow);
     }

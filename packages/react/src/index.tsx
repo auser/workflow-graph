@@ -277,6 +277,11 @@ export const WorkflowGraphComponent = forwardRef<WorkflowGraphHandle, WorkflowGr
 
       return () => {
         destroyedRef.current = true;
+        // Remove the canvas from DOM immediately so mouse/keyboard events
+        // can't fire on it during the async destroy gap.
+        // The graph.destroy() will handle WASM cleanup after.
+        const canvases = container.querySelectorAll('canvas');
+        canvases.forEach((c) => c.remove());
         graph.destroy().catch(() => {});
         graphRef.current = null;
       };
