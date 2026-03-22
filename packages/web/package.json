@@ -1,6 +1,6 @@
 {
   "name": "@auser/workflow-graph-web",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "type": "module",
   "description": "Interactive workflow DAG visualizer (WASM + Canvas)",
   "main": "dist/index.js",
