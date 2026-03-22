@@ -515,9 +515,6 @@ export class WorkflowGraph {
 
     // Save initial state so it persists even without user interaction
     this.autoPersist();
-
-    // Sync overlay positions immediately so HTML nodes appear with the canvas render
-    this._syncOverlayPositions();
   }
 
   /** Update workflow data without resetting positions or zoom. */
@@ -799,8 +796,6 @@ export class WorkflowGraph {
 
   /** rAF loop: sync DOM node positions with canvas zoom/pan/layout. */
   private _startOverlaySync(): void {
-    // Immediate first sync so overlays appear at the same time as canvas
-    this._syncOverlayPositions();
     const sync = () => {
       if (this.destroyed) return;
       this._syncOverlayPositions();
