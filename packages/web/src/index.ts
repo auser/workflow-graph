@@ -391,49 +391,17 @@ export class WorkflowGraph {
     }).catch(() => {});
   }
 
-  /**
-   * Restore persisted layout state (positions, edges, zoom, pan).
-   * Does NOT replace the workflow — the workflow comes from the API/consumer.
-   * Only applies positions for nodes that currently exist in the graph.
-   */
+  /** Restore full persisted state (workflow, positions, edges, zoom, pan). */
   async restorePersistedState(): Promise<boolean> {
     if (!this.persistKey || !this.persistStorage) return false;
     try {
       const raw = this.persistStorage.getItem(this.persistKey);
       if (!raw) return false;
       const state: GraphState = JSON.parse(raw);
-      if (!state) return false;
-
-      // Restore positions (only for nodes that exist in the current workflow)
-      if (state.positions && Object.keys(state.positions).length > 0) {
-        await this.setNodePositions(state.positions);
+      if (state) {
+        await this.loadState(state);
+        return true;
       }
-
-      // Restore edges (user-created connections)
-      if (state.edges && state.edges.length > 0) {
-        const wasm = await ensureWasm();
-        for (const edge of state.edges) {
-          try {
-            wasm.add_edge(
-              this.canvasId,
-              edge.from_id,
-              edge.to_id,
-              edge.from_port ?? null,
-              edge.to_port ?? null,
-              edge.metadata ? JSON.stringify(edge.metadata) : null,
-            );
-          } catch {
-            // Edge might already exist or nodes might not exist — skip
-          }
-        }
-      }
-
-      // Restore zoom and pan
-      if (state.zoom && state.zoom !== 1) {
-        await this.setZoom(state.zoom);
-      }
-
-      return true;
     } catch {
       // Invalid stored state — ignore
     }
