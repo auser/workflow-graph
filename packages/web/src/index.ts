@@ -680,14 +680,17 @@ export class WorkflowGraph {
   /** Clean up event listeners, resize observer, and remove the canvas. */
   async destroy(): Promise<void> {
     this.destroyed = true;
-    // Remove canvas from DOM first to stop ResizeObserver from firing
-    this.canvas.remove();
+    // Disconnect ResizeObserver and destroy WASM state BEFORE removing canvas,
+    // so no callback can fire on a detached/undefined canvas reference.
     try {
       const wasm = await ensureWasm();
+      // set_auto_resize(false) disconnects the ResizeObserver inside WASM
+      wasm.set_auto_resize(this.canvasId, false);
       wasm.destroy(this.canvasId);
     } catch {
       // Ignore — WASM may already be in a bad state
     }
+    this.canvas.remove();
     this.initialized = false;
   }
 
