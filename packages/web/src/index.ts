@@ -482,6 +482,9 @@ export class WorkflowGraph {
     if (this.options.initialPositions && Object.keys(this.options.initialPositions).length > 0) {
       await this.setNodePositions(this.options.initialPositions).catch(() => {});
     }
+
+    // Save initial state so it persists even without user interaction
+    this.autoPersist();
   }
 
   /** Update workflow data without resetting positions or zoom. */
