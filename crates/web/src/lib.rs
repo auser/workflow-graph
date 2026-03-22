@@ -96,7 +96,7 @@ struct GraphState {
 
 impl GraphState {
     fn redraw_with_time(&self, animation_time: f64, now_ms: f64) {
-        if self.destroyed || !self.canvas.is_connected() {
+        if self.destroyed {
             return;
         }
         // When autoResize is on, always use the parent container size
@@ -768,7 +768,7 @@ pub fn set_auto_resize(canvas_id: &str, enabled: bool) -> Result<(), JsValue> {
                         let rect = entry.content_rect();
                         let w = rect.width();
                         let h = rect.height();
-                        if w > 0.0 && h > 0.0 && s.canvas.is_connected() {
+                        if w > 0.0 && h > 0.0 {
                             s.canvas_width = w;
                             s.canvas_height = h;
                             s.redraw();
@@ -1678,7 +1678,20 @@ pub fn load_state(canvas_id: &str, state_json: &str) -> Result<(), JsValue> {
     })
 }
 
+/// Mark a graph instance as destroyed immediately.
+/// Called synchronously from JS before the async destroy() cleanup.
+/// Prevents any in-flight callbacks (animation loop, observers) from
+/// accessing stale state during the async gap.
 #[wasm_bindgen]
+pub fn mark_destroyed(canvas_id: &str) {
+    with_state(canvas_id, |s| {
+        s.destroyed = true;
+        if let Some(ref observer) = s._resize_observer {
+            observer.disconnect();
+        }
+    });
+}
+
 pub fn destroy(canvas_id: &str) {
     GRAPHS.with(|g| {
         if let Some(instance) = g.borrow_mut().remove(canvas_id) {

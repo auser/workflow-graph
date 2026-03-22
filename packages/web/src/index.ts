@@ -279,6 +279,7 @@ interface WasmModule {
   set_auto_resize(canvasId: string, enabled: boolean): void;
   redraw(canvasId: string): void;
   resize_canvas(canvasId: string, width: number, height: number): void;
+  mark_destroyed(canvasId: string): void;
   set_on_edge_click(canvasId: string, cb: (fromId: string, toId: string) => void): void;
   set_on_render_node(canvasId: string, cb: OnRenderNode): void;
   set_on_drop(canvasId: string, cb: (x: number, y: number, data: string) => void): void;
@@ -356,6 +357,7 @@ export class WorkflowGraph {
   private persistStorage: PersistStorage | null = null;
   private nodeTypeRegistry: Map<string, NodeDefinition> = new Map();
   private resizeObserver: ResizeObserver | null = null;
+  private wasmRef: WasmModule | null = null;
 
   constructor(container: HTMLElement, options: GraphOptions = {}) {
     this.canvasId = `gg-${Math.random().toString(36).slice(2, 9)}`;
@@ -421,6 +423,7 @@ export class WorkflowGraph {
   /** Render a workflow. Call this on initial load. */
   async setWorkflow(workflow: Workflow): Promise<void> {
     const wasm = await ensureWasm();
+    this.wasmRef = wasm; // Cache for synchronous access in destroy()
     const json = JSON.stringify(workflow);
     const themeJson = this.options.theme ? JSON.stringify(this.options.theme) : null;
     try {
@@ -702,19 +705,25 @@ export class WorkflowGraph {
   /** Clean up event listeners, resize observer, and remove the canvas. */
   async destroy(): Promise<void> {
     this.destroyed = true;
-    // Disconnect JS-side ResizeObserver SYNCHRONOUSLY — no microtask gap.
+    // Disconnect JS-side ResizeObserver SYNCHRONOUSLY
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
-    // Now safe to remove canvas and clean up WASM state
-    this.canvas.remove();
+    // Mark WASM state as destroyed SYNCHRONOUSLY via cached ref.
+    // This kills the animation loop and prevents any callbacks from
+    // accessing stale canvas during the async gap below.
+    if (this.wasmRef) {
+      try { this.wasmRef.mark_destroyed(this.canvasId); } catch { /* ok */ }
+    }
+    // Async cleanup: remove WASM state and canvas from DOM
     try {
       const wasm = await ensureWasm();
       wasm.destroy(this.canvasId);
     } catch {
       // Ignore — WASM may already be in a bad state
     }
+    this.canvas.remove();
     this.initialized = false;
   }
 
