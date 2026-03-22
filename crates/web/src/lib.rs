@@ -1828,6 +1828,7 @@ fn attach_event_handlers(
     {
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
+            if state.try_borrow().map(|s| s.destroyed).unwrap_or(true) { return; }
             let (mx, my) = mouse_pos(&event, &state);
             let Ok(mut s) = state.try_borrow_mut() else {
                 return;
@@ -1885,6 +1886,7 @@ fn attach_event_handlers(
     {
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
+            if state.try_borrow().map(|s| s.destroyed).unwrap_or(true) { return; }
             let (mx, my) = mouse_pos(&event, &state);
             let Ok(mut s) = state.try_borrow_mut() else {
                 return;
@@ -1964,6 +1966,7 @@ fn attach_event_handlers(
     {
         let state = state.clone();
         let closure = Closure::<dyn FnMut(MouseEvent)>::new(move |event: MouseEvent| {
+            if state.try_borrow().map(|s| s.destroyed).unwrap_or(true) { return; }
             let (mx, my) = mouse_pos(&event, &state);
             let Ok(mut s) = state.try_borrow_mut() else {
                 return;
