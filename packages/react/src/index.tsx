@@ -38,6 +38,7 @@ export type {
   EdgeStyle,
   Labels,
   OnRenderNode,
+  NodeRenderer,
   NodeDefinition,
   FieldDef,
   FieldType,

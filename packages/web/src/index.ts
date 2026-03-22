@@ -236,6 +236,17 @@ export interface PersistOptions {
   storage?: PersistStorage;
 }
 
+/**
+ * Callback for DOM-based node rendering.
+ * Called for each node — return an HTMLElement to render it as a DOM overlay
+ * instead of (or on top of) canvas rendering. Return null to use default canvas rendering.
+ * The library handles positioning, scaling, and z-ordering.
+ */
+export type NodeRenderer = (
+  node: Job,
+  definition: NodeDefinition | null,
+) => HTMLElement | null;
+
 export interface GraphOptions {
   onNodeClick?: (jobId: string) => void;
   onNodeHover?: (jobId: string | null) => void;
@@ -244,8 +255,15 @@ export interface GraphOptions {
   onNodeDragEnd?: (jobId: string, x: number, y: number) => void;
   /** Called when an edge is clicked. Requires bezier hit testing. */
   onEdgeClick?: (fromId: string, toId: string) => void;
-  /** Custom node rendering callback. */
+  /** Custom canvas node rendering callback (legacy). */
   onRenderNode?: OnRenderNode;
+  /**
+   * DOM-based node rendering. Provide a function that returns an HTMLElement for each node.
+   * The library positions and scales the element over the canvas. Return null for default rendering.
+   * When set, canvas node body rendering is skipped for nodes that return an element
+   * (edges and ports are still drawn on canvas).
+   */
+  nodeRenderer?: NodeRenderer;
   /** Called when an external element is dropped on the canvas. x/y are graph-space coords. */
   onDrop?: (x: number, y: number, data: string) => void;
   /** Called when user drags from an output port to an input port to create a connection. */
@@ -303,6 +321,8 @@ interface WasmModule {
   group_selected(canvasId: string, groupName: string): void;
   ungroup_node(canvasId: string, nodeId: string): void;
   toggle_collapse(canvasId: string, nodeId: string): void;
+  register_node_type(canvasId: string, defJson: string): void;
+  set_on_field_click(canvasId: string, cb: (nodeId: string, fieldKey: string, screenX: number, screenY: number) => void): void;
   destroy(canvasId: string): void;
 }
 
@@ -350,6 +370,7 @@ async function ensureWasm(): Promise<WasmModule> {
 export class WorkflowGraph {
   private canvasId: string;
   private canvas: HTMLCanvasElement;
+  private container: HTMLElement;
   private options: GraphOptions;
   private initialized = false;
   private destroyed = false;
@@ -359,8 +380,21 @@ export class WorkflowGraph {
   private resizeObserver: ResizeObserver | null = null;
   private wasmRef: WasmModule | null = null;
 
+  // DOM node rendering layer
+  private nodeOverlayLayer: HTMLDivElement | null = null;
+  private nodeOverlayElements: Map<string, HTMLDivElement> = new Map();
+  private nodeOverlayRafId = 0;
+
   constructor(container: HTMLElement, options: GraphOptions = {}) {
     this.canvasId = `gg-${Math.random().toString(36).slice(2, 9)}`;
+    this.container = container;
+
+    // Ensure container has relative positioning for overlay layer
+    const pos = getComputedStyle(container).position;
+    if (pos === 'static') {
+      container.style.position = 'relative';
+    }
+
     this.canvas = document.createElement('canvas');
     this.canvas.id = this.canvasId;
     this.canvas.style.display = 'block';
@@ -369,6 +403,11 @@ export class WorkflowGraph {
     this.canvas.tabIndex = 0;
     container.appendChild(this.canvas);
     this.options = options;
+
+    // Create DOM overlay layer if nodeRenderer is provided
+    if (options.nodeRenderer) {
+      this._createOverlayLayer();
+    }
 
     // Set up auto-persistence
     if (options.persist) {
@@ -626,14 +665,22 @@ export class WorkflowGraph {
   async getNodes(): Promise<Job[]> {
     if (!this.alive) return [];
     const wasm = await ensureWasm();
-    return wasm.get_nodes(this.canvasId);
+    const result = wasm.get_nodes(this.canvasId);
+    if (typeof result === 'string') {
+      try { return JSON.parse(result) as Job[]; } catch { return []; }
+    }
+    return result ?? [];
   }
 
   /** Get all edges in the graph. */
   async getEdges(): Promise<EdgeInfo[]> {
     if (!this.alive) return [];
     const wasm = await ensureWasm();
-    return wasm.get_edges(this.canvasId);
+    const result = wasm.get_edges(this.canvasId);
+    if (typeof result === 'string') {
+      try { return JSON.parse(result) as EdgeInfo[]; } catch { return []; }
+    }
+    return result ?? [];
   }
 
   // ─── Compound Node API ─────────────────────────────────────────────────────
@@ -666,13 +713,45 @@ export class WorkflowGraph {
   /** Register a node type definition. The renderer uses this for colored headers, fields, etc. */
   registerNodeType(def: NodeDefinition): void {
     this.nodeTypeRegistry.set(def.type, def);
+    this._syncDefToWasm(def);
   }
 
   /** Register multiple node type definitions at once. */
   registerNodeTypes(defs: NodeDefinition[]): void {
     for (const def of defs) {
       this.nodeTypeRegistry.set(def.type, def);
+      this._syncDefToWasm(def);
     }
+  }
+
+  /** Send a NodeDefinition to WASM, mapping TS field names to Rust serde names. */
+  private _syncDefToWasm(def: NodeDefinition): void {
+    // Map TS interface names → Rust serde snake_case names
+    const wasmDef = {
+      node_type: def.type,
+      label: def.label,
+      icon: def.icon ?? '',
+      header_color: def.headerColor ?? '',
+      category: def.category ?? '',
+      fields: (def.fields ?? []).map(f => ({
+        key: f.key,
+        field_type: f.type,
+        label: f.label,
+        options: f.options ?? [],
+        default_value: f.defaultValue ?? null,
+        min: f.min ?? null,
+        max: f.max ?? null,
+      })),
+      inputs: def.inputs ?? [],
+      outputs: def.outputs ?? [],
+    };
+    ensureWasm().then(wasm => {
+      try {
+        wasm.register_node_type(this.canvasId, JSON.stringify(wasmDef));
+      } catch (e) {
+        console.warn('Failed to register node type in WASM:', def.type, e);
+      }
+    });
   }
 
   /** Get the registered definition for a node type, or null if not registered. */
@@ -716,9 +795,119 @@ export class WorkflowGraph {
     wasm.load_state(this.canvasId, JSON.stringify(state));
   }
 
+  // ─── DOM Node Overlay Layer ──────────────────────────────────────────────────
+
+  /** Create the DOM overlay div that sits on top of the canvas. */
+  private _createOverlayLayer(): void {
+    this.nodeOverlayLayer = document.createElement('div');
+    this.nodeOverlayLayer.style.cssText =
+      'position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1;';
+    this.container.appendChild(this.nodeOverlayLayer);
+    this._startOverlaySync();
+  }
+
+  /** rAF loop: sync DOM node positions with canvas zoom/pan/layout. */
+  private _startOverlaySync(): void {
+    const sync = () => {
+      if (this.destroyed) return;
+      this._syncOverlayPositions();
+      this.nodeOverlayRafId = requestAnimationFrame(sync);
+    };
+    this.nodeOverlayRafId = requestAnimationFrame(sync);
+  }
+
+  /** Update DOM overlay positions from current WASM layout + viewport. */
+  private _syncOverlayPositions(): void {
+    if (!this.nodeOverlayLayer || !this.options.nodeRenderer || !this.alive) return;
+
+    const wasm = this.wasmRef;
+    if (!wasm) return;
+
+    // Get current positions and nodes
+    let positions: Record<string, [number, number]>;
+    let nodes: Job[];
+    let stateStr: string | GraphState | null;
+    try {
+      positions = wasm.get_node_positions(this.canvasId);
+      nodes = wasm.get_nodes(this.canvasId);
+      stateStr = wasm.get_state(this.canvasId);
+    } catch {
+      return; // Not initialized yet
+    }
+
+    let zoom = 1, panX = 0, panY = 0;
+    if (stateStr) {
+      const state: GraphState = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+      zoom = state.zoom;
+      panX = state.pan_x;
+      panY = state.pan_y;
+    }
+
+    const nodeWidth = this.options.theme?.layout?.node_width ?? 200;
+    const seen = new Set<string>();
+
+    for (const node of nodes) {
+      const pos = positions[node.id];
+      if (!pos) continue;
+      seen.add(node.id);
+
+      let wrapper = this.nodeOverlayElements.get(node.id);
+      if (!wrapper) {
+        // Create new wrapper for this node
+        wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:absolute;pointer-events:auto;transform-origin:top left;';
+        wrapper.dataset.nodeId = node.id;
+        this.nodeOverlayLayer!.appendChild(wrapper);
+        this.nodeOverlayElements.set(node.id, wrapper);
+      }
+
+      // Render content via consumer callback
+      const def = this.getNodeType((node.metadata?.node_type as string) ?? '');
+      const content = this.options.nodeRenderer!(node, def);
+
+      if (!content) {
+        // Consumer returned null — hide this overlay, let canvas render
+        wrapper.style.display = 'none';
+        continue;
+      }
+
+      wrapper.style.display = 'block';
+
+      // Only replace DOM children if the content element changed
+      if (wrapper.firstChild !== content) {
+        wrapper.replaceChildren(content);
+      }
+
+      // Position: canvas coords → screen coords via zoom/pan
+      const screenX = pos[0] * zoom + panX;
+      const screenY = pos[1] * zoom + panY;
+
+      wrapper.style.left = `${screenX}px`;
+      wrapper.style.top = `${screenY}px`;
+      wrapper.style.width = `${nodeWidth}px`;
+      wrapper.style.transform = `scale(${zoom})`;
+    }
+
+    // Remove wrappers for nodes that no longer exist
+    for (const [id, wrapper] of this.nodeOverlayElements) {
+      if (!seen.has(id)) {
+        wrapper.remove();
+        this.nodeOverlayElements.delete(id);
+      }
+    }
+  }
+
   /** Clean up event listeners, resize observer, and remove the canvas. */
   async destroy(): Promise<void> {
     this.destroyed = true;
+    // Stop overlay sync loop
+    cancelAnimationFrame(this.nodeOverlayRafId);
+    // Remove overlay layer
+    if (this.nodeOverlayLayer) {
+      this.nodeOverlayLayer.remove();
+      this.nodeOverlayLayer = null;
+    }
+    this.nodeOverlayElements.clear();
     // Disconnect JS-side ResizeObserver SYNCHRONOUSLY
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();

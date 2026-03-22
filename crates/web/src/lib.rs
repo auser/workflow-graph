@@ -1230,7 +1230,10 @@ pub fn get_nodes(canvas_id: &str) -> JsValue {
         let graphs = g.borrow();
         if let Some(instance) = graphs.get(canvas_id) {
             let s = instance.state.borrow();
-            serde_wasm_bindgen::to_value(&s.workflow.jobs).unwrap_or(JsValue::NULL)
+            match serde_json::to_string(&s.workflow.jobs) {
+                Ok(json) => JsValue::from_str(&json),
+                Err(_) => JsValue::NULL,
+            }
         } else {
             JsValue::NULL
         }
@@ -1258,7 +1261,10 @@ pub fn get_edges(canvas_id: &str) -> JsValue {
                     })
                 })
                 .collect();
-            serde_wasm_bindgen::to_value(&edges).unwrap_or(JsValue::NULL)
+            match serde_json::to_string(&edges) {
+                Ok(json) => JsValue::from_str(&json),
+                Err(_) => JsValue::NULL,
+            }
         } else {
             JsValue::NULL
         }
